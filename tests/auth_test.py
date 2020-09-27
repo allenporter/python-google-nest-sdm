@@ -15,7 +15,6 @@ class FakeAuth(AbstractAuth):
   async def async_get_access_token(self) -> str:
     return "some-token"
 
-#@pytest.mark.asyncio
 async def test_request(aiohttp_server) -> None:
   async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
     assert request.headers['header-1'] == 'value-1'

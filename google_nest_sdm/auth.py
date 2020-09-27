@@ -21,10 +21,10 @@ class AbstractAuth(ABC):
       headers = {}
     else:
       headers = dict(headers)
+      del kwargs['headers']
 
     access_token = await self.async_get_access_token()
     headers["authorization"] = f"Bearer {access_token}"
-    del kwargs['headers']
 
     return await self._websession.request(
       method, f"{self._host}/{url}", **kwargs, headers=headers)
