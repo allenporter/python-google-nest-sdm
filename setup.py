@@ -6,7 +6,7 @@ version = '0.0.1'
 setup(name='google_nest_sdm',
       version=version,
       description='Python API for talking to Google Nest using the SDM API',
-      keywords='nest',
+      keywords='google nest sdm camera therostat security doorbell',
       author='Allen Porter',
       author_email='allen.porter@gmail.com',
       url='https://github.com/allenporter/python-google-nest-sdm',
@@ -14,4 +14,7 @@ setup(name='google_nest_sdm',
       install_requires=[
           'asyncio==3.4.3',
           'aiohttp==3.6.2',
+      ],
+      tests_require=[
+          'pytest_aiohttp==0.3.0',
       ])
