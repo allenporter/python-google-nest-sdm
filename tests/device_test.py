@@ -40,4 +40,5 @@ class DeviceTest(unittest.TestCase):
     self.assertEqual("my/device/name", device.name)
     self.assertEqual("sdm.devices.types.SomeDeviceType", device.type)
     self.assertEqual("Device Name", device.custom_name)
+    self.assertEqual(["sdm.devices.traits.Info"], device.traits)
 

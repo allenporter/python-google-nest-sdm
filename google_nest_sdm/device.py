@@ -65,6 +65,12 @@ class Device(WithTraits):
   def type(self) -> str:
     return self._raw_data[_DEVICE_TYPE]
 
+  @property
+  def traits(self) -> list:
+    if not _DEVICE_TRAITS in self._raw_data:
+      return {}
+    return list(self._raw_data[_DEVICE_TRAITS].keys())
+
   def _traits(self, trait) -> dict:
     """Return the raw dictionary for the specified trait."""
     if (not _DEVICE_TRAITS in self._raw_data or
