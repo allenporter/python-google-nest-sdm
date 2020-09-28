@@ -11,6 +11,33 @@ class DeviceTest(unittest.TestCase):
        "name": "my/device/name",
        "type": "sdm.devices.types.SomeDeviceType",
     }
-    device = Device(raw, auth=None)
+    device = Device.MakeDevice(raw, auth=None)
     self.assertEqual("my/device/name", device.name)
     self.assertEqual("sdm.devices.types.SomeDeviceType", device.type)
+
+  def testNoTraits(self):
+    raw = {
+       "name": "my/device/name",
+       "type": "sdm.devices.types.SomeDeviceType",
+       "traits": {
+       },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    self.assertEqual("my/device/name", device.name)
+    self.assertEqual("sdm.devices.types.SomeDeviceType", device.type)
+
+  def testInfoTraits(self):
+    raw = {
+       "name": "my/device/name",
+       "type": "sdm.devices.types.SomeDeviceType",
+       "traits": {
+         "sdm.devices.traits.Info": {
+           "customName": "Device Name",
+         },
+       },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    self.assertEqual("my/device/name", device.name)
+    self.assertEqual("sdm.devices.types.SomeDeviceType", device.type)
+    self.assertEqual("Device Name", device.custom_name)
+
