@@ -25,6 +25,7 @@ class DeviceTest(unittest.TestCase):
     device = Device.MakeDevice(raw, auth=None)
     self.assertEqual("my/device/name", device.name)
     self.assertEqual("sdm.devices.types.SomeDeviceType", device.type)
+    self.assertFalse(device.has_trait("sdm.devices.traits.Info"))
     self.assertFalse(hasattr(device, 'status'))
     self.assertFalse(hasattr(device, 'custom_name'))
     self.assertFalse(hasattr(device, 'ambient_humidity_percent'))
@@ -44,6 +45,7 @@ class DeviceTest(unittest.TestCase):
     device = Device.MakeDevice(raw, auth=None)
     self.assertEqual("my/device/name", device.name)
     self.assertEqual("sdm.devices.types.SomeDeviceType", device.type)
+    self.assertTrue(device.has_trait("sdm.devices.traits.Info"))
     self.assertEqual("Device Name", device.custom_name)
     self.assertEqual(["sdm.devices.traits.Info"], device.traits)
 

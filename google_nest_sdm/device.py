@@ -130,9 +130,15 @@ class Device(WithTraits):
       return {}
     return list(self._raw_data[DEVICE_TRAITS].keys())
 
+  def has_trait(self, trait: str) -> bool:
+    """Return True if the device has the specified trait."""
+    if not DEVICE_TRAITS in self._raw_data:
+      return False
+    return trait in self._raw_data[DEVICE_TRAITS]
+
+
   def _traits_data(self, trait) -> dict:
     """Return the raw dictionary for the specified trait."""
-    if (not DEVICE_TRAITS in self._raw_data or
-        not trait in self._raw_data[DEVICE_TRAITS]):
+    if not self.has_trait(trait):
       return {}
     return self._raw_data[DEVICE_TRAITS][trait]
