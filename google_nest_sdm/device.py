@@ -10,13 +10,18 @@ CUSTOM_NAME = 'customName'
 AMBIENT_HUMIDITY_PERCENT = 'ambientHumidityPercent'
 AMBIENT_TEMPERATURE_CELSIUS = 'ambientTemperatureCelsius'
 
-# Every trait is implemented as a mixin that is attached to Device.  Each
-# mixin expects to be able to get its traits from the device itself.
 class WithTraits(object):
+  """Base class for Devices that support traits.
+
+  Every trait is implemented as a mixin that is attached to Device.  Each
+  mixin expects to be able to get traits from the device itself using
+  the _traits_data method defined in this class.
+  """
+
   __metaclass__ = ABCMeta
 
   @abstractproperty
-  def _traits(self, trait) -> dict:
+  def _traits_data(self, trait: str) -> dict:
     pass
 
 
@@ -32,7 +37,7 @@ class ConnectivityMixin:
     Return:
       "OFFLINE", "ONLINE"
     """
-    data = self._traits(ConnectivityMixin.NAME)
+    data = self._traits_data(ConnectivityMixin.NAME)
     return data[STATUS]
 
 
@@ -44,7 +49,7 @@ class InfoMixin:
   @property
   def custom_name(self) -> str:
     """Custom name of the device."""
-    data = self._traits(InfoMixin.NAME)
+    data = self._traits_data(InfoMixin.NAME)
     return data[CUSTOM_NAME]
 
 
@@ -56,7 +61,7 @@ class HumidityMixin:
   @property
   def ambient_humidity_percent(self) -> float:
     """Percent humidity, measured at the device."""
-    data = self._traits(HumidityMixin.NAME)
+    data = self._traits_data(HumidityMixin.NAME)
     return data[AMBIENT_HUMIDITY_PERCENT]
 
 
@@ -68,7 +73,7 @@ class TemperatureMixin:
   @property
   def ambient_temperature_celsius(self) -> float:
     """Percent humidity, measured at the device."""
-    data = self._traits(TemperatureMixin.NAME)
+    data = self._traits_data(TemperatureMixin.NAME)
     return data[AMBIENT_TEMPERATURE_CELSIUS]
 
 
@@ -105,20 +110,27 @@ class Device(WithTraits):
 
   @property
   def name(self) -> str:
-    """Return the full name and device identifier for the device."""
+    """The resource name of the device such as 'enterprises/XYZ/devices/123'."""
     return self._raw_data[DEVICE_NAME] 
 
   @property
   def type(self) -> str:
+    """Type of device for display purposes.
+
+    The device type should not be used to deduce or infer functionality of
+    the actual device it is assigned to. Instead, use the returned traits for
+    the device.
+    """
     return self._raw_data[DEVICE_TYPE]
 
   @property
   def traits(self) -> list:
+    """Device traits."""
     if not DEVICE_TRAITS in self._raw_data:
       return {}
     return list(self._raw_data[DEVICE_TRAITS].keys())
 
-  def _traits(self, trait) -> dict:
+  def _traits_data(self, trait) -> dict:
     """Return the raw dictionary for the specified trait."""
     if (not DEVICE_TRAITS in self._raw_data or
         not trait in self._raw_data[DEVICE_TRAITS]):
