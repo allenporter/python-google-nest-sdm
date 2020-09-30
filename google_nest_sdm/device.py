@@ -5,10 +5,13 @@ from abc import abstractproperty, ABCMeta
 DEVICE_NAME = 'name'
 DEVICE_TYPE = 'type'
 DEVICE_TRAITS = 'traits'
+DEVICE_PARENT_RELATIONS = 'parentRelations'
 STATUS = 'status'
 CUSTOM_NAME = 'customName'
 AMBIENT_HUMIDITY_PERCENT = 'ambientHumidityPercent'
 AMBIENT_TEMPERATURE_CELSIUS = 'ambientTemperatureCelsius'
+PARENT = 'parent'
+DISPLAYNAME = 'displayName'
 
 class WithTraits(object):
   """Base class for Devices that support traits.
@@ -142,3 +145,13 @@ class Device(WithTraits):
     if not self.has_trait(trait):
       return {}
     return self._raw_data[DEVICE_TRAITS][trait]
+
+  @property
+  def parent_relations(self) -> dict:
+    """"Assignee details of the device (e.g. room/structure)."""
+    relations = {}
+    for d in self._raw_data.get(DEVICE_PARENT_RELATIONS, []):
+      if not PARENT in d or not DISPLAYNAME in d:
+        continue
+      relations[d[PARENT]] = d[DISPLAYNAME]
+    return relations

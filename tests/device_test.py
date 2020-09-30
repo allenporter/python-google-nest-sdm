@@ -18,13 +18,24 @@ class DeviceTest(unittest.TestCase):
   def testNoTraits(self):
     raw = {
        "name": "my/device/name",
-       "type": "sdm.devices.types.SomeDeviceType",
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    self.assertEqual("my/device/name", device.name)
+    self.assertFalse(device.has_trait("sdm.devices.traits.Info"))
+    self.assertFalse(hasattr(device, 'status'))
+    self.assertFalse(hasattr(device, 'custom_name'))
+    self.assertFalse(hasattr(device, 'ambient_humidity_percent'))
+    self.assertFalse(hasattr(device, 'ambient_temperature_celsius'))
+    self.assertFalse(hasattr(device, 'custom_name'))
+
+  def testEmptyTraits(self):
+    raw = {
+       "name": "my/device/name",
        "traits": {
        },
     }
     device = Device.MakeDevice(raw, auth=None)
     self.assertEqual("my/device/name", device.name)
-    self.assertEqual("sdm.devices.types.SomeDeviceType", device.type)
     self.assertFalse(device.has_trait("sdm.devices.traits.Info"))
     self.assertFalse(hasattr(device, 'status'))
     self.assertFalse(hasattr(device, 'custom_name'))
@@ -35,7 +46,6 @@ class DeviceTest(unittest.TestCase):
   def testInfoTraits(self):
     raw = {
        "name": "my/device/name",
-       "type": "sdm.devices.types.SomeDeviceType",
        "traits": {
          "sdm.devices.traits.Info": {
            "customName": "Device Name",
@@ -44,7 +54,6 @@ class DeviceTest(unittest.TestCase):
     }
     device = Device.MakeDevice(raw, auth=None)
     self.assertEqual("my/device/name", device.name)
-    self.assertEqual("sdm.devices.types.SomeDeviceType", device.type)
     self.assertTrue(device.has_trait("sdm.devices.traits.Info"))
     self.assertEqual("Device Name", device.custom_name)
     self.assertEqual(["sdm.devices.traits.Info"], device.traits)
@@ -106,4 +115,55 @@ class DeviceTest(unittest.TestCase):
     self.assertEqual(["sdm.devices.traits.Info",
                       "sdm.devices.traits.Connectivity"], device.traits)
 
+  def testNoParentRelations(self):
+    raw = {
+       "name": "my/device/name",
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    self.assertEqual("my/device/name", device.name)
+    self.assertEqual({}, device.parent_relations)
 
+  def testEmptyParentRelations(self):
+    raw = {
+       "name": "my/device/name",
+       "parentRelations": [ ],
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    self.assertEqual("my/device/name", device.name)
+    self.assertEqual({}, device.parent_relations)
+
+  def testParentRelation(self):
+    raw = {
+       "name": "my/device/name",
+       "parentRelations": [
+         {
+           "parent": "my/structure/or/room",
+           "displayName": "Some Name",
+         },
+       ],
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    self.assertEqual("my/device/name", device.name)
+    self.assertEqual({"my/structure/or/room": "Some Name"},
+        device.parent_relations)
+
+  def testMultipleParentRelationis(self):
+    raw = {
+       "name": "my/device/name",
+       "parentRelations": [
+         {
+           "parent": "my/structure/or/room1",
+           "displayName": "Some Name1",
+         },
+         {
+           "parent": "my/structure/or/room2",
+           "displayName": "Some Name2",
+         },
+       ],
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    self.assertEqual("my/device/name", device.name)
+    self.assertEqual({
+		    "my/structure/or/room1": "Some Name1",
+		    "my/structure/or/room2": "Some Name2",
+		    }, device.parent_relations)
