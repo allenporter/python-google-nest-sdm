@@ -1,14 +1,19 @@
-
+import pathlib
 from setuptools import setup
 
-version = '0.0.1'
+VERSION = '0.1.0'
+
+HERE = pathlib.Path(__file__).parent
+README = (HERE / "README.md").read_text()
 
 setup(name='google_nest_sdm',
-      version=version,
+      version=VERSION,
       description='Python API for talking to Google Nest using the SDM API',
+      long_description=README,
+      long_description_content_type="text/markdown",
       keywords='google nest sdm camera therostat security doorbell',
       author='Allen Porter',
-      author_email='allen.porter@gmail.com',
+      author_email='allen@thebends.org',
       url='https://github.com/allenporter/python-google-nest-sdm',
       packages=['google_nest_sdm'],
       install_requires=[
