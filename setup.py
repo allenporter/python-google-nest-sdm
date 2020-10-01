@@ -1,14 +1,14 @@
 import pathlib
 from setuptools import setup
 
-VERSION = '0.1.0'
+VERSION = '0.1.1'
 
 HERE = pathlib.Path(__file__).parent
 README = (HERE / "README.md").read_text()
 
 setup(name='google_nest_sdm',
       version=VERSION,
-      description='Python API for talking to Google Nest using the SDM API',
+      description='Library for the Google Nest SDM API',
       long_description=README,
       long_description_content_type="text/markdown",
       keywords='google nest sdm camera therostat security doorbell',
