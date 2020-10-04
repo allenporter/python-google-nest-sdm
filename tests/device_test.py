@@ -2,7 +2,13 @@
 from .context import google_nest_sdm
 
 import unittest
-from google_nest_sdm.device import Device
+from google_nest_sdm.device import (
+    Device,
+    ThermostatEcoTrait,
+    ThermostatHvacTrait,
+    ThermostatModeTrait,
+    ThermostatTemperatureSetpointTrait
+)
 
 
 class DeviceTest(unittest.TestCase):
@@ -21,12 +27,7 @@ class DeviceTest(unittest.TestCase):
     }
     device = Device.MakeDevice(raw, auth=None)
     self.assertEqual("my/device/name", device.name)
-    self.assertFalse(device.has_trait("sdm.devices.traits.Info"))
-    self.assertFalse(hasattr(device, 'status'))
-    self.assertFalse(hasattr(device, 'custom_name'))
-    self.assertFalse(hasattr(device, 'ambient_humidity_percent'))
-    self.assertFalse(hasattr(device, 'ambient_temperature_celsius'))
-    self.assertFalse(hasattr(device, 'custom_name'))
+    self.assertFalse("sdm.devices.traits.Info" in device.traits)
 
   def testEmptyTraits(self):
     raw = {
@@ -36,12 +37,7 @@ class DeviceTest(unittest.TestCase):
     }
     device = Device.MakeDevice(raw, auth=None)
     self.assertEqual("my/device/name", device.name)
-    self.assertFalse(device.has_trait("sdm.devices.traits.Info"))
-    self.assertFalse(hasattr(device, 'status'))
-    self.assertFalse(hasattr(device, 'custom_name'))
-    self.assertFalse(hasattr(device, 'ambient_humidity_percent'))
-    self.assertFalse(hasattr(device, 'ambient_temperature_celsius'))
-    self.assertFalse(hasattr(device, 'custom_name'))
+    self.assertFalse("sdm.devices.traits.Info" in device.traits)
 
   def testInfoTraits(self):
     raw = {
@@ -54,9 +50,9 @@ class DeviceTest(unittest.TestCase):
     }
     device = Device.MakeDevice(raw, auth=None)
     self.assertEqual("my/device/name", device.name)
-    self.assertTrue(device.has_trait("sdm.devices.traits.Info"))
-    self.assertEqual("Device Name", device.custom_name)
-    self.assertEqual(["sdm.devices.traits.Info"], device.traits)
+    self.assertTrue("sdm.devices.traits.Info" in device.traits)
+    trait = device.traits["sdm.devices.traits.Info"]
+    self.assertEqual("Device Name", trait.custom_name)
 
   def testConnectivityTraits(self):
     raw = {
@@ -67,8 +63,9 @@ class DeviceTest(unittest.TestCase):
        },
     }
     device = Device.MakeDevice(raw, auth=None)
-    self.assertEqual("OFFLINE", device.status)
-    self.assertEqual(["sdm.devices.traits.Connectivity"], device.traits)
+    self.assertTrue("sdm.devices.traits.Connectivity" in device.traits)
+    trait = device.traits["sdm.devices.traits.Connectivity"]
+    self.assertEqual("OFFLINE", trait.status)
 
   def testHumidityTraits(self):
     raw = {
@@ -79,8 +76,9 @@ class DeviceTest(unittest.TestCase):
        },
     }
     device = Device.MakeDevice(raw, auth=None)
-    self.assertEqual("25.3", device.ambient_humidity_percent)
-    self.assertEqual(["sdm.devices.traits.Humidity"], device.traits)
+    self.assertTrue("sdm.devices.traits.Humidity" in device.traits)
+    trait = device.traits["sdm.devices.traits.Humidity"]
+    self.assertEqual("25.3", trait.ambient_humidity_percent)
 
   def testTemperatureTraits(self):
     raw = {
@@ -91,8 +89,9 @@ class DeviceTest(unittest.TestCase):
        },
     }
     device = Device.MakeDevice(raw, auth=None)
-    self.assertEqual("31.1", device.ambient_temperature_celsius)
-    self.assertEqual(["sdm.devices.traits.Temperature"], device.traits)
+    self.assertTrue("sdm.devices.traits.Temperature" in device.traits)
+    trait = device.traits["sdm.devices.traits.Temperature"]
+    self.assertEqual("31.1", trait.ambient_temperature_celsius)
 
   def testMultipleTraits(self):
     raw = {
@@ -110,10 +109,12 @@ class DeviceTest(unittest.TestCase):
     device = Device.MakeDevice(raw, auth=None)
     self.assertEqual("my/device/name", device.name)
     self.assertEqual("sdm.devices.types.SomeDeviceType", device.type)
-    self.assertEqual("Device Name", device.custom_name)
-    self.assertEqual("OFFLINE", device.status)
-    self.assertEqual(["sdm.devices.traits.Info",
-                      "sdm.devices.traits.Connectivity"], device.traits)
+    self.assertTrue("sdm.devices.traits.Info" in device.traits)
+    trait = device.traits["sdm.devices.traits.Info"]
+    self.assertEqual("Device Name", trait.custom_name)
+    self.assertTrue("sdm.devices.traits.Connectivity" in device.traits)
+    trait = device.traits["sdm.devices.traits.Connectivity"]
+    self.assertEqual("OFFLINE", trait.status)
 
   def testNoParentRelations(self):
     raw = {
@@ -147,7 +148,7 @@ class DeviceTest(unittest.TestCase):
     self.assertEqual({"my/structure/or/room": "Some Name"},
         device.parent_relations)
 
-  def testMultipleParentRelationis(self):
+  def testMultipleParentRelations(self):
     raw = {
        "name": "my/device/name",
        "parentRelations": [
@@ -167,3 +168,107 @@ class DeviceTest(unittest.TestCase):
 		    "my/structure/or/room1": "Some Name1",
 		    "my/structure/or/room2": "Some Name2",
 		    }, device.parent_relations)
+
+
+  def testThermostatEcoTraits(self):
+    raw = {
+       "traits": {
+         "sdm.devices.traits.ThermostatEco": {
+           "availableModes": ["MANUAL_ECHO", "OFF"],
+           "mode": "MANUAL_ECHO",
+           "heatCelsius": 20.0,
+           "coolCelsius": 22.0,
+         },
+       },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    self.assertTrue("sdm.devices.traits.ThermostatEco" in device.traits)
+    trait = device.traits["sdm.devices.traits.ThermostatEco"]
+    self.assertEqual(["MANUAL_ECHO", "OFF"], trait.available_modes)
+    self.assertEqual("MANUAL_ECHO", trait.mode)
+    self.assertEqual(20.0, trait.heat_celsius)
+    self.assertEqual(22.0, trait.cool_celsius)
+
+  def testThermostatHvacTraits(self):
+    raw = {
+       "traits": {
+         "sdm.devices.traits.ThermostatHvac": {
+           "status": "HEATING",
+         },
+       },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    self.assertTrue("sdm.devices.traits.ThermostatHvac" in device.traits)
+    trait = device.traits["sdm.devices.traits.ThermostatHvac"]
+    self.assertEqual("HEATING", trait.status)
+
+  def testThermostatModeTraits(self):
+    raw = {
+       "traits": {
+         "sdm.devices.traits.ThermostatMode": {
+           "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
+           "mode": "COOL",
+         },
+       },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    self.assertTrue("sdm.devices.traits.ThermostatMode" in device.traits)
+    trait = device.traits["sdm.devices.traits.ThermostatMode"]
+    self.assertEqual(["HEAT", "COOL", "HEATCOOL", "OFF"], trait.available_modes)
+    self.assertEqual("COOL", trait.mode)
+
+  def testThermostatTemperatureSetpointTraits(self):
+    raw = {
+       "traits": {
+         "sdm.devices.traits.ThermostatTemperatureSetpoint": {
+           "heatCelsius": 20.0,
+           "coolCelsius": 22.0,
+         },
+       },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    self.assertTrue("sdm.devices.traits.ThermostatTemperatureSetpoint" in device.traits)
+    trait = device.traits["sdm.devices.traits.ThermostatTemperatureSetpoint"]
+    self.assertEqual(20.0, trait.heat_celsius)
+    self.assertEqual(22.0, trait.cool_celsius)
+
+  def testThermostatMultipleTraits(self):
+    raw = {
+       "traits": {
+         "sdm.devices.traits.ThermostatEco": {
+           "availableModes": ["MANUAL_ECHO", "OFF"],
+           "mode": "MANUAL_ECHO",
+           "heatCelsius": 21.0,
+           "coolCelsius": 22.0,
+         },
+         "sdm.devices.traits.ThermostatHvac": {
+           "status": "HEATING",
+         },
+         "sdm.devices.traits.ThermostatMode": {
+           "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
+           "mode": "COOL",
+         },
+         "sdm.devices.traits.ThermostatTemperatureSetpoint": {
+           "heatCelsius": 23.0,
+           "coolCelsius": 24.0,
+         },
+       },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    self.assertTrue("sdm.devices.traits.ThermostatEco" in device.traits)
+    self.assertTrue("sdm.devices.traits.ThermostatHvac" in device.traits)
+    self.assertTrue("sdm.devices.traits.ThermostatMode" in device.traits)
+    self.assertTrue("sdm.devices.traits.ThermostatTemperatureSetpoint" in device.traits)
+    trait = device.traits["sdm.devices.traits.ThermostatEco"]
+    self.assertEqual(["MANUAL_ECHO", "OFF"], trait.available_modes)
+    self.assertEqual("MANUAL_ECHO", trait.mode)
+    self.assertEqual(21.0, trait.heat_celsius)
+    self.assertEqual(22.0, trait.cool_celsius)
+    trait = device.traits["sdm.devices.traits.ThermostatHvac"]
+    self.assertEqual("HEATING", trait.status)
+    trait = device.traits["sdm.devices.traits.ThermostatMode"]
+    self.assertEqual(["HEAT", "COOL", "HEATCOOL", "OFF"], trait.available_modes)
+    self.assertEqual("COOL", trait.mode)
+    trait = device.traits["sdm.devices.traits.ThermostatTemperatureSetpoint"]
+    self.assertEqual(23.0, trait.heat_celsius)
+    self.assertEqual(24.0, trait.cool_celsius)
