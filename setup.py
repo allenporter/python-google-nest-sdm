@@ -1,7 +1,7 @@
 import pathlib
 from setuptools import setup
 
-VERSION = '0.1.2'
+VERSION = '0.1.3'
 
 HERE = pathlib.Path(__file__).parent
 README = (HERE / "README.md").read_text()
@@ -18,7 +18,15 @@ setup(name='google_nest_sdm',
       packages=['google_nest_sdm'],
       install_requires=[
           'aiohttp==3.6.2',
+          'google-auth==1.22.0',
+          'google-auth-oauthlib==0.4.1',
+          'requests-oauthlib==1.3.0',
       ],
+      entry_points = {
+          'console_scripts': [
+              'google_nest=google_nest_sdm.google_nest:main',
+          ],
+      },
       tests_require=[
           'pytest_aiohttp==0.3.0',
       ])
