@@ -111,11 +111,17 @@ def CreateCreds(args) -> Credentials:
 
 
 def PrintDevice(device):
-  print(f'---')
-  print(f'{device.name}')
-  print(f'  type: {device.type}')
+  print(f'id: {device.name}')
+  print(f'type: {device.type}')
+  print('room/structure: ')
+  for (parent_id, parent_name) in device.parent_relations.items():
+    print(f'  id: {parent_id}')
+    print(f'  name: {parent_name}')
+
+  print('traits:')
   for (trait_name, trait) in device.traits.items():
     print(f'  {trait_name}: {trait._data}')
+  print('')
 
 
 async def RunTool(args, creds: Credentials):
