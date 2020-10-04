@@ -23,7 +23,7 @@ class ConnectivityTrait:
 
   NAME = 'sdm.devices.traits.Connectivity'
 
-  def __init__(self, data):
+  def __init__(self, data: dict, auth: AbstractAuth):
     self._data = data
 
   @property
@@ -41,7 +41,7 @@ class InfoTrait:
 
   NAME = 'sdm.devices.traits.Info'
 
-  def __init__(self, data):
+  def __init__(self, data: dict, auth: AbstractAuth):
     self._data = data
 
   @property
@@ -55,7 +55,7 @@ class HumidityTrait:
 
   NAME = 'sdm.devices.traits.Humidity'
 
-  def __init__(self, data):
+  def __init__(self, data: dict, auth: AbstractAuth):
     self._data = data
 
   @property
@@ -69,7 +69,7 @@ class TemperatureTrait:
 
   NAME = 'sdm.devices.traits.Temperature'
 
-  def __init__(self, data):
+  def __init__(self, data: dict, auth: AbstractAuth):
     self._data = data
 
   @property
@@ -83,7 +83,7 @@ class ThermostatEcoTrait:
 
   NAME = 'sdm.devices.traits.ThermostatEco'
 
-  def __init__(self, data):
+  def __init__(self, data: dict, auth: AbstractAuth):
     self._data = data
 
   @property
@@ -112,7 +112,7 @@ class ThermostatHvacTrait:
 
   NAME = 'sdm.devices.traits.ThermostatHvac'
 
-  def __init__(self, data):
+  def __init__(self, data: dict, auth: AbstractAuth):
     self._data = data
 
   @property
@@ -126,7 +126,7 @@ class ThermostatModeTrait:
 
   NAME = 'sdm.devices.traits.ThermostatMode'
 
-  def __init__(self, data):
+  def __init__(self, data: dict, auth: AbstractAuth):
     self._data = data
 
   @property
@@ -145,7 +145,7 @@ class ThermostatTemperatureSetpointTrait:
 
   NAME = 'sdm.devices.traits.ThermostatTemperatureSetpoint'
 
-  def __init__(self, data):
+  def __init__(self, data: dict, auth: AbstractAuth):
     self._data = data
 
   @property
@@ -172,33 +172,30 @@ _ALL_TRAITS = [
 _ALL_TRAIT_MAP = { cls.NAME: cls for cls in _ALL_TRAITS }
 
 
-def _TraitsDict(traits, trait_map):
+def _TraitsDict(traits: dict, trait_map: dict, auth: AbstractAuth):
   d = {}
   for (trait, trait_data) in traits.items():
     if not trait in trait_map:
       continue
-    print("trait=", trait)
-    print("trait data=", trait_data)
     cls = trait_map[trait]
-    d[trait] = cls(trait_data)
+    d[trait] = cls(trait_data, auth)
   return d
 
 
 class Device:
   """Class that represents a device object in the Google Nest SDM API."""
 
-  def __init__(self, raw_data: dict, traits: dict, auth: AbstractAuth):
+  def __init__(self, raw_data: dict, traits: dict):
     """Initialize a device."""
     self._raw_data = raw_data
     self._traits = traits
-    self._auth = auth
 
   @staticmethod
   def MakeDevice(raw_data: dict, auth: AbstractAuth):
     """Creates a device with the appropriate traits."""
     traits = raw_data.get(DEVICE_TRAITS, {})
-    traits_dict = _TraitsDict(traits, _ALL_TRAIT_MAP)
-    return Device(raw_data, traits_dict, auth)
+    traits_dict = _TraitsDict(traits, _ALL_TRAIT_MAP, auth)
+    return Device(raw_data, traits_dict)
 
   @property
   def name(self) -> str:
