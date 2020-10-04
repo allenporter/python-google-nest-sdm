@@ -25,6 +25,5 @@ class AbstractAuth(ABC):
 
     access_token = await self.async_get_access_token()
     headers["authorization"] = f"Bearer {access_token}"
-
     return await self._websession.request(
       method, f"{self._host}/{url}", **kwargs, headers=headers)

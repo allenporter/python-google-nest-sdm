@@ -56,6 +56,7 @@ class DeviceTest(unittest.TestCase):
 
   def testConnectivityTraits(self):
     raw = {
+       "name": "my/device/name",
        "traits": {
          "sdm.devices.traits.Connectivity": {
            "status": "OFFLINE",
@@ -69,6 +70,7 @@ class DeviceTest(unittest.TestCase):
 
   def testHumidityTraits(self):
     raw = {
+       "name": "my/device/name",
        "traits": {
          "sdm.devices.traits.Humidity": {
            "ambientHumidityPercent": "25.3",
@@ -82,6 +84,7 @@ class DeviceTest(unittest.TestCase):
 
   def testTemperatureTraits(self):
     raw = {
+       "name": "my/device/name",
        "traits": {
          "sdm.devices.traits.Temperature": {
            "ambientTemperatureCelsius": "31.1",
@@ -172,6 +175,7 @@ class DeviceTest(unittest.TestCase):
 
   def testThermostatEcoTraits(self):
     raw = {
+       "name": "my/device/name",
        "traits": {
          "sdm.devices.traits.ThermostatEco": {
            "availableModes": ["MANUAL_ECHO", "OFF"],
@@ -191,6 +195,7 @@ class DeviceTest(unittest.TestCase):
 
   def testThermostatHvacTraits(self):
     raw = {
+       "name": "my/device/name",
        "traits": {
          "sdm.devices.traits.ThermostatHvac": {
            "status": "HEATING",
@@ -204,6 +209,7 @@ class DeviceTest(unittest.TestCase):
 
   def testThermostatModeTraits(self):
     raw = {
+       "name": "my/device/name",
        "traits": {
          "sdm.devices.traits.ThermostatMode": {
            "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
@@ -219,6 +225,7 @@ class DeviceTest(unittest.TestCase):
 
   def testThermostatTemperatureSetpointTraits(self):
     raw = {
+       "name": "my/device/name",
        "traits": {
          "sdm.devices.traits.ThermostatTemperatureSetpoint": {
            "heatCelsius": 20.0,
@@ -234,6 +241,7 @@ class DeviceTest(unittest.TestCase):
 
   def testThermostatMultipleTraits(self):
     raw = {
+       "name": "my/device/name",
        "traits": {
          "sdm.devices.traits.ThermostatEco": {
            "availableModes": ["MANUAL_ECHO", "OFF"],
