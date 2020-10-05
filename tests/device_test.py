@@ -280,3 +280,43 @@ class DeviceTest(unittest.TestCase):
     trait = device.traits["sdm.devices.traits.ThermostatTemperatureSetpoint"]
     self.assertEqual(23.0, trait.heat_celsius)
     self.assertEqual(24.0, trait.cool_celsius)
+
+  def testCameraImageTraits(self):
+    raw = {
+       "name": "my/device/name",
+       "traits": {
+         "sdm.devices.traits.CameraImage": {
+           "maxImageResolution": {
+               "width": 500,
+               "height": 300,
+           }
+         },
+       },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    self.assertTrue("sdm.devices.traits.CameraImage" in device.traits)
+    trait = device.traits["sdm.devices.traits.CameraImage"]
+    self.assertEqual(500, trait.max_image_resolution.width)
+    self.assertEqual(300, trait.max_image_resolution.height)
+
+  def testCameraLiveStreamTraits(self):
+    raw = {
+       "name": "my/device/name",
+       "traits": {
+         "sdm.devices.traits.CameraLiveStream": {
+           "maxVideoResolution": {
+               "width": 500,
+               "height": 300,
+           },
+           "videoCodecs": ["H264"],
+           "audioCodecs": ["AAC"],
+         },
+       },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    self.assertTrue("sdm.devices.traits.CameraLiveStream" in device.traits)
+    trait = device.traits["sdm.devices.traits.CameraLiveStream"]
+    self.assertEqual(500, trait.max_video_resolution.width)
+    self.assertEqual(300, trait.max_video_resolution.height)
+    self.assertEqual(["H264"], trait.video_codecs)
+    self.assertEqual(["AAC"], trait.audio_codecs)

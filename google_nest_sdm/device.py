@@ -14,6 +14,12 @@ AVAILABLE_MODES = 'availableModes'
 MODE = 'mode'
 HEAT_CELSIUS = 'heatCelsius'
 COOL_CELSIUS = 'coolCelsius'
+MAX_IMAGE_RESOLUTION = 'maxImageResolution'
+MAX_VIDEO_RESOLUTION = 'maxVideoResolution'
+WIDTH = 'width'
+HEIGHT = 'height'
+VIDEO_CODECS = 'videoCodecs'
+AUDIO_CODECS = 'audioCodecs'
 PARENT = 'parent'
 DISPLAYNAME = 'displayName'
 
@@ -218,6 +224,56 @@ class ThermostatTemperatureSetpointTrait:
     return await self._cmd.execute(data)
 
 
+class Resolution:
+  """Maximum Resolution of an image or stream."""
+  width = None
+  height = None
+
+
+class CameraImageTrait:
+  """This trait belongs to any device that supports taking images."""
+
+  NAME = 'sdm.devices.traits.CameraImage'
+
+  def __init__(self, data: dict, cmd: Command):
+    self._data = data
+    self._cmd = cmd
+
+  @property
+  def max_image_resolution(self) -> Resolution:
+    r = Resolution()
+    r.width = self._data[MAX_IMAGE_RESOLUTION][WIDTH]
+    r.height = self._data[MAX_IMAGE_RESOLUTION][HEIGHT]
+    return r
+
+
+class CameraLiveStreamTrait:
+  """This trait belongs to any device that supports live streaming."""
+
+  NAME = 'sdm.devices.traits.CameraLiveStream'
+
+  def __init__(self, data: dict, cmd: Command):
+    self._data = data
+    self._cmd = cmd
+
+  @property
+  def max_video_resolution(self) -> Resolution:
+    r = Resolution()
+    r.width = self._data[MAX_VIDEO_RESOLUTION][WIDTH]
+    r.height = self._data[MAX_VIDEO_RESOLUTION][HEIGHT]
+    return r
+
+  @property
+  def video_codecs(self) -> list:
+    """Video codecs supported for the live stream."""
+    return self._data[VIDEO_CODECS]
+
+  @property
+  def audio_codecs(self) -> list:
+    """Audio codecs supported for the live stream."""
+    return self._data[AUDIO_CODECS]
+
+
 
 _ALL_TRAITS = [
   ConnectivityTrait,
@@ -228,6 +284,8 @@ _ALL_TRAITS = [
   ThermostatHvacTrait,
   ThermostatModeTrait,
   ThermostatTemperatureSetpointTrait,
+  CameraImageTrait,
+  CameraLiveStreamTrait,
 ]
 _ALL_TRAIT_MAP = { cls.NAME: cls for cls in _ALL_TRAITS }
 
