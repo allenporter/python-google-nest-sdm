@@ -263,19 +263,23 @@ class RtspStream:
     self._cmd = cmd
 
   @property
+  def rtsp_stream_url(self) -> str:
+    """RTSP live stream URL."""
+    return self._data[STREAM_URLS][RTSP_URL]
+
+  @property
   def stream_token(self) -> str:
+    """Token to use to access an RTSP live stream."""
     return self._data[STREAM_TOKEN]
 
   @property
   def stream_extension_token(self) -> str:
+    """Token to use to access an RTSP live stream."""
     return self._data[STREAM_EXTENSION_TOKEN]
 
   @property
-  def rtsp_stream_url(self) -> str:
-    return self._data[STREAM_URLS][RTSP_URL]
-
-  @property
   def expires_at(self) -> datetime:
+    """Time at which both streamExtensionToken and streamToken expire."""
     t = self._data[EXPIRES_AT]
     return datetime.datetime.fromisoformat(t.replace("Z", "+00:00"))
 
@@ -316,6 +320,7 @@ class CameraLiveStreamTrait:
 
   @property
   def max_video_resolution(self) -> Resolution:
+    """Maximum resolution of the video live stream."""
     r = Resolution()
     r.width = self._data[MAX_VIDEO_RESOLUTION][WIDTH]
     r.height = self._data[MAX_VIDEO_RESOLUTION][HEIGHT]
