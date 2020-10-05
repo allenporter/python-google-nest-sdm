@@ -21,3 +21,43 @@ This API was designed for use in Home Assistant following the advice in
 
 If you are integrating this from outside Home Assistant, you'll need to
 create your own oauth integration and token refresh mechanism and tooling.
+
+# Fetching Data
+
+This is an example to use the command line tool to access the API:
+
+```
+PROJECT_ID="some-project-id"
+CLIEND_ID="some-client-id"
+CLIENT_SECRET="some-client-secret"
+# Initial call will ask you to authorize OAuth2 then cache the token
+google_nest --project_id="${PROJECT_ID}" --client_id="${CLIENT_ID}" --client_secret="${CLIENT_SECRET}" list
+# Subsequent calls only need the project id
+google_nest --project_id="${PROJECT_ID}" get "some-device-id"
+google_nest --project_id="${PROJECT_ID}" set_mode COOL
+google_nest --project_id="${PROJECT_ID}" set_cool 25.0
+```
+
+# Subscriptions
+
+See [Device Access: Getting Started: Subscribe to Events](https://developers.google.com/nest/device-access/subscribe-to-events)
+for documentation on how to create a pull subscription.
+
+You can create the subscription to use with the tool with these steps:
+
+* Create the topic:
+  * Visit the [Device Access Console](https://console.nest.google.com/device-access)
+  * Select a project
+  * Enable Pub/Sub and note the full `topic` based on the `project_id`
+* Create the subscriber:
+  * Visit [Google Cloud Platform: Pub/Sub: Subscriptions](https://console.cloud.google.com/cloudpubsub/subscriptions)
+  * Create a subscriber
+  * Enter the `Topic Name`
+  * Create a `Subscription Name`, e.g. "project-id-python" which is your `subscriber_id`
+
+This is an example to run the command line tool to subscribe:
+```
+PROJECT_ID="some-project-id"
+SUBSCRIPTION_ID="projects/some-id/subscriptions/enterprise-some-project-id-python-google-nest"
+google_nest --project_id="${PROJECT_ID}" subscribe ${SUBSCRIPTION_ID}
+```

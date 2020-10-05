@@ -17,6 +17,7 @@ $ google_nest --project_id=<project_id> get <device_id>
 
 import argparse
 import asyncio
+import json
 import os
 import errno
 import logging
@@ -25,6 +26,7 @@ import pickle
 from aiohttp import ClientSession
 from google.auth.credentials import Credentials
 from google.auth.transport.requests import Request
+from google.cloud import pubsub_v1
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 from .auth import AbstractAuth
@@ -75,13 +77,19 @@ set_range_parser.add_argument('heat', type=float,
     help='The minimum target temperature to set.')
 set_range_parser.add_argument('cool', type=float,
     help='The maximum target temperature to set.')
+subscribe_parser = cmd_parser.add_parser('subscribe')
+subscribe_parser.add_argument('subscription_id')
 
 OAUTH2_AUTHORIZE = (
     "https://nestservices.google.com/partnerconnections/{project_id}/auth"
 )
 OAUTH2_TOKEN = "https://www.googleapis.com/oauth2/v4/token"
-SDM_SCOPES = ["https://www.googleapis.com/auth/sdm.service"]
+SDM_SCOPES = [
+    "https://www.googleapis.com/auth/sdm.service",
+    "https://www.googleapis.com/auth/pubsub",
+]
 API_URL = "https://smartdevicemanagement.googleapis.com/v1"
+TOPIC_NAME = 'projects/sdm-prod/topics/enterprise-{project_id}'
 
 
 class Auth(AbstractAuth):
@@ -155,6 +163,19 @@ def PrintDevice(device):
   print('')
 
 
+def subscribe_callback(message):
+  print(f'message_id: {message.message_id}')
+  payload = json.loads(bytes.decode(message.data))
+  print(f'data: {payload}')
+  if message.attributes:
+    print(f'attributes:')
+    for key in message.attributes:
+        value = message.attributes.get(key)
+        print(f'{key}: {value}')
+  print('')
+  message.ack()
+
+
 async def RunTool(args, creds: Credentials):
   async with ClientSession() as client:
     auth = Auth(client, creds, API_URL)
@@ -164,6 +185,21 @@ async def RunTool(args, creds: Credentials):
       devices = await api.async_get_devices()
       for device in devices:
         PrintDevice(device)
+      return
+
+    if args.command == 'subscribe':
+      topic_name = TOPIC_NAME.format(project_id=args.project_id)
+      subscription_name = args.subscription_id
+      logging.info('Topic: %s', topic_name)
+      logging.info('Subscription: %s', subscription_name)
+      subscriber = pubsub_v1.SubscriberClient(credentials=creds)
+      future = subscriber.subscribe(subscription_name, subscribe_callback)
+      # Subscriber starts after a device fetch
+      await api.async_get_devices()
+      try:
+        future.result()
+      except KeyboardInterrupt:
+        future.cancel()
       return
 
     # All other commands require a device_id

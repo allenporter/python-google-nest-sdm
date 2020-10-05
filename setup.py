@@ -20,6 +20,7 @@ setup(name='google_nest_sdm',
           'aiohttp==3.6.2',
           'google-auth==1.22.0',
           'google-auth-oauthlib==0.4.1',
+          'google-cloud-pubsub==2.1.0',
           'requests-oauthlib==1.3.0',
       ],
       entry_points = {
