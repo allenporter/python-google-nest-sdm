@@ -17,10 +17,10 @@ $ google_nest --project_id=<project_id> get <device_id>
 
 import argparse
 import asyncio
-import json
-import os
 import errno
+import json
 import logging
+import os
 import pickle
 
 from aiohttp import ClientSession
@@ -33,7 +33,8 @@ from .auth import AbstractAuth
 from .device import (
     ThermostatEcoTrait,
     ThermostatModeTrait,
-    ThermostatTemperatureSetpointTrait
+    ThermostatTemperatureSetpointTrait,
+    CameraLiveStreamTrait,
 )
 from .google_nest_api import GoogleNestAPI
 
@@ -77,6 +78,8 @@ set_range_parser.add_argument('heat', type=float,
     help='The minimum target temperature to set.')
 set_range_parser.add_argument('cool', type=float,
     help='The maximum target temperature to set.')
+generate_rtsp_stream_parser = cmd_parser.add_parser('generate_rtsp_stream')
+generate_rtsp_stream_parser.add_argument('device_id')
 subscribe_parser = cmd_parser.add_parser('subscribe')
 subscribe_parser.add_argument('subscription_id')
 
@@ -230,6 +233,14 @@ async def RunTool(args, creds: Credentials):
       trait = device.traits[ThermostatTemperatureSetpointTrait.NAME]
       resp = await trait.set_range(args.heat, args.cool)
       print(await resp.text())
+
+    if args.command == 'generate_rtsp_stream':
+      trait = device.traits[CameraLiveStreamTrait.NAME]
+      stream = await trait.generate_rtsp_stream()
+      print(f'URL: {stream.rtsp_stream_url}')
+      print(f'Stream Token: {stream.stream_token}')
+      print(f'Expires At: {stream.expires_at}')
+
 
 def main():
   args = parser.parse_args()

@@ -1,5 +1,7 @@
 from .auth import AbstractAuth
 
+import datetime
+
 from abc import abstractproperty, ABCMeta
 
 DEVICE_NAME = 'name'
@@ -20,6 +22,12 @@ WIDTH = 'width'
 HEIGHT = 'height'
 VIDEO_CODECS = 'videoCodecs'
 AUDIO_CODECS = 'audioCodecs'
+STREAM_URLS = 'streamUrls'
+RESULTS = 'results'
+RTSP_URL = 'rtspUrl'
+STREAM_EXTENSION_TOKEN = 'streamExtensionToken'
+STREAM_TOKEN = 'streamToken'
+EXPIRES_AT = 'expiresAt'
 PARENT = 'parent'
 DISPLAYNAME = 'displayName'
 
@@ -247,6 +255,56 @@ class CameraImageTrait:
     return r
 
 
+class RtspStream:
+  """Provides access an RTSP live stream URL."""
+
+  def __init__(self, data: dict, cmd: Command):
+    self._data = data
+    self._cmd = cmd
+
+  @property
+  def stream_token(self) -> str:
+    return self._data[STREAM_TOKEN]
+
+  @property
+  def stream_extension_token(self) -> str:
+    return self._data[STREAM_EXTENSION_TOKEN]
+
+  @property
+  def rtsp_stream_url(self) -> str:
+    return self._data[STREAM_URLS][RTSP_URL]
+
+  @property
+  def expires_at(self) -> datetime:
+    t = self._data[EXPIRES_AT]
+    return datetime.datetime.fromisoformat(t.replace("Z", "+00:00"))
+
+  async def extend_rtsp_stream(self):
+    """Request a new RTSP live stream URL access token."""
+    data = {
+        "command" : "sdm.devices.commands.CameraLiveStream.ExtendRtspStream",
+        "params" : {
+            "streamExtensionToken": self.stream_extension_token
+        }
+    }
+    resp = await self._cmd.execute(data)
+    resp.raise_for_status()
+    response_data = await resp.json()
+    results = response_data[RESULTS]
+    return RtspStream(results, self._cmd)
+
+  async def stop_rtsp_stream(self):
+    """Invalidates a valid RTSP access token and stops the RTSP live stream."""
+    data = {
+        "command" : "sdm.devices.commands.CameraLiveStream.StopRtspStream",
+        "params" : {
+            "streamExtensionToken": self.stream_extension_token
+        }
+    }
+    resp = await self._cmd.execute(data)
+    resp.raise_for_status()
+
+
 class CameraLiveStreamTrait:
   """This trait belongs to any device that supports live streaming."""
 
@@ -272,6 +330,18 @@ class CameraLiveStreamTrait:
   def audio_codecs(self) -> list:
     """Audio codecs supported for the live stream."""
     return self._data[AUDIO_CODECS]
+
+  async def generate_rtsp_stream(self) -> RtspStream:
+    """Request a token to access an RTSP live stream URL."""
+    data = {
+        "command" : "sdm.devices.commands.CameraLiveStream.GenerateRtspStream",
+        "params" : {}
+    }
+    resp = await self._cmd.execute(data)
+    resp.raise_for_status()
+    response_data = await resp.json()
+    results = response_data[RESULTS]
+    return RtspStream(results, self._cmd)
 
 
 
