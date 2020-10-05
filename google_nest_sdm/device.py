@@ -27,7 +27,7 @@ class Command:
 
   async def execute(self, data):
     return await self._auth.request(
-        "post", f"devices/{self._device_id}:executeCommand", json=data)
+        "post", f"{self._device_id}:executeCommand", json=data)
 
 
 class ConnectivityTrait:
@@ -254,7 +254,7 @@ class Device:
   def MakeDevice(raw_data: dict, auth: AbstractAuth):
     """Creates a device with the appropriate traits."""
     traits = raw_data.get(DEVICE_TRAITS, {})
-    device_id = raw_data.get(DEVICE_NAME, '').rsplit('/', 1)[1]
+    device_id = raw_data.get(DEVICE_NAME)
     cmd = Command(device_id, auth)
     traits_dict = _TraitsDict(traits, _ALL_TRAIT_MAP, cmd)
     return Device(raw_data, traits_dict)

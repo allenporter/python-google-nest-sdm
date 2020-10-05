@@ -8,6 +8,9 @@ from google_nest_sdm.device import AbstractAuth
 from google_nest_sdm import google_nest_api
 
 
+PROJECT_ID = "project-id1"
+
+
 class FakeAuth(AbstractAuth):
   def __init__(self, websession):
     super().__init__(websession, "")
@@ -43,35 +46,35 @@ async def test_get_devices(aiohttp_server) -> None:
   r = Recorder()
   handler = NewDeviceHandler(r, [
       {
-        'name': 'enterprises/project-id/devices/device-id1',
+        'name': 'enterprises/project-id1/devices/device-id1',
         'type': 'sdm.devices.types.device-type1',
         'traits': { },
         'parentRelations': [ ],
       }, {
-        'name': 'enterprises/project-id/devices/device-id2',
+        'name': 'enterprises/project-id1/devices/device-id2',
         'type': 'sdm.devices.types.device-type2',
         'traits': { },
         'parentRelations': [ ],
       }])
 
   app = aiohttp.web.Application()
-  app.router.add_get('/devices', handler)
+  app.router.add_get('/enterprises/project-id1/devices', handler)
   server = await aiohttp_server(app)
 
   async with aiohttp.test_utils.TestClient(server) as client:
-    api = google_nest_api.GoogleNestAPI(FakeAuth(client))
+    api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
     devices = await api.async_get_devices()
     assert len(devices) == 2
-    assert 'enterprises/project-id/devices/device-id1' == devices[0].name
+    assert 'enterprises/project-id1/devices/device-id1' == devices[0].name
     assert 'sdm.devices.types.device-type1' == devices[0].type
-    assert 'enterprises/project-id/devices/device-id2' == devices[1].name
+    assert 'enterprises/project-id1/devices/device-id2' == devices[1].name
     assert 'sdm.devices.types.device-type2' == devices[1].type
 
 
 async def test_thermostat_eco_set_mode(aiohttp_server) -> None:
   r = Recorder()
   handler = NewDeviceHandler(r, [{
-      'name': 'enterprises/project-id/devices/device-id1',
+      'name': 'enterprises/project-id1/devices/device-id1',
       'traits': {
           'sdm.devices.traits.ThermostatEco' : {
               'availableModes' : ['MANUAL_ECO', 'OFF'],
@@ -84,16 +87,16 @@ async def test_thermostat_eco_set_mode(aiohttp_server) -> None:
   post_handler = NewRequestRecorder(r, {})
 
   app = aiohttp.web.Application()
-  app.router.add_get('/devices', handler)
-  app.router.add_post('/devices/device-id1:executeCommand', post_handler)
+  app.router.add_get('/enterprises/project-id1/devices', handler)
+  app.router.add_post('/enterprises/project-id1/devices/device-id1:executeCommand', post_handler)
   server = await aiohttp_server(app)
 
   async with aiohttp.test_utils.TestClient(server) as client:
-    api = google_nest_api.GoogleNestAPI(FakeAuth(client))
+    api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert 'enterprises/project-id/devices/device-id1' == device.name
+    assert 'enterprises/project-id1/devices/device-id1' == device.name
     trait = device.traits['sdm.devices.traits.ThermostatEco']
     assert trait.mode == 'MANUAL_ECO'
     await trait.set_mode('OFF')
@@ -107,7 +110,7 @@ async def test_thermostat_eco_set_mode(aiohttp_server) -> None:
 async def test_thermostat_mode_set_mode(aiohttp_server) -> None:
   r = Recorder()
   handler = NewDeviceHandler(r, [{
-      'name': 'enterprises/project-id/devices/device-id1',
+      'name': 'enterprises/project-id1/devices/device-id1',
       'traits': {
           'sdm.devices.traits.ThermostatMode' : {
               'availableModes' : ['HEAT', 'COOL', 'HEATCOOL', 'OFF'],
@@ -118,16 +121,16 @@ async def test_thermostat_mode_set_mode(aiohttp_server) -> None:
   post_handler = NewRequestRecorder(r, {})
 
   app = aiohttp.web.Application()
-  app.router.add_get('/devices', handler)
-  app.router.add_post('/devices/device-id1:executeCommand', post_handler)
+  app.router.add_get('/enterprises/project-id1/devices', handler)
+  app.router.add_post('/enterprises/project-id1/devices/device-id1:executeCommand', post_handler)
   server = await aiohttp_server(app)
 
   async with aiohttp.test_utils.TestClient(server) as client:
-    api = google_nest_api.GoogleNestAPI(FakeAuth(client))
+    api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert 'enterprises/project-id/devices/device-id1' == device.name
+    assert 'enterprises/project-id1/devices/device-id1' == device.name
     trait = device.traits['sdm.devices.traits.ThermostatMode']
     assert trait.mode == 'COOL'
     await trait.set_mode('HEAT')
@@ -141,7 +144,7 @@ async def test_thermostat_mode_set_mode(aiohttp_server) -> None:
 async def test_thermostat_temperature_set_point(aiohttp_server) -> None:
   r = Recorder()
   handler = NewDeviceHandler(r, [{
-      'name': 'enterprises/project-id/devices/device-id1',
+      'name': 'enterprises/project-id1/devices/device-id1',
       'traits': {
           'sdm.devices.traits.ThermostatTemperatureSetpoint' : {
               'heatCelsius': 23.0,
@@ -152,16 +155,16 @@ async def test_thermostat_temperature_set_point(aiohttp_server) -> None:
   post_handler = NewRequestRecorder(r, {})
 
   app = aiohttp.web.Application()
-  app.router.add_get('/devices', handler)
-  app.router.add_post('/devices/device-id1:executeCommand', post_handler)
+  app.router.add_get('/enterprises/project-id1/devices', handler)
+  app.router.add_post('/enterprises/project-id1/devices/device-id1:executeCommand', post_handler)
   server = await aiohttp_server(app)
 
   async with aiohttp.test_utils.TestClient(server) as client:
-    api = google_nest_api.GoogleNestAPI(FakeAuth(client))
+    api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert 'enterprises/project-id/devices/device-id1' == device.name
+    assert 'enterprises/project-id1/devices/device-id1' == device.name
     trait = device.traits['sdm.devices.traits.ThermostatTemperatureSetpoint']
     assert trait.heat_celsius == 23.0
     assert trait.cool_celsius == 24.0

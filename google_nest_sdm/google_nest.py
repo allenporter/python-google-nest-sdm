@@ -81,7 +81,7 @@ OAUTH2_AUTHORIZE = (
 )
 OAUTH2_TOKEN = "https://www.googleapis.com/oauth2/v4/token"
 SDM_SCOPES = ["https://www.googleapis.com/auth/sdm.service"]
-API_URL = "https://smartdevicemanagement.googleapis.com/v1/enterprises/{project_id}"
+API_URL = "https://smartdevicemanagement.googleapis.com/v1"
 
 
 class Auth(AbstractAuth):
@@ -157,8 +157,8 @@ def PrintDevice(device):
 
 async def RunTool(args, creds: Credentials):
   async with ClientSession() as client:
-    auth = Auth(client, creds, API_URL.format(project_id=args.project_id))
-    api = GoogleNestAPI(auth)
+    auth = Auth(client, creds, API_URL)
+    api = GoogleNestAPI(auth, project_id=args.project_id)
 
     if args.command == 'list':
       devices = await api.async_get_devices()
