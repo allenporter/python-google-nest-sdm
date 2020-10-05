@@ -19,6 +19,7 @@ import argparse
 import asyncio
 import os
 import errno
+import logging
 import pickle
 
 from aiohttp import ClientSession
@@ -27,6 +28,11 @@ from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 from .auth import AbstractAuth
+from .device import (
+    ThermostatEcoTrait,
+    ThermostatModeTrait,
+    ThermostatTemperatureSetpointTrait
+)
 from .google_nest_api import GoogleNestAPI
 
 # Define command line arguments
@@ -40,10 +46,35 @@ parser.add_argument('--client_secret',
 parser.add_argument('--token_cache',
     help='File storage for long lived creds',
     default='~/.config/google_nest/token_cache')
+parser.add_argument("-v", "--verbose", help="Increase output verbosity",
+    action="store_true")
+
 cmd_parser = parser.add_subparsers(dest='command', required=True)
 list_parser = cmd_parser.add_parser('list')
 get_parser = cmd_parser.add_parser('get')
 get_parser.add_argument('device_id')
+set_mode_parser = cmd_parser.add_parser('set_mode',
+    description='Change the thermostat mode.')
+set_mode_parser.add_argument('device_id')
+set_mode_parser.add_argument('mode',
+    help='The mode to change the thermostat to.',
+    choices=['MANUAL_ECO','HEAT','COOL','HEATCOOL','OFF'])
+set_heat_parser = cmd_parser.add_parser('set_heat',
+    description='Sets the target temperature when in HEAT mode.')
+set_heat_parser.add_argument('device_id')
+set_heat_parser.add_argument('heat', type=float)
+set_cool_parser = cmd_parser.add_parser('set_cool',
+    help='Sets the target temperature when in COOL mode.')
+set_cool_parser.add_argument('device_id')
+set_cool_parser.add_argument('cool', type=float,
+    help='The target temperature to set when the thermostat is in COOL mode.')
+set_range_parser = cmd_parser.add_parser('set_range',
+    help='Sets the min/max temperature when in HEATCOOL mode.')
+set_range_parser.add_argument('device_id')
+set_range_parser.add_argument('heat', type=float,
+    help='The minimum target temperature to set.')
+set_range_parser.add_argument('cool', type=float,
+    help='The maximum target temperature to set.')
 
 OAUTH2_AUTHORIZE = (
     "https://nestservices.google.com/partnerconnections/{project_id}/auth"
@@ -133,14 +164,41 @@ async def RunTool(args, creds: Credentials):
       devices = await api.async_get_devices()
       for device in devices:
         PrintDevice(device)
+      return
+
+    # All other commands require a device_id
+    device = await api.async_get_device(args.device_id)
 
     if args.command == 'get':
-      device = await api.async_get_device(args.device_id)
       PrintDevice(device)
 
+    if args.command == 'set_mode':
+      mode = args.mode
+      trait = device.traits[ThermostatModeTrait.NAME]
+      if mode == 'MANUAL_ECO':
+        trait = device.traits[ThermostatEcoTrait.NAME]
+      resp = await trait.set_mode(mode)
+      print(await resp.text())
+
+    if args.command == 'set_heat':
+      trait = device.traits[ThermostatTemperatureSetpointTrait.NAME]
+      resp = await trait.set_heat(args.heat)
+      print(await resp.text())
+
+    if args.command == 'set_cool':
+      trait = device.traits[ThermostatTemperatureSetpointTrait.NAME]
+      resp = await trait.set_cool(args.cool)
+      print(await resp.text())
+
+    if args.command == 'set_range':
+      trait = device.traits[ThermostatTemperatureSetpointTrait.NAME]
+      resp = await trait.set_range(args.heat, args.cool)
+      print(await resp.text())
 
 def main():
   args = parser.parse_args()
+  if args.verbose:
+    logging.basicConfig(level=logging.DEBUG)
   creds = CreateCreds(args)
   loop = asyncio.get_event_loop()
   loop.run_until_complete(RunTool(args, creds))

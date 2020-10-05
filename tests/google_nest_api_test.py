@@ -85,7 +85,7 @@ async def test_thermostat_eco_set_mode(aiohttp_server) -> None:
 
   app = aiohttp.web.Application()
   app.router.add_get('/devices', handler)
-  app.router.add_post('/devices/device-id1', post_handler)
+  app.router.add_post('/devices/device-id1:executeCommand', post_handler)
   server = await aiohttp_server(app)
 
   async with aiohttp.test_utils.TestClient(server) as client:
@@ -119,7 +119,7 @@ async def test_thermostat_mode_set_mode(aiohttp_server) -> None:
 
   app = aiohttp.web.Application()
   app.router.add_get('/devices', handler)
-  app.router.add_post('/devices/device-id1', post_handler)
+  app.router.add_post('/devices/device-id1:executeCommand', post_handler)
   server = await aiohttp_server(app)
 
   async with aiohttp.test_utils.TestClient(server) as client:
@@ -153,7 +153,7 @@ async def test_thermostat_temperature_set_point(aiohttp_server) -> None:
 
   app = aiohttp.web.Application()
   app.router.add_get('/devices', handler)
-  app.router.add_post('/devices/device-id1', post_handler)
+  app.router.add_post('/devices/device-id1:executeCommand', post_handler)
   server = await aiohttp_server(app)
 
   async with aiohttp.test_utils.TestClient(server) as client:

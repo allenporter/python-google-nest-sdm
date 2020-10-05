@@ -1,4 +1,5 @@
 import aiohttp
+import logging
 from abc import ABC, abstractmethod
 
 class AbstractAuth(ABC):
@@ -25,5 +26,7 @@ class AbstractAuth(ABC):
 
     access_token = await self.async_get_access_token()
     headers["authorization"] = f"Bearer {access_token}"
-    return await self._websession.request(
-      method, f"{self._host}/{url}", **kwargs, headers=headers)
+    url = f"{self._host}/{url}"
+    logging.debug('request[%s]=%s', method, url)
+    return await self._websession.request(method, url, **kwargs,
+        headers=headers)

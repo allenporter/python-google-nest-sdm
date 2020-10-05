@@ -27,7 +27,7 @@ class Command:
 
   async def execute(self, data):
     return await self._auth.request(
-        "post", f"devices/{self._device_id}", json=data)
+        "post", f"devices/{self._device_id}:executeCommand", json=data)
 
 
 class ConnectivityTrait:
