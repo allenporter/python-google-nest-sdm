@@ -320,3 +320,13 @@ class DeviceTest(unittest.TestCase):
     self.assertEqual(300, trait.max_video_resolution.height)
     self.assertEqual(["H264"], trait.video_codecs)
     self.assertEqual(["AAC"], trait.audio_codecs)
+
+  def testCameraEventImageTraits(self):
+    raw = {
+       "name": "my/device/name",
+       "traits": {
+         "sdm.devices.traits.CameraEventImage": { },
+       },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    self.assertTrue("sdm.devices.traits.CameraEventImage" in device.traits)

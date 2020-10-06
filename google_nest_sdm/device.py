@@ -27,6 +27,8 @@ RESULTS = 'results'
 RTSP_URL = 'rtspUrl'
 STREAM_EXTENSION_TOKEN = 'streamExtensionToken'
 STREAM_TOKEN = 'streamToken'
+URL = 'url'
+TOKEN = 'token'
 EXPIRES_AT = 'expiresAt'
 PARENT = 'parent'
 DISPLAYNAME = 'displayName'
@@ -349,6 +351,57 @@ class CameraLiveStreamTrait:
     return RtspStream(results, self._cmd)
 
 
+class EventImage:
+  """Provides access an RTSP live stream URL.
+
+  Use a ?width or ?height query parameters to customize the resolution
+  of the downloaded image. Only one of these parameters need to specified.
+  The other parameter is scaled automatically according to the camera's
+  aspect ratio.
+
+  The token should be added as an HTTP header:
+  Authorization: Basic <token>
+  """
+
+  def __init__(self, data: dict, cmd: Command):
+    self._data = data
+    self._cmd = cmd
+
+  @property
+  def url(self) -> str:
+    """The URL to download the camera image from."""
+
+    return self._data[URL]
+
+  @property
+  def token(self) -> str:
+    """Token to use in the HTTP Authorization header when downloading."""
+    return self._data[TOKEN]
+
+
+class CameraEventImageTrait:
+  """This trait belongs to any device that generates images from events."""
+
+  NAME = 'sdm.devices.traits.CameraEventImage'
+
+  def __init__(self, data: dict, cmd: Command):
+    self._data = data
+    self._cmd = cmd
+
+  async def generate_image(self, eventId: str) -> EventImage:
+    """Provides a URL to download a camera image from."""
+    data = {
+        "command" : "sdm.devices.commands.CameraEventImage.GenerateImage",
+        "params" : {
+            "eventId": eventId,
+        }
+    }
+    resp = await self._cmd.execute(data)
+    resp.raise_for_status()
+    response_data = await resp.json()
+    results = response_data[RESULTS]
+    return EventImage(results, self._cmd)
+
 
 _ALL_TRAITS = [
   ConnectivityTrait,
@@ -361,6 +414,7 @@ _ALL_TRAITS = [
   ThermostatTemperatureSetpointTrait,
   CameraImageTrait,
   CameraLiveStreamTrait,
+  CameraEventImageTrait,
 ]
 _ALL_TRAIT_MAP = { cls.NAME: cls for cls in _ALL_TRAITS }
 
