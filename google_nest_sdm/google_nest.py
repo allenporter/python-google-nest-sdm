@@ -53,8 +53,8 @@ parser.add_argument("-v", "--verbose", help="Increase output verbosity",
     action="store_true")
 
 cmd_parser = parser.add_subparsers(dest='command', required=True)
-list_parser = cmd_parser.add_parser('list')
-get_parser = cmd_parser.add_parser('get')
+list_parser = cmd_parser.add_parser('list_devices')
+get_parser = cmd_parser.add_parser('get_device')
 get_parser.add_argument('device_id')
 set_mode_parser = cmd_parser.add_parser('set_mode',
     description='Change the thermostat mode.')
@@ -184,7 +184,7 @@ async def RunTool(args, creds: Credentials):
     auth = Auth(client, creds, API_URL)
     api = GoogleNestAPI(auth, project_id=args.project_id)
 
-    if args.command == 'list':
+    if args.command == 'list_devices':
       devices = await api.async_get_devices()
       for device in devices:
         PrintDevice(device)
@@ -208,7 +208,7 @@ async def RunTool(args, creds: Credentials):
     # All other commands require a device_id
     device = await api.async_get_device(args.device_id)
 
-    if args.command == 'get':
+    if args.command == 'get_device':
       PrintDevice(device)
 
     if args.command == 'set_mode':
