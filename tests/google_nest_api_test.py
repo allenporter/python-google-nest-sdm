@@ -24,14 +24,10 @@ class Recorder:
 
 
 def NewDeviceHandler(r: Recorder, devices: dict):
-  async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
-    assert request.headers['Authorization'] == 'Bearer some-token'
-    s = await request.text()
-    print(s)
-    r.request = await request.json() if s else {}
-    return aiohttp.web.json_response({'devices': devices})
-  return handler
+  return NewRequestRecorder(r, [{'devices': devices}])
 
+def NewStructureHandler(r: Recorder, structures: dict):
+  return NewRequestRecorder(r, [{'structures': structures}])
 
 def NewRequestRecorder(r: Recorder, response: list):
   async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
@@ -313,3 +309,35 @@ async def test_camera_event_image(aiohttp_server) -> None:
     assert expected_request == r.request
     assert 'https://domain/sdm_event_snapshot/dGNUlTU2CjY5Y3VKaTZwR3o4Y' == image.url
     assert 'g.0.eventToken' == image.token
+
+async def test_get_structures(aiohttp_server) -> None:
+  r = Recorder()
+  handler = NewStructureHandler(r, [
+      {
+        'name': 'enterprises/project-id1/structures/structure-id1',
+        'traits': {
+          'sdm.structures.traits.Info': {
+            'customName': 'some-name1',
+          }
+        },
+      }, {
+        'name': 'enterprises/project-id1/structures/structure-id2',
+        'traits': {
+          'sdm.structures.traits.Info': {
+            'customName': 'some-name2',
+          }
+        },
+      }])
+
+  app = aiohttp.web.Application()
+  app.router.add_get('/enterprises/project-id1/structures', handler)
+  server = await aiohttp_server(app)
+
+  async with aiohttp.test_utils.TestClient(server) as client:
+    api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
+    structures = await api.async_get_structures()
+    assert len(structures) == 2
+    assert 'enterprises/project-id1/structures/structure-id1' == structures[0].name
+    assert 'sdm.structures.traits.Info' in structures[0].traits
+    assert 'enterprises/project-id1/structures/structure-id2' == structures[1].name
+    assert 'sdm.structures.traits.Info' in structures[1].traits

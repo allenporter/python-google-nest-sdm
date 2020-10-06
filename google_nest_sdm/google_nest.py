@@ -53,9 +53,12 @@ parser.add_argument("-v", "--verbose", help="Increase output verbosity",
     action="store_true")
 
 cmd_parser = parser.add_subparsers(dest='command', required=True)
-list_parser = cmd_parser.add_parser('list_devices')
-get_parser = cmd_parser.add_parser('get_device')
-get_parser.add_argument('device_id')
+list_structures_parser = cmd_parser.add_parser('list_structures')
+list_devices_parser = cmd_parser.add_parser('list_devices')
+get_structure_parser = cmd_parser.add_parser('get_structure')
+get_structure_parser.add_argument('structure_id')
+get_device_parser = cmd_parser.add_parser('get_device')
+get_device_parser.add_argument('device_id')
 set_mode_parser = cmd_parser.add_parser('set_mode',
     description='Change the thermostat mode.')
 set_mode_parser.add_argument('device_id')
@@ -152,6 +155,14 @@ def CreateCreds(args) -> Credentials:
   return creds
 
 
+def PrintStructure(structure):
+  print(f'id: {structure.name}')
+  print('traits:')
+  for (trait_name, trait) in structure.traits.items():
+    print(f'  {trait_name}: {trait._data}')
+  print('')
+
+
 def PrintDevice(device):
   print(f'id: {device.name}')
   print(f'type: {device.type}')
@@ -183,6 +194,17 @@ async def RunTool(args, creds: Credentials):
   async with ClientSession() as client:
     auth = Auth(client, creds, API_URL)
     api = GoogleNestAPI(auth, project_id=args.project_id)
+
+    if args.command == 'list_structures':
+      structures = await api.async_get_structures()
+      for structure in structures:
+        PrintStructure(structure)
+      return
+
+    if args.command == 'get_structure':
+      structure = await api.async_get_structure(args.structure_id)
+      PrintStructure(structure)
+      return
 
     if args.command == 'list_devices':
       devices = await api.async_get_devices()

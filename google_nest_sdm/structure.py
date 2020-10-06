@@ -9,7 +9,6 @@ CUSTOM_NAME = 'customName'
 
 class InfoTrait:
   """This trait belongs to any structure for structure-related information."""
-
   NAME = 'sdm.structures.traits.Info'
 
   def __init__(self, data: dict):

@@ -2,6 +2,7 @@ from typing import List
 
 from .auth import AbstractAuth
 from .device import Device
+from .structure import Structure
 
 
 class GoogleNestAPI:
@@ -11,6 +12,28 @@ class GoogleNestAPI:
     """Initialize the API and store the auth so we can make requests."""
     self._auth = auth
     self._project_id = project_id
+
+  @property
+  def structures_url(self) -> str:
+    if self._project_id:
+      return f'enterprises/{self._project_id}/structures'
+    return 'structures'
+
+
+  async def async_get_structures(self) -> List[Structure]:
+    """Return the structures."""
+    resp = await self._auth.request("get", self.structures_url)
+    resp.raise_for_status()
+    response_data = await resp.json()
+    structures = response_data['structures']
+    return [Structure.MakeStructure(structure_data)
+                for structure_data in structures]
+
+  async def async_get_structure(self, structure_id) -> Structure:
+    """Return a structure device."""
+    resp = await self._auth.request("get", structure_id)
+    resp.raise_for_status()
+    return Structure.MakeStructure(await resp.json())
 
   @property
   def devices_url(self) -> str:
