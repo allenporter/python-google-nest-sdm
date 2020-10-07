@@ -61,3 +61,9 @@ PROJECT_ID="some-project-id"
 SUBSCRIPTION_ID="projects/some-id/subscriptions/enterprise-some-project-id-python-google-nest"
 google_nest --project_id="${PROJECT_ID}" subscribe ${SUBSCRIPTION_ID}
 ```
+
+# Funding and Support
+
+If you are interested in donating money to this effort, instead send a
+donation to [Black Girls Code](https://donorbox.org/support-black-girls-code)
+which is a great organization growing the next generation of software engineers.
