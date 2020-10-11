@@ -2,7 +2,6 @@ from .auth import AbstractAuth
 
 import datetime
 
-from abc import abstractproperty, ABCMeta
 from .traits import Command
 from .traits import TRAIT_MAP
 

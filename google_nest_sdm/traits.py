@@ -1,26 +1,7 @@
 from .auth import AbstractAuth
-
-import datetime
-
-from abc import abstractproperty, ABCMeta
-from typing import Callable, TypeVar
+from .registry import Registry
 
 DEVICE_TRAITS = 'traits'
-
-CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # pylint: disable=invalid-name
-
-class Registry(dict):
-    """Registry of items."""
-
-    def register(self) -> Callable[[CALLABLE_T], CALLABLE_T]:
-        """Return decorator to register item with a specific name."""
-
-        def decorator(func: CALLABLE_T) -> CALLABLE_T:
-            """Register decorated function."""
-            self[func.NAME] = func
-            return func
-
-        return decorator
 
 TRAIT_MAP = Registry()
 
@@ -46,8 +27,7 @@ def _TraitsDict(traits: dict, trait_map: dict, cmd: Command):
   return d
 
 
-def BuildTraits(raw_data: dict, cmd: Command) -> dict:
+def BuildTraits(traits: dict, cmd: Command) -> dict:
     """Builds a trait map out of a response dict."""
-    traits = raw_data.get(DEVICE_TRAITS, {})
     return _TraitsDict(traits, TRAIT_MAP, cmd)
 

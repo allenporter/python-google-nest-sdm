@@ -2,8 +2,6 @@ from .auth import AbstractAuth
 
 import datetime
 
-from abc import abstractproperty, ABCMeta
-
 from .traits import BuildTraits
 from .traits import Command
 from . import camera_traits
@@ -12,7 +10,7 @@ from . import thermostat_traits
 
 DEVICE_NAME = 'name'
 DEVICE_TYPE = 'type'
-DEVIE_TRAITS = 'traits'
+DEVICE_TRAITS = 'traits'
 DEVICE_PARENT_RELATIONS = 'parentRelations'
 PARENT = 'parent'
 DISPLAYNAME = 'displayName'
@@ -31,7 +29,8 @@ class Device:
     """Creates a device with the appropriate traits."""
     device_id = raw_data.get(DEVICE_NAME)
     cmd = Command(device_id, auth)
-    traits_dict = BuildTraits(raw_data, cmd)
+    traits = raw_data.get(DEVICE_TRAITS, {})
+    traits_dict = BuildTraits(traits, cmd)
     return Device(raw_data, traits_dict)
 
   @property
