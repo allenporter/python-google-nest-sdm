@@ -2,13 +2,7 @@
 from .context import google_nest_sdm
 
 import unittest
-from google_nest_sdm.device import (
-    Device,
-    ThermostatEcoTrait,
-    ThermostatHvacTrait,
-    ThermostatModeTrait,
-    ThermostatTemperatureSetpointTrait
-)
+from google_nest_sdm.device import Device
 
 
 class DeviceTest(unittest.TestCase):
