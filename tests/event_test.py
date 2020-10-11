@@ -5,7 +5,7 @@ import datetime
 from google_nest_sdm.event import EventMessage
 
 
-class DeviceTest(unittest.TestCase):
+class EventTest(unittest.TestCase):
   def testCameraSoundEvent(self):
     raw = {
         "eventId" : "0120ecc7-3b57-4eb4-9941-91609f189fb4",

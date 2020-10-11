@@ -1,6 +1,6 @@
 """Events from pubsub subscriber."""
 
-from abc import ABC
+from abc import abstractmethod, ABC
 import datetime
 
 from .auth import AbstractAuth
@@ -16,6 +16,7 @@ TRAITS = "traits"
 EVENTS = "events"
 
 EVENT_MAP = Registry()
+
 
 class EventBase(ABC):
   def __init__(self, data):
@@ -92,4 +93,12 @@ class EventMessage:
     cmd = Command(self.resource_update_name, self._auth)
     events = self._raw_data[RESOURCE_UPDATE].get(TRAITS, {})
     return BuildTraits(events, cmd)
+
+
+class EventCallback(ABC):
+  @abstractmethod
+  def handle_event(event_message: EventMessage):
+    """Process an incoming EventMessage."""
+
+
 

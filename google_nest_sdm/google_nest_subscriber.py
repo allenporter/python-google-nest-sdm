@@ -7,7 +7,7 @@ from google.cloud import pubsub_v1
 
 from .auth import AbstractAuth
 from .device import Device
-from .event import EventMessage
+from .event import EventCallback, EventMessage
 from .google_nest_api import GoogleNestAPI
 from .structure import Structure
 
@@ -26,12 +26,6 @@ class DefaultSubscriberFactory(AbstractSusbcriberFactory):
   async def new_subscriber(self, creds, subscription_name, callback) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
     subscriber = pubsub_v1.SubscriberClient(credentials=creds)
     return subscriber.subscribe(subscription_name, callback)
-
-
-class EventCallback(ABC):
-  @abstractmethod
-  def handle_event(event_message: EventMessage):
-    """Process an incoming EventMessage."""
 
 
 class GoogleNestSubscriber:
