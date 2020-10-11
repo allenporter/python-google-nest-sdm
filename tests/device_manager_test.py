@@ -2,6 +2,7 @@ from .context import google_nest_sdm
 
 import unittest
 import datetime
+from google_nest_sdm.structure import Structure
 from google_nest_sdm.device import Device
 from google_nest_sdm.device_manager import DeviceManager
 from google_nest_sdm.event import EventMessage
@@ -9,6 +10,10 @@ from google_nest_sdm.event import EventMessage
 
 def MakeDevice(raw_data: dict) -> Device:
     return Device.MakeDevice(raw_data, auth=None)
+
+
+def MakeStructure(raw_data: dict) -> Device:
+    return Structure.MakeStructure(raw_data)
 
 
 def MakeEvent(raw_data: dict) -> EventMessage:
@@ -89,6 +94,20 @@ class DeviceManagerTest(unittest.TestCase):
     device = mgr.devices["enterprises/project-id/devices/device-id"]
     self.assertEqual(0, len(device.parent_relations))
 
+    mgr.add_structure(MakeStructure({
+       "name": "enterprises/project-id/structures/structure-id",
+       "traits": {
+         "sdm.structures.traits.Info": {
+           "customName": "Structure Name",
+         },
+       },
+    }))
+    self.assertEqual(1, len(mgr.structures))
+    structure = mgr.structures["enterprises/project-id/structures/structure-id"]
+    self.assertTrue("sdm.structures.traits.Info" in structure.traits)
+    trait = structure.traits["sdm.structures.traits.Info"]
+    self.assertEqual("Structure Name", trait.custom_name)
+
     mgr.handle_event(MakeEvent({
         "eventId" : "0120ecc7-3b57-4eb4-9941-91609f189fb4",
         "timestamp" : "2019-01-01T00:00:01Z",
@@ -101,7 +120,7 @@ class DeviceManagerTest(unittest.TestCase):
     }))
     device = mgr.devices["enterprises/project-id/devices/device-id"]
     self.assertEqual({
-        "enterprises/project-id/structures/structure-id": "Unknown",
+        "enterprises/project-id/structures/structure-id": "Structure Name",
     }, device.parent_relations)
 
     mgr.handle_event(MakeEvent({

@@ -15,9 +15,7 @@ class GoogleNestAPI:
 
   @property
   def structures_url(self) -> str:
-    if self._project_id:
-      return f'enterprises/{self._project_id}/structures'
-    return 'structures'
+    return f'enterprises/{self._project_id}/structures'
 
 
   async def async_get_structures(self) -> List[Structure]:
@@ -37,9 +35,7 @@ class GoogleNestAPI:
 
   @property
   def devices_url(self) -> str:
-    if self._project_id:
-      return f'enterprises/{self._project_id}/devices'
-    return 'devices'
+    return f'enterprises/{self._project_id}/devices'
 
   async def async_get_devices(self) -> List[Device]:
     """Return the devices."""

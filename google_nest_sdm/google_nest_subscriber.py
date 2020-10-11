@@ -7,6 +7,7 @@ from google.cloud import pubsub_v1
 
 from .auth import AbstractAuth
 from .device import Device
+from .device_manager import DeviceManager
 from .event import EventCallback, EventMessage
 from .google_nest_api import GoogleNestAPI
 from .structure import Structure
@@ -38,28 +39,43 @@ class GoogleNestSubscriber:
     self._subscriber_id = subscriber_id
     self._api = GoogleNestAPI(auth, project_id)
     self._subscriber_factory = subscriber_factory
+    self._device_manager = None
     self._callback = None
 
-
-  async def start_async(self, callback: EventCallback):
+  def set_update_callback(self, callback: EventCallback):
     self._callback = callback
-    creds = await self._auth.async_get_creds()
-    self._future = await self._subscriber_factory.new_subscriber(creds, self._subscriber_id, self._subscribe_callback)
-    # Subscriber starts after a device fetch
-    self._devices = await self._api.async_get_devices()
-    return self._future
 
-  async def stop_async(self):
+  async def start_async(self) -> DeviceManager:
+    creds = await self._auth.async_get_creds()
+    self._future = await self._subscriber_factory.new_subscriber(
+        creds, self._subscriber_id, self._subscribe_callback)
+
+    # Do initial population of devices and structures
+    self._device_manager = DeviceManager()
+    structures = await self._api.async_get_structures()
+    for structure in structures:
+      self._device_manager.add_structure(structure)
+    # Subscriber starts after a device fetch
+    devices = await self._api.async_get_devices()
+    for device in devices:
+      self._device_manager.add_device(device)
+    return self._device_manager
+
+  def wait(self):
+    self._future.result()
+
+  def stop_async(self):
     return self._future.cancel()
 
-  async def devices(self):
-    devices = {}
-    for device in self._devices:
-      devices[device.name] = device
-    return devices
+  @property
+  def device_manager(self):
+    return self._device_manager
 
   def _subscribe_callback(self, message: pubsub_v1.subscriber.message.Message):
     payload = json.loads(bytes.decode(message.data))
     event = EventMessage(payload, self._auth)
-    self._callback.handle_event(event)
+    if self._device_manager:
+      self._device_manager.handle_event(event)
+    if self._callback:
+      self._callback.handle_event(event)
     message.ack()

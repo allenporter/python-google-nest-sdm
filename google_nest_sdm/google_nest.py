@@ -205,7 +205,7 @@ class SubscribeCallback(EventCallback):
 async def RunTool(args, creds: Credentials):
   async with ClientSession() as client:
     auth = Auth(client, creds, API_URL)
-    api = GoogleNestAPI(auth, project_id=args.project_id)
+    api = GoogleNestAPI(auth, args.project_id)
 
     if args.command == 'list_structures':
       structures = await api.async_get_structures()
@@ -228,11 +228,12 @@ async def RunTool(args, creds: Credentials):
       logging.info('Subscription: %s', args.subscription_id)
       subscriber = GoogleNestSubscriber(auth, args.project_id,
           args.subscription_id)
-      future = await subscriber.start_async(SubscribeCallback())
+      subscriber.set_update_callback(SubscribeCallback())
+      await subscriber.start_async()
       try:
-        future.result()
+        subscriber.wait()
       except KeyboardInterrupt:
-        future.cancel()
+        subscriber.stop_async()
       return
 
     # All other commands require a device_id
