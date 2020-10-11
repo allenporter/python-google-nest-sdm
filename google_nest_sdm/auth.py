@@ -1,6 +1,7 @@
 import aiohttp
 import logging
 from abc import ABC, abstractmethod
+from google.auth.credentials import Credentials
 
 class AbstractAuth(ABC):
   """Abstract class to make authenticated requests."""
@@ -13,6 +14,10 @@ class AbstractAuth(ABC):
   @abstractmethod
   async def async_get_access_token(self) -> str:
     """Return a valid access token."""
+
+  async def async_get_creds(self) -> Credentials:
+    """Return creds for subscriber API."""
+    return None
 
   async def request(self, method: str, url: str, **kwargs) -> aiohttp.ClientResponse:
     """Make a request."""

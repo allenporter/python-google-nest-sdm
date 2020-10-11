@@ -37,6 +37,7 @@ from .device import (
     CameraLiveStreamTrait,
 )
 from .google_nest_api import GoogleNestAPI
+from .google_nest_subscriber import GoogleNestSubscriber
 
 # Define command line arguments
 parser = argparse.ArgumentParser(
@@ -95,7 +96,6 @@ SDM_SCOPES = [
     "https://www.googleapis.com/auth/pubsub",
 ]
 API_URL = "https://smartdevicemanagement.googleapis.com/v1"
-TOPIC_NAME = 'projects/sdm-prod/topics/enterprise-{project_id}'
 
 
 class Auth(AbstractAuth):
@@ -114,6 +114,9 @@ class Auth(AbstractAuth):
     async def async_get_access_token(self):
         """Return a valid access token."""
         return self._creds.token
+
+    async def async_get_creds(self):
+        return self._creds
 
 
 def CreateCreds(args) -> Credentials:
@@ -213,14 +216,10 @@ async def RunTool(args, creds: Credentials):
       return
 
     if args.command == 'subscribe':
-      topic_name = TOPIC_NAME.format(project_id=args.project_id)
-      subscription_name = args.subscription_id
-      logging.info('Topic: %s', topic_name)
-      logging.info('Subscription: %s', subscription_name)
-      subscriber = pubsub_v1.SubscriberClient(credentials=creds)
-      future = subscriber.subscribe(subscription_name, subscribe_callback)
-      # Subscriber starts after a device fetch
-      await api.async_get_devices()
+      logging.info('Subscription: %s', args.subscription_id)
+      subscriber = GoogleNestSubscriber(auth, args.project_id,
+          args.subscription_id)
+      future = await subscriber.start_async(subscribe_callback)
       try:
         future.result()
       except KeyboardInterrupt:

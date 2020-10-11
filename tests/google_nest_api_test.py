@@ -33,7 +33,6 @@ def NewRequestRecorder(r: Recorder, response: list):
   async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
     assert request.headers['Authorization'] == 'Bearer some-token'
     s = await request.text()
-    print("handler ", s)
     r.request = await request.json() if s else {}
     return aiohttp.web.json_response(response.pop(0))
   return handler

@@ -463,7 +463,7 @@ class Device:
 
   @property
   def traits(self) -> dict:
-    """Return a trait mixin on None."""
+    """Return a trait mixin or None."""
     return self._traits
 
   def _traits_data(self, trait) -> dict:

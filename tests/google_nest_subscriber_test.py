@@ -1,0 +1,145 @@
+from .context import google_nest_sdm
+
+import aiohttp
+import datetime
+import json
+import mock
+import pytest
+from pytest_aiohttp import aiohttp_server
+
+from google.auth.credentials import Credentials
+from google.cloud import pubsub_v1
+
+from google_nest_sdm.device import AbstractAuth
+from google_nest_sdm import google_nest_api
+from google_nest_sdm.google_nest_subscriber import AbstractSusbcriberFactory, GoogleNestSubscriber
+
+PROJECT_ID = 'project-id1'
+SUBSCRIBER_ID = 'subscriber-id1'
+
+
+class FakeAuth(AbstractAuth):
+  def __init__(self, websession):
+    super().__init__(websession, '')
+
+  async def async_get_access_token(self) -> str:
+    return 'some-token'
+
+  async def creds(self) -> Credentials:
+    return None
+
+
+class FakeSubscriberFactory(AbstractSusbcriberFactory):
+  async def new_subscriber(self, creds, subscription_name, callback):
+    print('new_subscriber')
+    self._callback = callback
+    return None
+
+  def push_event(self, event):
+    print('push_event')
+    message = mock.create_autospec(
+        pubsub_v1.subscriber.message.Message, instance=True)
+    message.data = json.dumps(event).encode()
+    self._callback(message)
+
+class Recorder:
+  request = None
+
+
+class Callback:
+  messages = []
+
+  def callback(self, message):
+    self.messages.append(msg)
+
+
+def NewDeviceHandler(r: Recorder, devices: dict):
+  async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+    assert request.headers['Authorization'] == 'Bearer some-token'
+    s = await request.text()
+    r.request = await request.json() if s else {}
+    return aiohttp.web.json_response({'devices': devices})
+  return handler
+
+
+
+async def test_subscribe_no_events(aiohttp_server) -> None:
+  subscriber_factory = FakeSubscriberFactory()
+  r = Recorder()
+  handler = NewDeviceHandler(r, [
+      {
+        'name': 'enterprises/project-id1/devices/device-id1',
+        'type': 'sdm.devices.types.device-type1',
+        'traits': { },
+        'parentRelations': [ ],
+      }, {
+        'name': 'enterprises/project-id1/devices/device-id2',
+        'type': 'sdm.devices.types.device-type2',
+        'traits': { },
+        'parentRelations': [ ],
+      }])
+
+  app = aiohttp.web.Application()
+  app.router.add_get('/enterprises/project-id1/devices', handler)
+  server = await aiohttp_server(app)
+
+  async with aiohttp.test_utils.TestClient(server) as client:
+    subscriber = GoogleNestSubscriber(FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, subscriber_factory)
+    c = Callback()
+    await subscriber.start_async(c)
+    devices = await subscriber.devices()
+    assert 'enterprises/project-id1/devices/device-id1' in devices
+    assert 'sdm.devices.types.device-type1' == devices['enterprises/project-id1/devices/device-id1'].type
+    assert 'enterprises/project-id1/devices/device-id2' in devices
+    assert 'sdm.devices.types.device-type2' == devices['enterprises/project-id1/devices/device-id2'].type
+
+async def test_subscribe_update_trait(aiohttp_server) -> None:
+  subscriber_factory = FakeSubscriberFactory()
+  r = Recorder()
+  handler = NewDeviceHandler(r, [{
+        'name': 'enterprises/project-id1/devices/device-id1',
+        'type': 'sdm.devices.types.device-type1',
+        'traits': {
+            'sdm.devices.traits.Connectivity': {
+                'status': 'ONLINE',
+            },
+        },
+        'parentRelations': [ ],
+      }])
+
+  app = aiohttp.web.Application()
+  app.router.add_get('/enterprises/project-id1/devices', handler)
+  server = await aiohttp_server(app)
+
+  async with aiohttp.test_utils.TestClient(server) as client:
+    subscriber = GoogleNestSubscriber(FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, subscriber_factory)
+    c = Callback()
+    await subscriber.start_async(c)
+    devices = await subscriber.devices()
+    assert 'enterprises/project-id1/devices/device-id1' in devices
+    device = devices['enterprises/project-id1/devices/device-id1']
+    trait = device.traits['sdm.devices.traits.Connectivity']
+    assert 'ONLINE' == trait.status
+
+    event = {
+        'eventId': '6f29332e-5537-47f6-a3f9-840c307340f5',
+        'timestamp': '2020-10-10T07:09:06.851Z',
+        'resourceUpdate': {
+            'name': 'enterprises/a175c0d9-8473-4aed-a384-c354f1568e93/devices/AVPHwEuSKGAoztTlSlLNTP2MO1PnuvlKBm0N-FYGlINhUOQc0MQQue8kjABnYwcJmIYszOaBUZ2vf9mUZnUESdKU_RLU5A',
+            'traits': {
+                'sdm.devices.traits.Connectivity': {
+                    'status': 'OFFLINE',
+                }
+            }
+        },
+        'userId': 'AVPHwEv75jw4WFshx6-XhBLhotn3r8IXOzCusfSOn5QU'
+    }
+    subscriber_factory.push_event(event)
+
+    devices = await subscriber.devices()
+    assert 'enterprises/project-id1/devices/device-id1' in devices
+    device = devices['enterprises/project-id1/devices/device-id1']
+    trait = device.traits['sdm.devices.traits.Connectivity']
+    # TODO: Support updates from events
+    assert 'ONLINE' == trait.status
+
