@@ -7,6 +7,7 @@ from google.cloud import pubsub_v1
 
 from .auth import AbstractAuth
 from .device import Device
+from .event import EventMessage
 from .google_nest_api import GoogleNestAPI
 from .structure import Structure
 
@@ -27,6 +28,12 @@ class DefaultSubscriberFactory(AbstractSusbcriberFactory):
     return subscriber.subscribe(subscription_name, callback)
 
 
+class EventCallback(ABC):
+  @abstractmethod
+  def handle_event(event_message: EventMessage):
+    """Process an incoming EventMessage."""
+
+
 class GoogleNestSubscriber:
   """Subscribes to events from the Google Nest feed."""
 
@@ -40,7 +47,7 @@ class GoogleNestSubscriber:
     self._callback = None
 
 
-  async def start_async(self, callback):
+  async def start_async(self, callback: EventCallback):
     self._callback = callback
     creds = await self._auth.async_get_creds()
     self._future = await self._subscriber_factory.new_subscriber(creds, self._subscriber_id, self._subscribe_callback)
@@ -59,5 +66,6 @@ class GoogleNestSubscriber:
 
   def _subscribe_callback(self, message: pubsub_v1.subscriber.message.Message):
     payload = json.loads(bytes.decode(message.data))
-    print(f'data: {payload}')
+    event = EventMessage(payload, self._auth)
+    self._callback.handle_event(event)
     message.ack()

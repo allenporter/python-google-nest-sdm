@@ -37,7 +37,8 @@ from .thermostat_traits import (
 )
 from .camera_traits import CameraLiveStreamTrait
 from .google_nest_api import GoogleNestAPI
-from .google_nest_subscriber import GoogleNestSubscriber
+from .event import EventMessage
+from .google_nest_subscriber import EventCallback, GoogleNestSubscriber
 
 # Define command line arguments
 parser = argparse.ArgumentParser(
@@ -180,17 +181,25 @@ def PrintDevice(device):
   print('')
 
 
-def subscribe_callback(message):
-  print(f'message_id: {message.message_id}')
-  payload = json.loads(bytes.decode(message.data))
-  print(f'data: {payload}')
-  if message.attributes:
-    print(f'attributes:')
-    for key in message.attributes:
-        value = message.attributes.get(key)
-        print(f'{key}: {value}')
-  print('')
-  message.ack()
+class SubscribeCallback(EventCallback):
+
+  def handle_event(self, event_message: EventMessage):
+    print(f'event_id: {event_message.event_id}')
+    print(f'timestamp: {event_message.timestamp}')
+    print(f'resource_update_name: {event_message.resource_update_name}')
+    traits = event_message.resource_update_traits
+    if traits:
+      print('traits:')
+      for (name, trait) in traits.items():
+        print(f'  {name}: {trait._data}')
+    events = event_message.resource_update_events
+    if events:
+      print('events:')
+      for (name, event) in events.items():
+        print(f'  {name}:')
+        print(f'    event_id: {event.event_id}')
+        print(f'    event_session_id: {event.event_session_id}')
+    print('')
 
 
 async def RunTool(args, creds: Credentials):
@@ -219,7 +228,7 @@ async def RunTool(args, creds: Credentials):
       logging.info('Subscription: %s', args.subscription_id)
       subscriber = GoogleNestSubscriber(auth, args.project_id,
           args.subscription_id)
-      future = await subscriber.start_async(subscribe_callback)
+      future = await subscriber.start_async(SubscribeCallback())
       try:
         future.result()
       except KeyboardInterrupt:

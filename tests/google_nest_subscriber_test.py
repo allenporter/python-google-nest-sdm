@@ -12,7 +12,7 @@ from google.cloud import pubsub_v1
 
 from google_nest_sdm.device import AbstractAuth
 from google_nest_sdm import google_nest_api
-from google_nest_sdm.google_nest_subscriber import AbstractSusbcriberFactory, GoogleNestSubscriber
+from google_nest_sdm.google_nest_subscriber import AbstractSusbcriberFactory, GoogleNestSubscriber, EventCallback
 
 PROJECT_ID = 'project-id1'
 SUBSCRIBER_ID = 'subscriber-id1'
@@ -46,11 +46,11 @@ class Recorder:
   request = None
 
 
-class Callback:
-  messages = []
+class Callback(EventCallback):
+  events = []
 
-  def callback(self, message):
-    self.messages.append(msg)
+  def handle_event(self, event):
+    self.events.append(event)
 
 
 def NewDeviceHandler(r: Recorder, devices: dict):
