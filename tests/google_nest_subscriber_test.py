@@ -100,6 +100,40 @@ async def test_subscribe_no_events(aiohttp_server) -> None:
     assert 'enterprises/project-id1/devices/device-id2' in devices
     assert 'sdm.devices.types.device-type2' == devices['enterprises/project-id1/devices/device-id2'].type
 
+async def test_subscribe_device_manager(aiohttp_server) -> None:
+  subscriber_factory = FakeSubscriberFactory()
+  r = Recorder()
+  handler = NewDeviceHandler(r, [
+      {
+        'name': 'enterprises/project-id1/devices/device-id1',
+        'type': 'sdm.devices.types.device-type1',
+        'traits': { },
+        'parentRelations': [ ],
+      }, {
+        'name': 'enterprises/project-id1/devices/device-id2',
+        'type': 'sdm.devices.types.device-type2',
+        'traits': { },
+        'parentRelations': [ ],
+      }])
+
+  app = aiohttp.web.Application()
+  app.router.add_get('/enterprises/project-id1/devices', handler)
+  app.router.add_get('/enterprises/project-id1/structures',
+      NewStructureHandler(r, [{
+          'name': 'enterprises/project-id1/structures/structure-id1',
+      }]))
+  server = await aiohttp_server(app)
+
+  async with aiohttp.test_utils.TestClient(server) as client:
+    subscriber = GoogleNestSubscriber(FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, subscriber_factory)
+    await subscriber.start_async()
+    device_manager = await subscriber.async_device_manager
+    devices = device_manager.devices
+    assert 'enterprises/project-id1/devices/device-id1' in devices
+    assert 'sdm.devices.types.device-type1' == devices['enterprises/project-id1/devices/device-id1'].type
+    assert 'enterprises/project-id1/devices/device-id2' in devices
+    assert 'sdm.devices.types.device-type2' == devices['enterprises/project-id1/devices/device-id2'].type
+
 async def test_subscribe_update_trait(aiohttp_server) -> None:
   subscriber_factory = FakeSubscriberFactory()
   r = Recorder()

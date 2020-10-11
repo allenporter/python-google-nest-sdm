@@ -1,5 +1,6 @@
 from typing import List
 from abc import ABC, abstractmethod
+import asyncio
 import json
 
 from google.auth.credentials import Credentials
@@ -49,17 +50,9 @@ class GoogleNestSubscriber:
     creds = await self._auth.async_get_creds()
     self._future = await self._subscriber_factory.new_subscriber(
         creds, self._subscriber_id, self._subscribe_callback)
-
-    # Do initial population of devices and structures
-    self._device_manager = DeviceManager()
-    structures = await self._api.async_get_structures()
-    for structure in structures:
-      self._device_manager.add_structure(structure)
-    # Subscriber starts after a device fetch
-    devices = await self._api.async_get_devices()
-    for device in devices:
-      self._device_manager.add_device(device)
-    return self._device_manager
+    self._device_manager_task = asyncio.create_task(
+        self._async_create_device_manager())
+    return await self._device_manager_task
 
   def wait(self):
     self._future.result()
@@ -68,14 +61,29 @@ class GoogleNestSubscriber:
     return self._future.cancel()
 
   @property
-  def device_manager(self):
-    return self._device_manager
+  async def async_device_manager(self):
+    return await self._device_manager_task
+
+  async def _async_create_device_manager(self):
+    """Creates a DeviceManager, populated with initial state."""
+    device_manager = DeviceManager()
+    structures = await self._api.async_get_structures()
+    for structure in structures:
+      device_manager.add_structure(structure)
+    # Subscriber starts after a device fetch
+    devices = await self._api.async_get_devices()
+    for device in devices:
+      device_manager.add_device(device)
+    return device_manager
 
   def _subscribe_callback(self, message: pubsub_v1.subscriber.message.Message):
     payload = json.loads(bytes.decode(message.data))
     event = EventMessage(payload, self._auth)
-    if self._device_manager:
-      self._device_manager.handle_event(event)
+    # Only accept device events once the Device Manager has been loaded.
+    # We are ok with missing messages on startup since the device manager will
+    # do a live read.
+    if self._device_manager_task.done():
+      self._device_manager_task.result().handle_event(event)
     if self._callback:
       self._callback.handle_event(event)
     message.ack()
