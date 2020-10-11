@@ -77,3 +77,42 @@ class DeviceManagerTest(unittest.TestCase):
     assert "sdm.devices.traits.Connectivity" in device.traits
     trait = device.traits["sdm.devices.traits.Connectivity"]
     self.assertEqual("ONLINE", trait.status)
+
+  def testDeviceCreatedInStructure(self):
+    mgr = DeviceManager()
+    mgr.add_device(MakeDevice({
+       "name": "enterprises/project-id/devices/device-id",
+       "type": "sdm.devices.types.SomeDeviceType",
+       "parentRelations": []
+    }))
+    self.assertEqual(1, len(mgr.devices))
+    device = mgr.devices["enterprises/project-id/devices/device-id"]
+    self.assertEqual(0, len(device.parent_relations))
+
+    mgr.handle_event(MakeEvent({
+        "eventId" : "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+        "timestamp" : "2019-01-01T00:00:01Z",
+        "relationUpdate": {
+            "type": "CREATED",
+            "subject" : "enterprises/project-id/structures/structure-id",
+            "object" : "enterprises/project-id/devices/device-id",
+        },
+        "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi"
+    }))
+    device = mgr.devices["enterprises/project-id/devices/device-id"]
+    self.assertEqual({
+        "enterprises/project-id/structures/structure-id": "Unknown",
+    }, device.parent_relations)
+
+    mgr.handle_event(MakeEvent({
+        "eventId" : "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+        "timestamp" : "2019-01-01T00:00:01Z",
+        "relationUpdate": {
+            "type": "DELETED",
+            "subject" : "enterprises/project-id/structures/structure-id",
+            "object" : "enterprises/project-id/devices/device-id",
+        },
+        "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi"
+    }))
+    device = mgr.devices["enterprises/project-id/devices/device-id"]
+    self.assertEqual(0, len(device.parent_relations))

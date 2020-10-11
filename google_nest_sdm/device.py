@@ -23,6 +23,11 @@ class Device:
     """Initialize a device."""
     self._raw_data = raw_data
     self._traits = traits
+    self._relations = {}
+    for d in self._raw_data.get(DEVICE_PARENT_RELATIONS, []):
+      if not PARENT in d or not DISPLAYNAME in d:
+        continue
+      self._relations[d[PARENT]] = d[DISPLAYNAME]
 
   @staticmethod
   def MakeDevice(raw_data: dict, auth: AbstractAuth):
@@ -61,9 +66,4 @@ class Device:
   @property
   def parent_relations(self) -> dict:
     """"Assignee details of the device (e.g. room/structure)."""
-    relations = {}
-    for d in self._raw_data.get(DEVICE_PARENT_RELATIONS, []):
-      if not PARENT in d or not DISPLAYNAME in d:
-        continue
-      relations[d[PARENT]] = d[DISPLAYNAME]
-    return relations
+    return self._relations
