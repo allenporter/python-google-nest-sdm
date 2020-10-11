@@ -5,34 +5,7 @@ import datetime
 from abc import abstractproperty, ABCMeta
 from typing import Callable, TypeVar
 
-DEVICE_NAME = 'name'
-DEVICE_TYPE = 'type'
 DEVICE_TRAITS = 'traits'
-DEVICE_PARENT_RELATIONS = 'parentRelations'
-STATUS = 'status'
-CUSTOM_NAME = 'customName'
-AMBIENT_HUMIDITY_PERCENT = 'ambientHumidityPercent'
-AMBIENT_TEMPERATURE_CELSIUS = 'ambientTemperatureCelsius'
-AVAILABLE_MODES = 'availableModes'
-MODE = 'mode'
-HEAT_CELSIUS = 'heatCelsius'
-COOL_CELSIUS = 'coolCelsius'
-MAX_IMAGE_RESOLUTION = 'maxImageResolution'
-MAX_VIDEO_RESOLUTION = 'maxVideoResolution'
-WIDTH = 'width'
-HEIGHT = 'height'
-VIDEO_CODECS = 'videoCodecs'
-AUDIO_CODECS = 'audioCodecs'
-STREAM_URLS = 'streamUrls'
-RESULTS = 'results'
-RTSP_URL = 'rtspUrl'
-STREAM_EXTENSION_TOKEN = 'streamExtensionToken'
-STREAM_TOKEN = 'streamToken'
-URL = 'url'
-TOKEN = 'token'
-EXPIRES_AT = 'expiresAt'
-PARENT = 'parent'
-DISPLAYNAME = 'displayName'
 
 CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # pylint: disable=invalid-name
 
