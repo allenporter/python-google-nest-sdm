@@ -30,7 +30,6 @@ class DeviceManager(EventCallback):
 
   def handle_event(self, event_message: EventMessage):
     """Invokes by the subscriber when a new message is received."""
-    print(f'handle_event{event_message.resource_update_name}')
     if event_message.resource_update_name:
       device_id = event_message.resource_update_name
       if device_id in self._devices:
