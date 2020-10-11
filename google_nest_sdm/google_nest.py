@@ -30,12 +30,12 @@ from google.cloud import pubsub_v1
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 from .auth import AbstractAuth
-from .device import (
+from .thermostat_traits import (
     ThermostatEcoTrait,
     ThermostatModeTrait,
     ThermostatTemperatureSetpointTrait,
-    CameraLiveStreamTrait,
 )
+from .camera_traits import CameraLiveStreamTrait
 from .google_nest_api import GoogleNestAPI
 from .google_nest_subscriber import GoogleNestSubscriber
 
