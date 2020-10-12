@@ -28,7 +28,7 @@ This is an example to use the command line tool to access the API:
 
 ```
 PROJECT_ID="some-project-id"
-CLIEND_ID="some-client-id"
+CLIENT_ID="some-client-id"
 CLIENT_SECRET="some-client-secret"
 # Initial call will ask you to authorize OAuth2 then cache the token
 google_nest --project_id="${PROJECT_ID}" --client_id="${CLIENT_ID}" --client_secret="${CLIENT_SECRET}" list
