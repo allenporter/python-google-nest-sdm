@@ -21,117 +21,158 @@ def MakeEvent(raw_data: dict) -> EventMessage:
 
 
 class DeviceManagerTest(unittest.TestCase):
-
-  def testAddDevice(self):
-    mgr = DeviceManager()
-    mgr.add_device(MakeDevice({
-       "name": "my/device/name1",
-       "type": "sdm.devices.types.SomeDeviceType",
-    }))
-    self.assertEqual(1, len(mgr.devices))
-    mgr.add_device(MakeDevice({
-       "name": "my/device/name2",
-       "type": "sdm.devices.types.SomeDeviceType",
-    }))
-    self.assertEqual(2, len(mgr.devices))
-
-  def testDuplicateDevice(self):
-    mgr = DeviceManager()
-    mgr.add_device(MakeDevice({
-       "name": "my/device/name1",
-       "type": "sdm.devices.types.SomeDeviceType",
-    }))
-    self.assertEqual(1, len(mgr.devices))
-    mgr.add_device(MakeDevice({
-       "name": "my/device/name1",
-       "type": "sdm.devices.types.SomeDeviceType",
-    }))
-    self.assertEqual(1, len(mgr.devices))
-
-
-  def testUpdateTraits(self):
-    mgr = DeviceManager()
-    mgr.add_device(MakeDevice({
-       "name": "my/device/name1",
-       "type": "sdm.devices.types.SomeDeviceType",
-       "traits": {
-           "sdm.devices.traits.Connectivity": {
-               "status": "OFFLINE",
-           },
-       },
-    }))
-    self.assertEqual(1, len(mgr.devices))
-    device = mgr.devices["my/device/name1"]
-    assert "sdm.devices.traits.Connectivity" in device.traits
-    trait = device.traits["sdm.devices.traits.Connectivity"]
-    self.assertEqual("OFFLINE", trait.status)
-    mgr.handle_event(MakeEvent({
-        "eventId" : "0120ecc7-3b57-4eb4-9941-91609f189fb4",
-        "timestamp" : "2019-01-01T00:00:01Z",
-        "resourceUpdate" : {
-            "name" : "my/device/name1",
-            "traits": {
-                "sdm.devices.traits.Connectivity": {
-                    "status": "ONLINE",
+    def testAddDevice(self):
+        mgr = DeviceManager()
+        mgr.add_device(
+            MakeDevice(
+                {
+                    "name": "my/device/name1",
+                    "type": "sdm.devices.types.SomeDeviceType",
                 }
-            }
-        },
-        "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi"
-    }))
-    device = mgr.devices["my/device/name1"]
-    assert "sdm.devices.traits.Connectivity" in device.traits
-    trait = device.traits["sdm.devices.traits.Connectivity"]
-    self.assertEqual("ONLINE", trait.status)
+            )
+        )
+        self.assertEqual(1, len(mgr.devices))
+        mgr.add_device(
+            MakeDevice(
+                {
+                    "name": "my/device/name2",
+                    "type": "sdm.devices.types.SomeDeviceType",
+                }
+            )
+        )
+        self.assertEqual(2, len(mgr.devices))
 
-  def testDeviceCreatedInStructure(self):
-    mgr = DeviceManager()
-    mgr.add_device(MakeDevice({
-       "name": "enterprises/project-id/devices/device-id",
-       "type": "sdm.devices.types.SomeDeviceType",
-       "parentRelations": []
-    }))
-    self.assertEqual(1, len(mgr.devices))
-    device = mgr.devices["enterprises/project-id/devices/device-id"]
-    self.assertEqual(0, len(device.parent_relations))
+    def testDuplicateDevice(self):
+        mgr = DeviceManager()
+        mgr.add_device(
+            MakeDevice(
+                {
+                    "name": "my/device/name1",
+                    "type": "sdm.devices.types.SomeDeviceType",
+                }
+            )
+        )
+        self.assertEqual(1, len(mgr.devices))
+        mgr.add_device(
+            MakeDevice(
+                {
+                    "name": "my/device/name1",
+                    "type": "sdm.devices.types.SomeDeviceType",
+                }
+            )
+        )
+        self.assertEqual(1, len(mgr.devices))
 
-    mgr.add_structure(MakeStructure({
-       "name": "enterprises/project-id/structures/structure-id",
-       "traits": {
-         "sdm.structures.traits.Info": {
-           "customName": "Structure Name",
-         },
-       },
-    }))
-    self.assertEqual(1, len(mgr.structures))
-    structure = mgr.structures["enterprises/project-id/structures/structure-id"]
-    self.assertTrue("sdm.structures.traits.Info" in structure.traits)
-    trait = structure.traits["sdm.structures.traits.Info"]
-    self.assertEqual("Structure Name", trait.custom_name)
+    def testUpdateTraits(self):
+        mgr = DeviceManager()
+        mgr.add_device(
+            MakeDevice(
+                {
+                    "name": "my/device/name1",
+                    "type": "sdm.devices.types.SomeDeviceType",
+                    "traits": {
+                        "sdm.devices.traits.Connectivity": {
+                            "status": "OFFLINE",
+                        },
+                    },
+                }
+            )
+        )
+        self.assertEqual(1, len(mgr.devices))
+        device = mgr.devices["my/device/name1"]
+        assert "sdm.devices.traits.Connectivity" in device.traits
+        trait = device.traits["sdm.devices.traits.Connectivity"]
+        self.assertEqual("OFFLINE", trait.status)
+        mgr.handle_event(
+            MakeEvent(
+                {
+                    "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                    "timestamp": "2019-01-01T00:00:01Z",
+                    "resourceUpdate": {
+                        "name": "my/device/name1",
+                        "traits": {
+                            "sdm.devices.traits.Connectivity": {
+                                "status": "ONLINE",
+                            }
+                        },
+                    },
+                    "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+                }
+            )
+        )
+        device = mgr.devices["my/device/name1"]
+        assert "sdm.devices.traits.Connectivity" in device.traits
+        trait = device.traits["sdm.devices.traits.Connectivity"]
+        self.assertEqual("ONLINE", trait.status)
 
-    mgr.handle_event(MakeEvent({
-        "eventId" : "0120ecc7-3b57-4eb4-9941-91609f189fb4",
-        "timestamp" : "2019-01-01T00:00:01Z",
-        "relationUpdate": {
-            "type": "CREATED",
-            "subject" : "enterprises/project-id/structures/structure-id",
-            "object" : "enterprises/project-id/devices/device-id",
-        },
-        "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi"
-    }))
-    device = mgr.devices["enterprises/project-id/devices/device-id"]
-    self.assertEqual({
-        "enterprises/project-id/structures/structure-id": "Structure Name",
-    }, device.parent_relations)
+    def testDeviceCreatedInStructure(self):
+        mgr = DeviceManager()
+        mgr.add_device(
+            MakeDevice(
+                {
+                    "name": "enterprises/project-id/devices/device-id",
+                    "type": "sdm.devices.types.SomeDeviceType",
+                    "parentRelations": [],
+                }
+            )
+        )
+        self.assertEqual(1, len(mgr.devices))
+        device = mgr.devices["enterprises/project-id/devices/device-id"]
+        self.assertEqual(0, len(device.parent_relations))
 
-    mgr.handle_event(MakeEvent({
-        "eventId" : "0120ecc7-3b57-4eb4-9941-91609f189fb4",
-        "timestamp" : "2019-01-01T00:00:01Z",
-        "relationUpdate": {
-            "type": "DELETED",
-            "subject" : "enterprises/project-id/structures/structure-id",
-            "object" : "enterprises/project-id/devices/device-id",
-        },
-        "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi"
-    }))
-    device = mgr.devices["enterprises/project-id/devices/device-id"]
-    self.assertEqual(0, len(device.parent_relations))
+        mgr.add_structure(
+            MakeStructure(
+                {
+                    "name": "enterprises/project-id/structures/structure-id",
+                    "traits": {
+                        "sdm.structures.traits.Info": {
+                            "customName": "Structure Name",
+                        },
+                    },
+                }
+            )
+        )
+        self.assertEqual(1, len(mgr.structures))
+        structure = mgr.structures["enterprises/project-id/structures/structure-id"]
+        self.assertTrue("sdm.structures.traits.Info" in structure.traits)
+        trait = structure.traits["sdm.structures.traits.Info"]
+        self.assertEqual("Structure Name", trait.custom_name)
+
+        mgr.handle_event(
+            MakeEvent(
+                {
+                    "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                    "timestamp": "2019-01-01T00:00:01Z",
+                    "relationUpdate": {
+                        "type": "CREATED",
+                        "subject": "enterprises/project-id/structures/structure-id",
+                        "object": "enterprises/project-id/devices/device-id",
+                    },
+                    "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+                }
+            )
+        )
+        device = mgr.devices["enterprises/project-id/devices/device-id"]
+        self.assertEqual(
+            {
+                "enterprises/project-id/structures/structure-id": "Structure Name",
+            },
+            device.parent_relations,
+        )
+
+        mgr.handle_event(
+            MakeEvent(
+                {
+                    "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                    "timestamp": "2019-01-01T00:00:01Z",
+                    "relationUpdate": {
+                        "type": "DELETED",
+                        "subject": "enterprises/project-id/structures/structure-id",
+                        "object": "enterprises/project-id/devices/device-id",
+                    },
+                    "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+                }
+            )
+        )
+        device = mgr.devices["enterprises/project-id/devices/device-id"]
+        self.assertEqual(0, len(device.parent_relations))

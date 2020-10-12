@@ -4,6 +4,7 @@ from typing import Callable, TypeVar
 
 CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # pylint: disable=invalid-name
 
+
 class Registry(dict):
     """Registry of items."""
 
