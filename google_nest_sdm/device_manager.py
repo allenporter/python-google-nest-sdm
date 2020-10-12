@@ -15,10 +15,12 @@ class DeviceManager(EventCallback):
 
     @property
     def devices(self) -> dict:
+        """Return current state of devices."""
         return self._devices
 
     @property
     def structures(self) -> dict:
+        """Return current state of structures."""
         return self._structures
 
     def add_device(self, device: Device):

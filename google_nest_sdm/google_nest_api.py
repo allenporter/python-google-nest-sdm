@@ -1,3 +1,4 @@
+"""Library to access the Smart Device Management API."""
 from typing import List
 
 from .auth import AbstractAuth
@@ -14,12 +15,12 @@ class GoogleNestAPI:
         self._project_id = project_id
 
     @property
-    def structures_url(self) -> str:
+    def _structures_url(self) -> str:
         return f"enterprises/{self._project_id}/structures"
 
     async def async_get_structures(self) -> List[Structure]:
         """Return the structures."""
-        resp = await self._auth.request("get", self.structures_url)
+        resp = await self._auth.request("get", self._structures_url)
         resp.raise_for_status()
         response_data = await resp.json()
         structures = response_data["structures"]
@@ -34,12 +35,12 @@ class GoogleNestAPI:
         return Structure.MakeStructure(await resp.json())
 
     @property
-    def devices_url(self) -> str:
+    def _devices_url(self) -> str:
         return f"enterprises/{self._project_id}/devices"
 
     async def async_get_devices(self) -> List[Device]:
         """Return the devices."""
-        resp = await self._auth.request("get", self.devices_url)
+        resp = await self._auth.request("get", self._devices_url)
         resp.raise_for_status()
         response_data = await resp.json()
         devices = response_data["devices"]

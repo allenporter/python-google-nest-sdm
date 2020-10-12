@@ -1,6 +1,4 @@
-import datetime
-
-from abc import abstractproperty, ABCMeta
+"""Traits for structures / rooms."""
 
 STRUCTURE_NAME = "name"
 STRUCTURE_TRAITS = "traits"
@@ -43,13 +41,13 @@ _ALL_TRAIT_MAP = {cls.NAME: cls for cls in _ALL_TRAITS}
 
 
 def _TraitsDict(traits: dict, trait_map: dict):
-    d = {}
+    result = {}
     for (trait, trait_data) in traits.items():
         if not trait in trait_map:
             continue
         cls = trait_map[trait]
-        d[trait] = cls(trait_data)
-    return d
+        result[trait] = cls(trait_data)
+    return result
 
 
 class Structure:
@@ -64,7 +62,6 @@ class Structure:
     def MakeStructure(raw_data: dict):
         """Creates a structure with the appropriate traits."""
         traits = raw_data.get(STRUCTURE_TRAITS, {})
-        structure_id = raw_data.get(STRUCTURE_NAME)
         traits_dict = _TraitsDict(traits, _ALL_TRAIT_MAP)
         return Structure(raw_data, traits_dict)
 

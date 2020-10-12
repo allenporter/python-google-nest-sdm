@@ -18,7 +18,6 @@ $ google_nest --project_id=<project_id> get <device_id>
 import argparse
 import asyncio
 import errno
-import json
 import logging
 import os
 import pickle
@@ -26,7 +25,6 @@ import pickle
 from aiohttp import ClientSession
 from google.auth.credentials import Credentials
 from google.auth.transport.requests import Request
-from google.cloud import pubsub_v1
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 from .auth import AbstractAuth

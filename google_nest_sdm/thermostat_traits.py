@@ -1,3 +1,4 @@
+"""Traits for thermostats."""
 from .traits import TRAIT_MAP, Command
 
 STATUS = "status"
@@ -14,6 +15,7 @@ class ThermostatEcoTrait:
     NAME = "sdm.devices.traits.ThermostatEco"
 
     def __init__(self, data: dict, cmd: Command):
+        """Initialize ThermostatEcoTrait."""
         self._data = data
         self._cmd = cmd
 
@@ -53,6 +55,7 @@ class ThermostatHvacTrait:
     NAME = "sdm.devices.traits.ThermostatHvac"
 
     def __init__(self, data: dict, cmd: Command):
+        """Initialize ThermostatHvacTrait."""
         self._data = data
 
     @property
@@ -68,6 +71,7 @@ class ThermostatModeTrait:
     NAME = "sdm.devices.traits.ThermostatMode"
 
     def __init__(self, data: dict, cmd: Command):
+        """Initialize ThermostatModeTrait."""
         self._data = data
         self._cmd = cmd
 
@@ -97,6 +101,7 @@ class ThermostatTemperatureSetpointTrait:
     NAME = "sdm.devices.traits.ThermostatTemperatureSetpoint"
 
     def __init__(self, data: dict, cmd: Command):
+        """Initialize ThermostatTemperatureSetpointTrait."""
         self._data = data
         self._cmd = cmd
 

@@ -1,17 +1,14 @@
-from typing import List
+"""Subscriber for the Smart Device Management event based API."""
 from abc import ABC, abstractmethod
 import asyncio
 import json
 
-from google.auth.credentials import Credentials
 from google.cloud import pubsub_v1
 
 from .auth import AbstractAuth
-from .device import Device
 from .device_manager import DeviceManager
 from .event import EventCallback, EventMessage
 from .google_nest_api import GoogleNestAPI
-from .structure import Structure
 
 
 class AbstractSusbcriberFactory(ABC):
@@ -49,13 +46,16 @@ class GoogleNestSubscriber:
         self._subscriber_id = subscriber_id
         self._api = GoogleNestAPI(auth, project_id)
         self._subscriber_factory = subscriber_factory
-        self._device_manager = None
+        self._future = None
+        self._device_manager_task = None
         self._callback = None
 
     def set_update_callback(self, callback: EventCallback):
+        """Register a callback invoked when new messages are received."""
         self._callback = callback
 
     async def start_async(self) -> DeviceManager:
+        """Starts the subscriber."""
         creds = await self._auth.async_get_creds()
         self._future = await self._subscriber_factory.new_subscriber(
             creds, self._subscriber_id, self._subscribe_callback
@@ -66,13 +66,16 @@ class GoogleNestSubscriber:
         return await self._device_manager_task
 
     def wait(self):
+        """Blocks on the subscriber."""
         self._future.result()
 
     def stop_async(self):
+        """Tells the subscriber to start shutting down."""
         return self._future.cancel()
 
     @property
-    async def async_device_manager(self):
+    async def async_device_manager(self) -> DeviceManager:
+        """Return the DeviceManger with the current state of devices."""
         return await self._device_manager_task
 
     async def _async_create_device_manager(self):

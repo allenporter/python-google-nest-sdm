@@ -23,35 +23,44 @@ EVENT_MAP = Registry()
 
 
 class EventBase(ABC):
+    """Base class for all event types."""
+
     def __init__(self, data):
+        """Initialize EventBase."""
         self._data = data
 
     @property
     def event_id(self) -> str:
+        """A unique event identifier."""
         return self._data[EVENT_ID]
 
     @property
     def event_session_id(self) -> str:
+        """Used to authenticate follow up request related to this event."""
         return self._data[EVENT_SESSION_ID]
 
 
 @EVENT_MAP.register()
 class CameraMotionEvent(EventBase):
+    """Motion has been detected by the camera."""
     NAME = "sdm.devices.events.CameraMotion.Motion"
 
 
 @EVENT_MAP.register()
 class CameraPersonEvent(EventBase):
+    """A person has been detected by the camera."""
     NAME = "sdm.devices.events.CameraPerson.Person"
 
 
 @EVENT_MAP.register()
 class CameraSoundEvent(EventBase):
+    """Sound has been detected by the camera."""
     NAME = "sdm.devices.events.CameraSound.Sound"
 
 
 @EVENT_MAP.register()
 class DoorbellChimeEvent(EventBase):
+    """The doorbell has been pressed."""
     NAME = "sdm.devices.events.DoorbellChime.Chime"
 
 
@@ -79,30 +88,33 @@ class RelationUpdate:
 
 def BuildEvents(events: dict, event_map: dict) -> dict:
     """Builds a trait map out of a response dict."""
-    d = {}
+    result = {}
     for (event, event_data) in events.items():
         if not event in event_map:
             continue
         cls = event_map[event]
-        d[event] = cls(event_data)
-    return d
+        result[event] = cls(event_data)
+    return result
 
 
 class EventMessage:
     """Event for a change in trait value or device action."""
 
     def __init__(self, raw_data: dict, auth: AbstractAuth):
+        """Initialize an EventMessage."""
         self._raw_data = raw_data
         self._auth = auth
 
     @property
     def event_id(self) -> str:
+        """A unique event identifier."""
         return self._raw_data[EVENT_ID]
 
     @property
     def timestamp(self) -> datetime.datetime:
-        t = self._raw_data[TIMESTAMP]
-        return datetime.datetime.fromisoformat(t.replace("Z", "+00:00"))
+        """Time when the event was published."""
+        event_timestamp = self._raw_data[TIMESTAMP]
+        return datetime.datetime.fromisoformat(event_timestamp.replace("Z", "+00:00"))
 
     @property
     def resource_update_name(self) -> str:
@@ -137,6 +149,8 @@ class EventMessage:
 
 
 class EventCallback(ABC):
+    """For implementers to get notified about EventMessages."""
+
     @abstractmethod
     def handle_event(self, event_message: EventMessage):
         """Process an incoming EventMessage."""

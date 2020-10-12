@@ -1,4 +1,4 @@
-from .auth import AbstractAuth
+"""Traits belonging to camera devices."""
 
 import datetime
 
@@ -23,7 +23,6 @@ EXPIRES_AT = "expiresAt"
 
 class Resolution:
     """Maximum Resolution of an image or stream."""
-
     width = None
     height = None
 
@@ -35,21 +34,24 @@ class CameraImageTrait:
     NAME = "sdm.devices.traits.CameraImage"
 
     def __init__(self, data: dict, cmd: Command):
+        """Initialize CameraImageTrait."""
         self._data = data
         self._cmd = cmd
 
     @property
     def max_image_resolution(self) -> Resolution:
-        r = Resolution()
-        r.width = self._data[MAX_IMAGE_RESOLUTION][WIDTH]
-        r.height = self._data[MAX_IMAGE_RESOLUTION][HEIGHT]
-        return r
+        """Maximum resolution of the camera image."""
+        res = Resolution()
+        res.width = self._data[MAX_IMAGE_RESOLUTION][WIDTH]
+        res.height = self._data[MAX_IMAGE_RESOLUTION][HEIGHT]
+        return res
 
 
 class RtspStream:
     """Provides access an RTSP live stream URL."""
 
     def __init__(self, data: dict, cmd: Command):
+        """Initialize RstpStream."""
         self._data = data
         self._cmd = cmd
 
@@ -71,8 +73,8 @@ class RtspStream:
     @property
     def expires_at(self) -> datetime:
         """Time at which both streamExtensionToken and streamToken expire."""
-        t = self._data[EXPIRES_AT]
-        return datetime.datetime.fromisoformat(t.replace("Z", "+00:00"))
+        expires_at = self._data[EXPIRES_AT]
+        return datetime.datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
 
     async def extend_rtsp_stream(self):
         """Request a new RTSP live stream URL access token."""
@@ -103,16 +105,17 @@ class CameraLiveStreamTrait:
     NAME = "sdm.devices.traits.CameraLiveStream"
 
     def __init__(self, data: dict, cmd: Command):
+        """Initialize CameraLiveStreamTrait."""
         self._data = data
         self._cmd = cmd
 
     @property
     def max_video_resolution(self) -> Resolution:
         """Maximum resolution of the video live stream."""
-        r = Resolution()
-        r.width = self._data[MAX_VIDEO_RESOLUTION][WIDTH]
-        r.height = self._data[MAX_VIDEO_RESOLUTION][HEIGHT]
-        return r
+        res = Resolution()
+        res.width = self._data[MAX_VIDEO_RESOLUTION][WIDTH]
+        res.height = self._data[MAX_VIDEO_RESOLUTION][HEIGHT]
+        return res
 
     @property
     def video_codecs(self) -> list:
@@ -172,15 +175,16 @@ class CameraEventImageTrait:
     NAME = "sdm.devices.traits.CameraEventImage"
 
     def __init__(self, data: dict, cmd: Command):
+        """Initialize CameraEventImageTrait."""
         self._data = data
         self._cmd = cmd
 
-    async def generate_image(self, eventId: str) -> EventImage:
+    async def generate_image(self, event_id: str) -> EventImage:
         """Provides a URL to download a camera image from."""
         data = {
             "command": "sdm.devices.commands.CameraEventImage.GenerateImage",
             "params": {
-                "eventId": eventId,
+                "eventId": event_id,
             },
         }
         resp = await self._cmd.execute(data)

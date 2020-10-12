@@ -1,12 +1,12 @@
+"""A device from the Smart Device Management API."""
+
 from .auth import AbstractAuth
-
-import datetime
-
 from .traits import BuildTraits
 from .traits import Command
-from . import camera_traits
-from . import device_traits
-from . import thermostat_traits
+# Import traits for registration
+from . import camera_traits  # pylint: disable=unused-import
+from . import device_traits  # pylint: disable=unused-import
+from . import thermostat_traits  # pylint: disable=unused-import
 
 DEVICE_NAME = "name"
 DEVICE_TYPE = "type"
@@ -24,10 +24,10 @@ class Device:
         self._raw_data = raw_data
         self._traits = traits
         self._relations = {}
-        for d in self._raw_data.get(DEVICE_PARENT_RELATIONS, []):
-            if not PARENT in d or not DISPLAYNAME in d:
+        for relation in self._raw_data.get(DEVICE_PARENT_RELATIONS, []):
+            if not PARENT in relation or not DISPLAYNAME in relation:
                 continue
-            self._relations[d[PARENT]] = d[DISPLAYNAME]
+            self._relations[relation[PARENT]] = relation[DISPLAYNAME]
 
     @staticmethod
     def MakeDevice(raw_data: dict, auth: AbstractAuth):
