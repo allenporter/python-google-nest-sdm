@@ -251,3 +251,60 @@ async def test_subscribe_update_trait(aiohttp_server) -> None:
         device = devices["enterprises/project-id1/devices/device-id1"]
         trait = device.traits["sdm.devices.traits.Connectivity"]
         assert "OFFLINE" == trait.status
+
+async def test_subscribe_device_manager_init(aiohttp_server) -> None:
+    subscriber_factory = FakeSubscriberFactory()
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "enterprises/project-id1/devices/device-id1",
+                "type": "sdm.devices.types.device-type1",
+                "traits": {},
+                "parentRelations": [],
+            },
+            {
+                "name": "enterprises/project-id1/devices/device-id2",
+                "type": "sdm.devices.types.device-type2",
+                "traits": {},
+                "parentRelations": [],
+            },
+        ],
+    )
+
+    app = aiohttp.web.Application()
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+    app.router.add_get(
+        "/enterprises/project-id1/structures",
+        NewStructureHandler(
+            r,
+            [
+                {
+                    "name": "enterprises/project-id1/structures/structure-id1",
+                }
+            ],
+        ),
+    )
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        subscriber = GoogleNestSubscriber(
+            FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, subscriber_factory
+        )
+        start_async = subscriber.start_async()
+        device_manager = await subscriber.async_device_manager
+        await start_async
+        devices = device_manager.devices
+        assert "enterprises/project-id1/devices/device-id1" in devices
+        assert (
+            "sdm.devices.types.device-type1"
+            == devices["enterprises/project-id1/devices/device-id1"].type
+        )
+        assert "enterprises/project-id1/devices/device-id2" in devices
+        assert (
+            "sdm.devices.types.device-type2"
+            == devices["enterprises/project-id1/devices/device-id2"].type
+        )
+
+

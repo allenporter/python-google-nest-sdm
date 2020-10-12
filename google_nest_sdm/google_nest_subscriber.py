@@ -47,8 +47,10 @@ class GoogleNestSubscriber:
         self._api = GoogleNestAPI(auth, project_id)
         self._subscriber_factory = subscriber_factory
         self._future = None
-        self._device_manager_task = None
         self._callback = None
+        self._device_manager_task = asyncio.create_task(
+            self._async_create_device_manager()
+        )
 
     def set_update_callback(self, callback: EventCallback):
         """Register a callback invoked when new messages are received."""
@@ -59,9 +61,6 @@ class GoogleNestSubscriber:
         creds = await self._auth.async_get_creds()
         self._future = await self._subscriber_factory.new_subscriber(
             creds, self._subscriber_id, self._subscribe_callback
-        )
-        self._device_manager_task = asyncio.create_task(
-            self._async_create_device_manager()
         )
         return await self._device_manager_task
 
