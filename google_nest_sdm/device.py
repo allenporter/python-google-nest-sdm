@@ -3,6 +3,7 @@
 from .auth import AbstractAuth
 from .traits import BuildTraits
 from .traits import Command
+
 # Import traits for registration
 from . import camera_traits  # pylint: disable=unused-import
 from . import device_traits  # pylint: disable=unused-import

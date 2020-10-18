@@ -43,24 +43,28 @@ class EventBase(ABC):
 @EVENT_MAP.register()
 class CameraMotionEvent(EventBase):
     """Motion has been detected by the camera."""
+
     NAME = "sdm.devices.events.CameraMotion.Motion"
 
 
 @EVENT_MAP.register()
 class CameraPersonEvent(EventBase):
     """A person has been detected by the camera."""
+
     NAME = "sdm.devices.events.CameraPerson.Person"
 
 
 @EVENT_MAP.register()
 class CameraSoundEvent(EventBase):
     """Sound has been detected by the camera."""
+
     NAME = "sdm.devices.events.CameraSound.Sound"
 
 
 @EVENT_MAP.register()
 class DoorbellChimeEvent(EventBase):
     """The doorbell has been pressed."""
+
     NAME = "sdm.devices.events.DoorbellChime.Chime"
 
 

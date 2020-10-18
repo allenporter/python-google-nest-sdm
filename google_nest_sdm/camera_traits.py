@@ -23,6 +23,7 @@ EXPIRES_AT = "expiresAt"
 
 class Resolution:
     """Maximum Resolution of an image or stream."""
+
     width = None
     height = None
 

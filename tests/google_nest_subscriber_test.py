@@ -252,6 +252,7 @@ async def test_subscribe_update_trait(aiohttp_server) -> None:
         trait = device.traits["sdm.devices.traits.Connectivity"]
         assert "OFFLINE" == trait.status
 
+
 async def test_subscribe_device_manager_init(aiohttp_server) -> None:
     subscriber_factory = FakeSubscriberFactory()
     r = Recorder()
@@ -306,5 +307,3 @@ async def test_subscribe_device_manager_init(aiohttp_server) -> None:
             "sdm.devices.types.device-type2"
             == devices["enterprises/project-id1/devices/device-id2"].type
         )
-
-
