@@ -2,6 +2,7 @@
 from .context import google_nest_sdm
 
 import unittest
+import datetime
 from google_nest_sdm.device import Device
 
 
@@ -60,6 +61,25 @@ class DeviceTest(unittest.TestCase):
         self.assertTrue("sdm.devices.traits.Connectivity" in device.traits)
         trait = device.traits["sdm.devices.traits.Connectivity"]
         self.assertEqual("OFFLINE", trait.status)
+
+    def testFanTraits(self):
+        raw = {
+            "name": "my/device/name",
+            "traits": {
+                "sdm.devices.traits.Fan": {
+                    "timerMode": "ON",
+                    "timerTimeout": "2019-05-10T03:22:54Z",
+                },
+            },
+        }
+        device = Device.MakeDevice(raw, auth=None)
+        self.assertTrue("sdm.devices.traits.Fan" in device.traits)
+        trait = device.traits["sdm.devices.traits.Fan"]
+        self.assertEqual("ON", trait.timer_mode)
+        self.assertEqual(
+            datetime.datetime(2019, 5, 10, 3, 22, 54, tzinfo=datetime.timezone.utc),
+            trait.timer_timeout,
+        )
 
     def testHumidityTraits(self):
         raw = {

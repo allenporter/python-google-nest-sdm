@@ -76,6 +76,49 @@ async def test_get_devices(aiohttp_server) -> None:
         assert "sdm.devices.types.device-type2" == devices[1].type
 
 
+async def test_fan_set_timer(aiohttp_server) -> None:
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "enterprises/project-id1/devices/device-id1",
+                "traits": {
+                    "sdm.devices.traits.Fan": {
+                        "timerMode": "OFF",
+                    },
+                },
+            }
+        ],
+    )
+    post_handler = NewRequestRecorder(r, [])
+
+    app = aiohttp.web.Application()
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+    app.router.add_post(
+        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
+    )
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
+        devices = await api.async_get_devices()
+        assert len(devices) == 1
+        device = devices[0]
+        assert "enterprises/project-id1/devices/device-id1" == device.name
+        trait = device.traits["sdm.devices.traits.Fan"]
+        assert trait.timer_mode == "OFF"
+        await trait.set_timer("ON", 3600)
+        expected_request = {
+            "command": "sdm.devices.commands.Fan.SetTimer",
+            "params": {
+                "timerMode": "ON",
+                "duration": "3600s",
+            },
+        }
+        assert expected_request == r.request
+
+
 async def test_thermostat_eco_set_mode(aiohttp_server) -> None:
     r = Recorder()
     handler = NewDeviceHandler(
