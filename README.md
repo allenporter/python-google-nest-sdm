@@ -17,7 +17,7 @@ commands with your account before attempting to use this library.
 # Structure
 
 This API was designed for use in Home Assistant following the advice in
-[Building a Pythong Library for an API](https://developers.home-assistant.io/docs/api_lib_index/).
+[Building a Python Library for an API](https://developers.home-assistant.io/docs/api_lib_index/).
 
 If you are integrating this from outside Home Assistant, you'll need to
 create your own oauth integration and token refresh mechanism and tooling.
@@ -28,7 +28,7 @@ This is an example to use the command line tool to access the API:
 
 ```
 PROJECT_ID="some-project-id"
-CLIEND_ID="some-client-id"
+CLIENT_ID="some-client-id"
 CLIENT_SECRET="some-client-secret"
 # Initial call will ask you to authorize OAuth2 then cache the token
 google_nest --project_id="${PROJECT_ID}" --client_id="${CLIENT_ID}" --client_secret="${CLIENT_SECRET}" list
