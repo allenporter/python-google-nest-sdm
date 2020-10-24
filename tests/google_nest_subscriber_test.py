@@ -1,4 +1,3 @@
-import datetime
 import json
 
 import aiohttp
@@ -6,11 +5,9 @@ import mock
 from google.auth.credentials import Credentials
 from google.cloud import pubsub_v1
 
-from google_nest_sdm import google_nest_api
 from google_nest_sdm.device import AbstractAuth
 from google_nest_sdm.google_nest_subscriber import (
     AbstractSusbcriberFactory,
-    EventCallback,
     GoogleNestSubscriber,
 )
 
@@ -44,13 +41,6 @@ class FakeSubscriberFactory(AbstractSusbcriberFactory):
 
 class Recorder:
     request = None
-
-
-class Callback(EventCallback):
-    events = []
-
-    def handle_event(self, event):
-        self.events.append(event)
 
 
 def NewDeviceHandler(r: Recorder, devices: dict):
@@ -219,7 +209,6 @@ async def test_subscribe_update_trait(aiohttp_server) -> None:
         subscriber = GoogleNestSubscriber(
             FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, subscriber_factory
         )
-        c = Callback()
         device_manager = await subscriber.start_async()
         devices = device_manager.devices
         assert "enterprises/project-id1/devices/device-id1" in devices

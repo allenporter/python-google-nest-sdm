@@ -3,8 +3,6 @@ import unittest
 
 from google_nest_sdm.event import EventMessage
 
-from .context import google_nest_sdm
-
 
 def MakeEvent(raw_data: dict) -> EventMessage:
     return EventMessage(raw_data, auth=None)

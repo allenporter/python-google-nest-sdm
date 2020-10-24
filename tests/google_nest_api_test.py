@@ -1,12 +1,9 @@
 import datetime
 
 import aiohttp
-import pytest
-from pytest_aiohttp import aiohttp_server
 
 from google_nest_sdm import google_nest_api
 from google_nest_sdm.device import AbstractAuth
-
 
 PROJECT_ID = "project-id1"
 
@@ -281,10 +278,10 @@ async def test_camera_live_stream(aiohttp_server) -> None:
             {
                 "results": {
                     "streamUrls": {
-                        "rtsp_url": "rtsps://someurl.com/CjY5Y3VKaTZwR3o4Y19YbTVfMF...?auth=g.0.streamingToken"
+                        "rtsp_url": "rtsps://someurl.com/CjY5Y3VKaTfMF?auth=g.0.token"
                     },
-                    "streamExtensionToken": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
-                    "streamToken": "g.0.streamingToken",
+                    "streamExtensionToken": "CjY5Y3VKaTfMF",
+                    "streamToken": "g.0.token",
                     "expiresAt": "2018-01-04T18:30:00.000Z",
                 },
             },
@@ -325,7 +322,7 @@ async def test_camera_live_stream(aiohttp_server) -> None:
             "params": {},
         }
         assert expected_request == r.request
-        assert "g.0.streamingToken" == stream.stream_token
+        assert "g.0.token" == stream.stream_token
         assert (
             datetime.datetime(2018, 1, 4, 18, 30, tzinfo=datetime.timezone.utc)
             == stream.expires_at
@@ -335,7 +332,7 @@ async def test_camera_live_stream(aiohttp_server) -> None:
         expected_request = {
             "command": "sdm.devices.commands.CameraLiveStream.ExtendRtspStream",
             "params": {
-                "streamExtensionToken": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                "streamExtensionToken": "CjY5Y3VKaTfMF",
             },
         }
         assert expected_request == r.request
@@ -388,7 +385,7 @@ async def test_camera_event_image(aiohttp_server) -> None:
         [
             {
                 "results": {
-                    "url": "https://domain/sdm_event_snapshot/dGNUlTU2CjY5Y3VKaTZwR3o4Y",
+                    "url": "https://domain/sdm_event/dGNUlTU2CjY5Y3VKaTZwR3o4Y",
                     "token": "g.0.eventToken",
                 },
             }
@@ -415,9 +412,7 @@ async def test_camera_event_image(aiohttp_server) -> None:
             "params": {"eventId": "some-eventId"},
         }
         assert expected_request == r.request
-        assert (
-            "https://domain/sdm_event_snapshot/dGNUlTU2CjY5Y3VKaTZwR3o4Y" == image.url
-        )
+        assert "https://domain/sdm_event/dGNUlTU2CjY5Y3VKaTZwR3o4Y" == image.url
         assert "g.0.eventToken" == image.token
 
 
