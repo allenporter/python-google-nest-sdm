@@ -72,8 +72,7 @@ class GoogleNestSubscriber:
         """Tells the subscriber to start shutting down."""
         return self._future.cancel()
 
-    @property
-    async def async_device_manager(self) -> DeviceManager:
+    async def async_get_device_manager(self) -> DeviceManager:
         """Return the DeviceManger with the current state of devices."""
         return await self._device_manager_task
 

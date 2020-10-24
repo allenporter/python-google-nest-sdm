@@ -171,7 +171,7 @@ async def test_subscribe_device_manager(aiohttp_server) -> None:
             FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, subscriber_factory
         )
         await subscriber.start_async()
-        device_manager = await subscriber.async_device_manager
+        device_manager = await subscriber.async_get_device_manager()
         devices = device_manager.devices
         assert "enterprises/project-id1/devices/device-id1" in devices
         assert (
@@ -294,7 +294,7 @@ async def test_subscribe_device_manager_init(aiohttp_server) -> None:
             FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, subscriber_factory
         )
         start_async = subscriber.start_async()
-        device_manager = await subscriber.async_device_manager
+        device_manager = await subscriber.async_get_device_manager()
         await start_async
         devices = device_manager.devices
         assert "enterprises/project-id1/devices/device-id1" in devices
