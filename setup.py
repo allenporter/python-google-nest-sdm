@@ -16,12 +16,13 @@ setup(name='google_nest_sdm',
       author_email='allen@thebends.org',
       url='https://github.com/allenporter/python-google-nest-sdm',
       packages=['google_nest_sdm'],
+      include_package_data=True,
       install_requires=[
-          'aiohttp==3.6.2',
-          'google-auth==1.22.0',
-          'google-auth-oauthlib==0.4.1',
-          'google-cloud-pubsub==2.1.0',
-          'requests-oauthlib==1.3.0',
+          'aiohttp>=3.6.2',
+          'google-auth>=1.22.0',
+          'google-auth-oauthlib>=0.4.1',
+          'google-cloud-pubsub>=2.1.0',
+          'requests-oauthlib>=1.3.0',
       ],
       entry_points = {
           'console_scripts': [
@@ -29,5 +30,5 @@ setup(name='google_nest_sdm',
           ],
       },
       tests_require=[
-          'pytest_aiohttp==0.3.0',
+          'pytest_aiohttp>=0.3.0',
       ])

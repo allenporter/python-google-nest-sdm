@@ -75,6 +75,10 @@ $ pytest
 $ isort tests/*.py google_nest_sdm/*.py
 $ black tests/*.py google_nest_sdm/*.py
 $ flake8 tests/*.py google_nest_sdm/*.py
+
+# Releasing
+$ python3 setup.py sdist bdist_wheel
+$ twine upload --skip-existing dist/*
 ```
 
 # Funding and Support
