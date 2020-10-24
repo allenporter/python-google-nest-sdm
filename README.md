@@ -74,6 +74,7 @@ $ pytest
 # Formatting
 $ isort tests/*.py google_nest_sdm/*.py
 $ black tests/*.py google_nest_sdm/*.py
+$ flake8 tests/*.py google_nest_sdm/*.py
 ```
 
 # Funding and Support

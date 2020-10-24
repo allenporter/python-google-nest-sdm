@@ -1,9 +1,7 @@
 # Scaffolding for local test development
 import unittest
 
-from google_nest_sdm.structure import InfoTrait, RoomInfoTrait, Structure
-
-from .context import google_nest_sdm
+from google_nest_sdm.structure import Structure
 
 
 class StructureTest(unittest.TestCase):
