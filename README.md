@@ -62,6 +62,20 @@ SUBSCRIPTION_ID="projects/some-id/subscriptions/enterprise-some-project-id-pytho
 google_nest --project_id="${PROJECT_ID}" subscribe ${SUBSCRIPTION_ID}
 ```
 
+# Development
+
+```
+$ python3 -m venv venv
+$ source venv/bin/activate
+
+# Running tests
+$ pytest
+
+# Formatting
+$ isort tests/*.py google_nest_sdm/*.py
+$ black tests/*.py google_nest_sdm/*.py
+```
+
 # Funding and Support
 
 If you are interested in donating money to this effort, instead send a
