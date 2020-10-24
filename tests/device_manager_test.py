@@ -1,11 +1,12 @@
-from .context import google_nest_sdm
-
-import unittest
 import datetime
-from google_nest_sdm.structure import Structure
+import unittest
+
 from google_nest_sdm.device import Device
 from google_nest_sdm.device_manager import DeviceManager
 from google_nest_sdm.event import EventMessage
+from google_nest_sdm.structure import Structure
+
+from .context import google_nest_sdm
 
 
 def MakeDevice(raw_data: dict) -> Device:

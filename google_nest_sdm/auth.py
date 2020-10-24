@@ -1,6 +1,7 @@
 """Authentication library, implemented by users of the API."""
 import logging
 from abc import ABC, abstractmethod
+
 import aiohttp
 from google.auth.credentials import Credentials
 

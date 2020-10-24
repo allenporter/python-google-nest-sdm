@@ -1,13 +1,13 @@
-from .context import google_nest_sdm
+import datetime
 
 import aiohttp
-import datetime
 import pytest
 from pytest_aiohttp import aiohttp_server
 
-from google_nest_sdm.device import AbstractAuth
 from google_nest_sdm import google_nest_api
+from google_nest_sdm.device import AbstractAuth
 
+from .context import google_nest_sdm
 
 PROJECT_ID = "project-id1"
 

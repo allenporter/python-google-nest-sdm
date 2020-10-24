@@ -1,9 +1,10 @@
 # Scaffolding for local test development
-from .context import google_nest_sdm
-
-import unittest
 import datetime
+import unittest
+
 from google_nest_sdm.device import Device
+
+from .context import google_nest_sdm
 
 
 class DeviceTest(unittest.TestCase):

@@ -1,11 +1,11 @@
 # Scaffolding for local test development
-from .context import google_nest_sdm
-
-import pytest
 import aiohttp
+import pytest
 from pytest_aiohttp import aiohttp_server
 
 from google_nest_sdm.device import AbstractAuth
+
+from .context import google_nest_sdm
 
 
 class FakeAuth(AbstractAuth):

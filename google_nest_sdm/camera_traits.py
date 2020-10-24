@@ -2,8 +2,7 @@
 
 import datetime
 
-from .traits import Command
-from .traits import TRAIT_MAP
+from .traits import TRAIT_MAP, Command
 
 MAX_IMAGE_RESOLUTION = "maxImageResolution"
 MAX_VIDEO_RESOLUTION = "maxVideoResolution"

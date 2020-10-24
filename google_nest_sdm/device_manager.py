@@ -1,8 +1,8 @@
 """Device Manager keeps track of the current state of all devices."""
 
 from .device import Device
-from .structure import InfoTrait, Structure, RoomInfoTrait
 from .event import EventCallback, EventMessage
+from .structure import InfoTrait, RoomInfoTrait, Structure
 
 
 class DeviceManager(EventCallback):

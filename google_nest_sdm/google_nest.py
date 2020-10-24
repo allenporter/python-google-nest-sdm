@@ -28,15 +28,15 @@ from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 from .auth import AbstractAuth
+from .camera_traits import CameraLiveStreamTrait
+from .event import EventMessage
+from .google_nest_api import GoogleNestAPI
+from .google_nest_subscriber import EventCallback, GoogleNestSubscriber
 from .thermostat_traits import (
     ThermostatEcoTrait,
     ThermostatModeTrait,
     ThermostatTemperatureSetpointTrait,
 )
-from .camera_traits import CameraLiveStreamTrait
-from .google_nest_api import GoogleNestAPI
-from .event import EventMessage
-from .google_nest_subscriber import EventCallback, GoogleNestSubscriber
 
 # Define command line arguments
 parser = argparse.ArgumentParser(

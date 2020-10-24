@@ -1,13 +1,11 @@
 """A device from the Smart Device Management API."""
 
-from .auth import AbstractAuth
-from .traits import BuildTraits
-from .traits import Command
-
 # Import traits for registration
 from . import camera_traits  # pylint: disable=unused-import
 from . import device_traits  # pylint: disable=unused-import
 from . import thermostat_traits  # pylint: disable=unused-import
+from .auth import AbstractAuth
+from .traits import BuildTraits, Command
 
 DEVICE_NAME = "name"
 DEVICE_TYPE = "type"
