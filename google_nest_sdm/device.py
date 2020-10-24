@@ -1,9 +1,9 @@
 """A device from the Smart Device Management API."""
 
 # Import traits for registration
-from . import camera_traits  # pylint: disable=unused-import
-from . import device_traits  # pylint: disable=unused-import
-from . import thermostat_traits  # pylint: disable=unused-import
+from . import camera_traits  # noqa: F401
+from . import device_traits  # noqa: F401
+from . import thermostat_traits  # noqa: F401
 from .auth import AbstractAuth
 from .traits import BuildTraits, Command
 
@@ -24,7 +24,7 @@ class Device:
         self._traits = traits
         self._relations = {}
         for relation in self._raw_data.get(DEVICE_PARENT_RELATIONS, []):
-            if not PARENT in relation or not DISPLAYNAME in relation:
+            if PARENT not in relation or DISPLAYNAME not in relation:
                 continue
             self._relations[relation[PARENT]] = relation[DISPLAYNAME]
 

@@ -22,7 +22,7 @@ class Command:
 def _TraitsDict(traits: dict, trait_map: dict, cmd: Command):
     d = {}
     for (trait, trait_data) in traits.items():
-        if not trait in trait_map:
+        if trait not in trait_map:
             continue
         cls = trait_map[trait]
         d[trait] = cls(trait_data, cmd)

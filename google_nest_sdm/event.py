@@ -94,7 +94,7 @@ def BuildEvents(events: dict, event_map: dict) -> dict:
     """Builds a trait map out of a response dict."""
     result = {}
     for (event, event_data) in events.items():
-        if not event in event_map:
+        if event not in event_map:
             continue
         cls = event_map[event]
         result[event] = cls(event_data)
@@ -123,14 +123,14 @@ class EventMessage:
     @property
     def resource_update_name(self) -> str:
         """Returns the id of the device that was updated."""
-        if not RESOURCE_UPDATE in self._raw_data:
+        if RESOURCE_UPDATE not in self._raw_data:
             return None
         return self._raw_data[RESOURCE_UPDATE][NAME]
 
     @property
     def resource_update_events(self) -> dict:
         """Returns the set of events that happened."""
-        if not RESOURCE_UPDATE in self._raw_data:
+        if RESOURCE_UPDATE not in self._raw_data:
             return None
         events = self._raw_data[RESOURCE_UPDATE].get(EVENTS, {})
         return BuildEvents(events, EVENT_MAP)
@@ -138,7 +138,7 @@ class EventMessage:
     @property
     def resource_update_traits(self) -> dict:
         """Returns the set of traits that were updated."""
-        if not RESOURCE_UPDATE in self._raw_data:
+        if RESOURCE_UPDATE not in self._raw_data:
             return None
         cmd = Command(self.resource_update_name, self._auth)
         events = self._raw_data[RESOURCE_UPDATE].get(TRAITS, {})
@@ -147,7 +147,7 @@ class EventMessage:
     @property
     def relation_update(self) -> RelationUpdate:
         """Represent a relational update for a resource."""
-        if not RELATION_UPDATE in self._raw_data:
+        if RELATION_UPDATE not in self._raw_data:
             return None
         return RelationUpdate(self._raw_data[RELATION_UPDATE])
 

@@ -43,7 +43,7 @@ _ALL_TRAIT_MAP = {cls.NAME: cls for cls in _ALL_TRAITS}
 def _TraitsDict(traits: dict, trait_map: dict):
     result = {}
     for (trait, trait_data) in traits.items():
-        if not trait in trait_map:
+        if trait not in trait_map:
             continue
         cls = trait_map[trait]
         result[trait] = cls(trait_data)
@@ -67,7 +67,7 @@ class Structure:
 
     @property
     def name(self) -> str:
-        """The resource name of the structure such as 'enterprises/XYZ/structures/123'."""
+        """The resource name of the structure e.g. 'enterprises/XYZ/structures/123'."""
         return self._raw_data[STRUCTURE_NAME]
 
     @property
