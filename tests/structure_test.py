@@ -1,53 +1,54 @@
-# Scaffolding for local test development
 import unittest
 
 from google_nest_sdm.structure import Structure
 
 
-class StructureTest(unittest.TestCase):
-    def testNoTraits(self):
-        raw = {
-            "name": "my/structure/name",
-        }
-        structure = Structure.MakeStructure(raw)
-        self.assertEqual("my/structure/name", structure.name)
-        self.assertFalse("sdm.structures.traits.Info" in structure.traits)
+def test_no_traits():
+    raw = {
+        "name": "my/structure/name",
+    }
+    structure = Structure.MakeStructure(raw)
+    assert "my/structure/name" == structure.name
+    assert not ("sdm.structures.traits.Info" in structure.traits)
 
-    def testEmptyTraits(self):
-        raw = {
-            "name": "my/structure/name",
-            "traits": {},
-        }
-        structure = Structure.MakeStructure(raw)
-        self.assertEqual("my/structure/name", structure.name)
-        self.assertFalse("sdm.structures.traits.Info" in structure.traits)
 
-    def testInfoTraits(self):
-        raw = {
-            "name": "my/structure/name",
-            "traits": {
-                "sdm.structures.traits.Info": {
-                    "customName": "Structure Name",
-                },
+def test_empty_traits():
+    raw = {
+        "name": "my/structure/name",
+        "traits": {},
+    }
+    structure = Structure.MakeStructure(raw)
+    assert "my/structure/name" == structure.name
+    assert not ("sdm.structures.traits.Info" in structure.traits)
+
+
+def test_info_traits():
+    raw = {
+        "name": "my/structure/name",
+        "traits": {
+            "sdm.structures.traits.Info": {
+                "customName": "Structure Name",
             },
-        }
-        structure = Structure.MakeStructure(raw)
-        self.assertEqual("my/structure/name", structure.name)
-        self.assertTrue("sdm.structures.traits.Info" in structure.traits)
-        trait = structure.traits["sdm.structures.traits.Info"]
-        self.assertEqual("Structure Name", trait.custom_name)
+        },
+    }
+    structure = Structure.MakeStructure(raw)
+    assert "my/structure/name" == structure.name
+    assert "sdm.structures.traits.Info" in structure.traits
+    trait = structure.traits["sdm.structures.traits.Info"]
+    assert "Structure Name" == trait.custom_name
 
-    def testRoomInfoTraits(self):
-        raw = {
-            "name": "my/structure/name",
-            "traits": {
-                "sdm.structures.traits.RoomInfo": {
-                    "customName": "Structure Name",
-                },
+
+def test_room_info_traits():
+    raw = {
+        "name": "my/structure/name",
+        "traits": {
+            "sdm.structures.traits.RoomInfo": {
+                "customName": "Structure Name",
             },
-        }
-        structure = Structure.MakeStructure(raw)
-        self.assertEqual("my/structure/name", structure.name)
-        self.assertTrue("sdm.structures.traits.RoomInfo" in structure.traits)
-        trait = structure.traits["sdm.structures.traits.RoomInfo"]
-        self.assertEqual("Structure Name", trait.custom_name)
+        },
+    }
+    structure = Structure.MakeStructure(raw)
+    assert "my/structure/name" == structure.name
+    assert "sdm.structures.traits.RoomInfo" in structure.traits
+    trait = structure.traits["sdm.structures.traits.RoomInfo"]
+    assert "Structure Name" == trait.custom_name

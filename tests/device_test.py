@@ -1,349 +1,360 @@
-# Scaffolding for local test development
 import datetime
 import unittest
 
 from google_nest_sdm.device import Device
 
 
-class DeviceTest(unittest.TestCase):
-    def testDeviceId(self):
-        raw = {
-            "name": "my/device/name",
-            "type": "sdm.devices.types.SomeDeviceType",
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertEqual("my/device/name", device.name)
-        self.assertEqual("sdm.devices.types.SomeDeviceType", device.type)
+def test_device_id():
+    raw = {
+        "name": "my/device/name",
+        "type": "sdm.devices.types.SomeDeviceType",
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "my/device/name" == device.name
+    assert "sdm.devices.types.SomeDeviceType" == device.type
 
-    def testNoTraits(self):
-        raw = {
-            "name": "my/device/name",
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertEqual("my/device/name", device.name)
-        self.assertFalse("sdm.devices.traits.Info" in device.traits)
 
-    def testEmptyTraits(self):
-        raw = {
-            "name": "my/device/name",
-            "traits": {},
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertEqual("my/device/name", device.name)
-        self.assertFalse("sdm.devices.traits.Info" in device.traits)
+def test_no_traits():
+    raw = {
+        "name": "my/device/name",
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "my/device/name" == device.name
+    assert not ("sdm.devices.traits.Info" in device.traits)
 
-    def testInfoTraits(self):
-        raw = {
-            "name": "my/device/name",
-            "traits": {
-                "sdm.devices.traits.Info": {
-                    "customName": "Device Name",
-                },
+
+def test_empty_traits():
+    raw = {
+        "name": "my/device/name",
+        "traits": {},
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "my/device/name" == device.name
+    assert not ("sdm.devices.traits.Info" in device.traits)
+
+
+def test_info_traits():
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.Info": {
+                "customName": "Device Name",
             },
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertEqual("my/device/name", device.name)
-        self.assertTrue("sdm.devices.traits.Info" in device.traits)
-        trait = device.traits["sdm.devices.traits.Info"]
-        self.assertEqual("Device Name", trait.custom_name)
+        },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "my/device/name" == device.name
+    assert "sdm.devices.traits.Info" in device.traits
+    trait = device.traits["sdm.devices.traits.Info"]
+    assert "Device Name" == trait.custom_name
 
-    def testConnectivityTraits(self):
-        raw = {
-            "name": "my/device/name",
-            "traits": {
-                "sdm.devices.traits.Connectivity": {
-                    "status": "OFFLINE",
-                },
+
+def test_connectivity_traits():
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.Connectivity": {
+                "status": "OFFLINE",
             },
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertTrue("sdm.devices.traits.Connectivity" in device.traits)
-        trait = device.traits["sdm.devices.traits.Connectivity"]
-        self.assertEqual("OFFLINE", trait.status)
+        },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "sdm.devices.traits.Connectivity" in device.traits
+    trait = device.traits["sdm.devices.traits.Connectivity"]
+    assert "OFFLINE" == trait.status
 
-    def testFanTraits(self):
-        raw = {
-            "name": "my/device/name",
-            "traits": {
-                "sdm.devices.traits.Fan": {
-                    "timerMode": "ON",
-                    "timerTimeout": "2019-05-10T03:22:54Z",
-                },
+
+def test_fan_traits():
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.Fan": {
+                "timerMode": "ON",
+                "timerTimeout": "2019-05-10T03:22:54Z",
             },
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertTrue("sdm.devices.traits.Fan" in device.traits)
-        trait = device.traits["sdm.devices.traits.Fan"]
-        self.assertEqual("ON", trait.timer_mode)
-        self.assertEqual(
-            datetime.datetime(2019, 5, 10, 3, 22, 54, tzinfo=datetime.timezone.utc),
-            trait.timer_timeout,
-        )
+        },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "sdm.devices.traits.Fan" in device.traits
+    trait = device.traits["sdm.devices.traits.Fan"]
+    assert "ON" == trait.timer_mode
+    assert (
+        datetime.datetime(2019, 5, 10, 3, 22, 54, tzinfo=datetime.timezone.utc)
+        == trait.timer_timeout
+    )
 
-    def testHumidityTraits(self):
-        raw = {
-            "name": "my/device/name",
-            "traits": {
-                "sdm.devices.traits.Humidity": {
-                    "ambientHumidityPercent": "25.3",
-                },
+
+def test_humidity_traits():
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.Humidity": {
+                "ambientHumidityPercent": "25.3",
             },
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertTrue("sdm.devices.traits.Humidity" in device.traits)
-        trait = device.traits["sdm.devices.traits.Humidity"]
-        self.assertEqual("25.3", trait.ambient_humidity_percent)
+        },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "sdm.devices.traits.Humidity" in device.traits
+    trait = device.traits["sdm.devices.traits.Humidity"]
+    assert "25.3" == trait.ambient_humidity_percent
 
-    def testTemperatureTraits(self):
-        raw = {
-            "name": "my/device/name",
-            "traits": {
-                "sdm.devices.traits.Temperature": {
-                    "ambientTemperatureCelsius": "31.1",
-                },
+
+def test_temperature_traits():
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.Temperature": {
+                "ambientTemperatureCelsius": "31.1",
             },
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertTrue("sdm.devices.traits.Temperature" in device.traits)
-        trait = device.traits["sdm.devices.traits.Temperature"]
-        self.assertEqual("31.1", trait.ambient_temperature_celsius)
+        },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "sdm.devices.traits.Temperature" in device.traits
+    trait = device.traits["sdm.devices.traits.Temperature"]
+    assert "31.1" == trait.ambient_temperature_celsius
 
-    def testMultipleTraits(self):
-        raw = {
-            "name": "my/device/name",
-            "type": "sdm.devices.types.SomeDeviceType",
-            "traits": {
-                "sdm.devices.traits.Info": {
-                    "customName": "Device Name",
-                },
-                "sdm.devices.traits.Connectivity": {
-                    "status": "OFFLINE",
-                },
+
+def test_multiple_traits():
+    raw = {
+        "name": "my/device/name",
+        "type": "sdm.devices.types.SomeDeviceType",
+        "traits": {
+            "sdm.devices.traits.Info": {
+                "customName": "Device Name",
             },
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertEqual("my/device/name", device.name)
-        self.assertEqual("sdm.devices.types.SomeDeviceType", device.type)
-        self.assertTrue("sdm.devices.traits.Info" in device.traits)
-        trait = device.traits["sdm.devices.traits.Info"]
-        self.assertEqual("Device Name", trait.custom_name)
-        self.assertTrue("sdm.devices.traits.Connectivity" in device.traits)
-        trait = device.traits["sdm.devices.traits.Connectivity"]
-        self.assertEqual("OFFLINE", trait.status)
+            "sdm.devices.traits.Connectivity": {
+                "status": "OFFLINE",
+            },
+        },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "my/device/name" == device.name
+    assert "sdm.devices.types.SomeDeviceType" == device.type
+    assert "sdm.devices.traits.Info" in device.traits
+    trait = device.traits["sdm.devices.traits.Info"]
+    assert "Device Name" == trait.custom_name
+    assert "sdm.devices.traits.Connectivity" in device.traits
+    trait = device.traits["sdm.devices.traits.Connectivity"]
+    assert "OFFLINE" == trait.status
 
-    def testNoParentRelations(self):
-        raw = {
-            "name": "my/device/name",
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertEqual("my/device/name", device.name)
-        self.assertEqual({}, device.parent_relations)
 
-    def testEmptyParentRelations(self):
-        raw = {
-            "name": "my/device/name",
-            "parentRelations": [],
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertEqual("my/device/name", device.name)
-        self.assertEqual({}, device.parent_relations)
+def test_no_parent_relations():
+    raw = {
+        "name": "my/device/name",
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "my/device/name" == device.name
+    assert {} == device.parent_relations
 
-    def testParentRelation(self):
-        raw = {
-            "name": "my/device/name",
-            "parentRelations": [
-                {
-                    "parent": "my/structure/or/room",
-                    "displayName": "Some Name",
-                },
-            ],
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertEqual("my/device/name", device.name)
-        self.assertEqual({"my/structure/or/room": "Some Name"}, device.parent_relations)
 
-    def testMultipleParentRelations(self):
-        raw = {
-            "name": "my/device/name",
-            "parentRelations": [
-                {
-                    "parent": "my/structure/or/room1",
-                    "displayName": "Some Name1",
-                },
-                {
-                    "parent": "my/structure/or/room2",
-                    "displayName": "Some Name2",
-                },
-            ],
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertEqual("my/device/name", device.name)
-        self.assertEqual(
+def test_empty_parent_relations():
+    raw = {
+        "name": "my/device/name",
+        "parentRelations": [],
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "my/device/name" == device.name
+    assert {} == device.parent_relations
+
+
+def test_parent_relation():
+    raw = {
+        "name": "my/device/name",
+        "parentRelations": [
             {
-                "my/structure/or/room1": "Some Name1",
-                "my/structure/or/room2": "Some Name2",
+                "parent": "my/structure/or/room",
+                "displayName": "Some Name",
             },
-            device.parent_relations,
-        )
+        ],
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "my/device/name" == device.name
+    assert {"my/structure/or/room": "Some Name"} == device.parent_relations
 
-    def testThermostatEcoTraits(self):
-        raw = {
-            "name": "my/device/name",
-            "traits": {
-                "sdm.devices.traits.ThermostatEco": {
-                    "availableModes": ["MANUAL_ECHO", "OFF"],
-                    "mode": "MANUAL_ECHO",
-                    "heatCelsius": 20.0,
-                    "coolCelsius": 22.0,
-                },
-            },
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertTrue("sdm.devices.traits.ThermostatEco" in device.traits)
-        trait = device.traits["sdm.devices.traits.ThermostatEco"]
-        self.assertEqual(["MANUAL_ECHO", "OFF"], trait.available_modes)
-        self.assertEqual("MANUAL_ECHO", trait.mode)
-        self.assertEqual(20.0, trait.heat_celsius)
-        self.assertEqual(22.0, trait.cool_celsius)
 
-    def testThermostatHvacTraits(self):
-        raw = {
-            "name": "my/device/name",
-            "traits": {
-                "sdm.devices.traits.ThermostatHvac": {
-                    "status": "HEATING",
-                },
+def test_multiple_parent_relations():
+    raw = {
+        "name": "my/device/name",
+        "parentRelations": [
+            {
+                "parent": "my/structure/or/room1",
+                "displayName": "Some Name1",
             },
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertTrue("sdm.devices.traits.ThermostatHvac" in device.traits)
-        trait = device.traits["sdm.devices.traits.ThermostatHvac"]
-        self.assertEqual("HEATING", trait.status)
+            {
+                "parent": "my/structure/or/room2",
+                "displayName": "Some Name2",
+            },
+        ],
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "my/device/name" == device.name
+    assert {
+        "my/structure/or/room1": "Some Name1",
+        "my/structure/or/room2": "Some Name2",
+    } == device.parent_relations
 
-    def testThermostatModeTraits(self):
-        raw = {
-            "name": "my/device/name",
-            "traits": {
-                "sdm.devices.traits.ThermostatMode": {
-                    "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
-                    "mode": "COOL",
-                },
-            },
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertTrue("sdm.devices.traits.ThermostatMode" in device.traits)
-        trait = device.traits["sdm.devices.traits.ThermostatMode"]
-        self.assertEqual(["HEAT", "COOL", "HEATCOOL", "OFF"], trait.available_modes)
-        self.assertEqual("COOL", trait.mode)
 
-    def testThermostatTemperatureSetpointTraits(self):
-        raw = {
-            "name": "my/device/name",
-            "traits": {
-                "sdm.devices.traits.ThermostatTemperatureSetpoint": {
-                    "heatCelsius": 20.0,
-                    "coolCelsius": 22.0,
-                },
+def test_thermostat_eco_traits():
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.ThermostatEco": {
+                "availableModes": ["MANUAL_ECHO", "OFF"],
+                "mode": "MANUAL_ECHO",
+                "heatCelsius": 20.0,
+                "coolCelsius": 22.0,
             },
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertTrue(
-            "sdm.devices.traits.ThermostatTemperatureSetpoint" in device.traits
-        )
-        trait = device.traits["sdm.devices.traits.ThermostatTemperatureSetpoint"]
-        self.assertEqual(20.0, trait.heat_celsius)
-        self.assertEqual(22.0, trait.cool_celsius)
+        },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "sdm.devices.traits.ThermostatEco" in device.traits
+    trait = device.traits["sdm.devices.traits.ThermostatEco"]
+    assert ["MANUAL_ECHO", "OFF"] == trait.available_modes
+    assert "MANUAL_ECHO" == trait.mode
+    assert 20.0 == trait.heat_celsius
+    assert 22.0 == trait.cool_celsius
 
-    def testThermostatMultipleTraits(self):
-        raw = {
-            "name": "my/device/name",
-            "traits": {
-                "sdm.devices.traits.ThermostatEco": {
-                    "availableModes": ["MANUAL_ECHO", "OFF"],
-                    "mode": "MANUAL_ECHO",
-                    "heatCelsius": 21.0,
-                    "coolCelsius": 22.0,
-                },
-                "sdm.devices.traits.ThermostatHvac": {
-                    "status": "HEATING",
-                },
-                "sdm.devices.traits.ThermostatMode": {
-                    "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
-                    "mode": "COOL",
-                },
-                "sdm.devices.traits.ThermostatTemperatureSetpoint": {
-                    "heatCelsius": 23.0,
-                    "coolCelsius": 24.0,
-                },
-            },
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertTrue("sdm.devices.traits.ThermostatEco" in device.traits)
-        self.assertTrue("sdm.devices.traits.ThermostatHvac" in device.traits)
-        self.assertTrue("sdm.devices.traits.ThermostatMode" in device.traits)
-        self.assertTrue(
-            "sdm.devices.traits.ThermostatTemperatureSetpoint" in device.traits
-        )
-        trait = device.traits["sdm.devices.traits.ThermostatEco"]
-        self.assertEqual(["MANUAL_ECHO", "OFF"], trait.available_modes)
-        self.assertEqual("MANUAL_ECHO", trait.mode)
-        self.assertEqual(21.0, trait.heat_celsius)
-        self.assertEqual(22.0, trait.cool_celsius)
-        trait = device.traits["sdm.devices.traits.ThermostatHvac"]
-        self.assertEqual("HEATING", trait.status)
-        trait = device.traits["sdm.devices.traits.ThermostatMode"]
-        self.assertEqual(["HEAT", "COOL", "HEATCOOL", "OFF"], trait.available_modes)
-        self.assertEqual("COOL", trait.mode)
-        trait = device.traits["sdm.devices.traits.ThermostatTemperatureSetpoint"]
-        self.assertEqual(23.0, trait.heat_celsius)
-        self.assertEqual(24.0, trait.cool_celsius)
 
-    def testCameraImageTraits(self):
-        raw = {
-            "name": "my/device/name",
-            "traits": {
-                "sdm.devices.traits.CameraImage": {
-                    "maxImageResolution": {
-                        "width": 500,
-                        "height": 300,
-                    }
-                },
+def test_thermostat_hvac_traits():
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.ThermostatHvac": {
+                "status": "HEATING",
             },
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertTrue("sdm.devices.traits.CameraImage" in device.traits)
-        trait = device.traits["sdm.devices.traits.CameraImage"]
-        self.assertEqual(500, trait.max_image_resolution.width)
-        self.assertEqual(300, trait.max_image_resolution.height)
+        },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "sdm.devices.traits.ThermostatHvac" in device.traits
+    trait = device.traits["sdm.devices.traits.ThermostatHvac"]
+    assert "HEATING" == trait.status
 
-    def testCameraLiveStreamTraits(self):
-        raw = {
-            "name": "my/device/name",
-            "traits": {
-                "sdm.devices.traits.CameraLiveStream": {
-                    "maxVideoResolution": {
-                        "width": 500,
-                        "height": 300,
-                    },
-                    "videoCodecs": ["H264"],
-                    "audioCodecs": ["AAC"],
-                },
-            },
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertTrue("sdm.devices.traits.CameraLiveStream" in device.traits)
-        trait = device.traits["sdm.devices.traits.CameraLiveStream"]
-        self.assertEqual(500, trait.max_video_resolution.width)
-        self.assertEqual(300, trait.max_video_resolution.height)
-        self.assertEqual(["H264"], trait.video_codecs)
-        self.assertEqual(["AAC"], trait.audio_codecs)
 
-    def testCameraEventImageTraits(self):
-        raw = {
-            "name": "my/device/name",
-            "traits": {
-                "sdm.devices.traits.CameraEventImage": {},
+def test_thermostat_mode_traits():
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.ThermostatMode": {
+                "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
+                "mode": "COOL",
             },
-        }
-        device = Device.MakeDevice(raw, auth=None)
-        self.assertTrue("sdm.devices.traits.CameraEventImage" in device.traits)
+        },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "sdm.devices.traits.ThermostatMode" in device.traits
+    trait = device.traits["sdm.devices.traits.ThermostatMode"]
+    assert ["HEAT", "COOL", "HEATCOOL", "OFF"] == trait.available_modes
+    assert "COOL" == trait.mode
+
+
+def test_thermostat_temperature_setpoint_traits():
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.ThermostatTemperatureSetpoint": {
+                "heatCelsius": 20.0,
+                "coolCelsius": 22.0,
+            },
+        },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "sdm.devices.traits.ThermostatTemperatureSetpoint" in device.traits
+    trait = device.traits["sdm.devices.traits.ThermostatTemperatureSetpoint"]
+    assert 20.0 == trait.heat_celsius
+    assert 22.0 == trait.cool_celsius
+
+
+def test_thermostat_multiple_traits():
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.ThermostatEco": {
+                "availableModes": ["MANUAL_ECHO", "OFF"],
+                "mode": "MANUAL_ECHO",
+                "heatCelsius": 21.0,
+                "coolCelsius": 22.0,
+            },
+            "sdm.devices.traits.ThermostatHvac": {
+                "status": "HEATING",
+            },
+            "sdm.devices.traits.ThermostatMode": {
+                "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
+                "mode": "COOL",
+            },
+            "sdm.devices.traits.ThermostatTemperatureSetpoint": {
+                "heatCelsius": 23.0,
+                "coolCelsius": 24.0,
+            },
+        },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "sdm.devices.traits.ThermostatEco" in device.traits
+    assert "sdm.devices.traits.ThermostatHvac" in device.traits
+    assert "sdm.devices.traits.ThermostatMode" in device.traits
+    assert "sdm.devices.traits.ThermostatTemperatureSetpoint" in device.traits
+    trait = device.traits["sdm.devices.traits.ThermostatEco"]
+    assert ["MANUAL_ECHO", "OFF"] == trait.available_modes
+    assert "MANUAL_ECHO" == trait.mode
+    assert 21.0 == trait.heat_celsius
+    assert 22.0 == trait.cool_celsius
+    trait = device.traits["sdm.devices.traits.ThermostatHvac"]
+    assert "HEATING" == trait.status
+    trait = device.traits["sdm.devices.traits.ThermostatMode"]
+    assert ["HEAT", "COOL", "HEATCOOL", "OFF"] == trait.available_modes
+    assert "COOL" == trait.mode
+    trait = device.traits["sdm.devices.traits.ThermostatTemperatureSetpoint"]
+    assert 23.0 == trait.heat_celsius
+    assert 24.0 == trait.cool_celsius
+
+
+def test_camera_image_traits():
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.CameraImage": {
+                "maxImageResolution": {
+                    "width": 500,
+                    "height": 300,
+                }
+            },
+        },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "sdm.devices.traits.CameraImage" in device.traits
+    trait = device.traits["sdm.devices.traits.CameraImage"]
+    assert 500 == trait.max_image_resolution.width
+    assert 300 == trait.max_image_resolution.height
+
+
+def test_camera_live_stream_traits():
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.CameraLiveStream": {
+                "maxVideoResolution": {
+                    "width": 500,
+                    "height": 300,
+                },
+                "videoCodecs": ["H264"],
+                "audioCodecs": ["AAC"],
+            },
+        },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "sdm.devices.traits.CameraLiveStream" in device.traits
+    trait = device.traits["sdm.devices.traits.CameraLiveStream"]
+    assert 500 == trait.max_video_resolution.width
+    assert 300 == trait.max_video_resolution.height
+    assert ["H264"] == trait.video_codecs
+    assert ["AAC"] == trait.audio_codecs
+
+
+def test_camera_event_image_traits():
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.CameraEventImage": {},
+        },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "sdm.devices.traits.CameraEventImage" in device.traits

@@ -1,4 +1,3 @@
-# Scaffolding for local test development
 import aiohttp
 
 from google_nest_sdm.device import AbstractAuth
