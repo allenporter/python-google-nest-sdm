@@ -1,5 +1,3 @@
-import unittest
-
 from google_nest_sdm.structure import Structure
 
 

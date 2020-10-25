@@ -25,10 +25,9 @@ EVENT_MAP = Registry()
 class EventBase(ABC):
     """Base class for all event types."""
 
-    def __init__(self, data, timestamp):
+    def __init__(self, data):
         """Initialize EventBase."""
         self._data = data
-        self._timestamp
 
     @property
     def event_id(self) -> str:

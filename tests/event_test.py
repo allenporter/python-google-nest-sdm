@@ -1,5 +1,4 @@
 import datetime
-import unittest
 
 from google_nest_sdm.event import EventMessage
 
