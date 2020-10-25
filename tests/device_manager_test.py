@@ -200,7 +200,7 @@ def test_device_event_callback():
             self.invoked = True
 
     callback = MyCallback()
-    device.add_event_callback(callback)
+    unregister = device.add_event_callback(callback)
     assert not callback.invoked
 
     mgr.handle_event(
@@ -246,3 +246,31 @@ def test_device_event_callback():
         )
     )
     assert not callback.invoked
+
+    # Unregister the callback.  The event is still processed, but the callback
+    # is not invoked
+    unregister()
+    mgr.handle_event(
+        MakeEvent(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": "2019-01-01T00:00:01Z",
+                "resourceUpdate": {
+                    "name": "my/device/name1",
+                    "traits": {
+                        "sdm.devices.traits.Connectivity": {
+                            "status": "OFFLINE",
+                        }
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    device = mgr.devices["my/device/name1"]
+    assert "sdm.devices.traits.Connectivity" in device.traits
+    trait = device.traits["sdm.devices.traits.Connectivity"]
+    assert "OFFLINE" == trait.status
+    assert not callback.invoked
+
+
