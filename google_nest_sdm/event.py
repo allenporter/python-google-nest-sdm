@@ -25,6 +25,10 @@ EVENT_IMAGE_EXPIRE_SECS = 30
 EVENT_MAP = Registry()
 
 
+class EventProcessingError(Exception):
+    """Raised when there was an error handling an event."""
+
+
 class ImageEventBase(ABC):
     """Base class for all image related event types."""
 

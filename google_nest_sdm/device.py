@@ -1,11 +1,18 @@
 """A device from the Smart Device Management API."""
 
+import logging
+
 # Import traits for registration
+from typing import Callable
+
 from . import camera_traits  # noqa: F401
 from . import device_traits  # noqa: F401
 from . import thermostat_traits  # noqa: F401
 from .auth import AbstractAuth
+from .event import EventCallback, EventMessage, EventProcessingError
 from .traits import BuildTraits, Command
+
+_LOGGER = logging.getLogger(__name__)
 
 DEVICE_NAME = "name"
 DEVICE_TYPE = "type"
@@ -27,6 +34,7 @@ class Device:
             if PARENT not in relation or DISPLAYNAME not in relation:
                 continue
             self._relations[relation[PARENT]] = relation[DISPLAYNAME]
+        self._callbacks = []
 
     @staticmethod
     def MakeDevice(raw_data: dict, auth: AbstractAuth):
@@ -66,3 +74,40 @@ class Device:
     def parent_relations(self) -> dict:
         """"Assignee details of the device (e.g. room/structure)."""
         return self._relations
+
+    def add_event_callback(self, event_callback: EventCallback) -> Callable[[], None]:
+        """Register an EventCallback for udpates to this device.
+
+        The return value is a callable that will unregister the callback.
+        """
+        self._callbacks.append(event_callback)
+
+        def remove_callback():
+            """Remove the event_callback."""
+            self._callbacks.remove(event_callback)
+
+        return remove_callback
+
+    def handle_event(self, event_message: EventMessage) -> None:
+        """Process an event from the pubsub subscriber."""
+        _LOGGER.debug(
+            "Processing update %s @ %s", event_message.event_id, event_message.timestamp
+        )
+        if not event_message.resource_update_name:
+            raise EventProcessingError("Event was not resource update event")
+        if self.name != event_message.resource_update_name:
+            raise EventProcessingError(
+                f"Mismatch {self.name} != {event_message.resource_update_name}"
+            )
+        traits = event_message.resource_update_traits
+        if traits:
+            _LOGGER.debug("Trait update %s", traits.keys())
+        events = event_message.resource_update_events
+        if events:
+            _LOGGER.debug("Event Update %s", events.keys())
+
+        for (trait_name, trait) in traits.items():
+            self._traits[trait_name] = trait
+
+        for callback in self._callbacks:
+            callback.handle_event(event_message)

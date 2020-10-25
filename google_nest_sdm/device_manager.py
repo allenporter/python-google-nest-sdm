@@ -33,13 +33,6 @@ class DeviceManager(EventCallback):
 
     def handle_event(self, event_message: EventMessage):
         """Invokes by the subscriber when a new message is received."""
-        if event_message.resource_update_name:
-            device_id = event_message.resource_update_name
-            if device_id in self._devices:
-                device = self._devices[device_id]
-                for (trait_name, trait) in event_message.resource_update_traits.items():
-                    device.traits[trait_name] = trait
-
         if event_message.relation_update:
             relation = event_message.relation_update
             if relation.object in self._devices:
@@ -59,3 +52,8 @@ class DeviceManager(EventCallback):
                                 name = structure.traits[trait_name].custom_name
                                 continue
                     device.parent_relations[relation.subject] = name
+        if event_message.resource_update_name:
+            device_id = event_message.resource_update_name
+            if device_id in self._devices:
+                device = self._devices[device_id]
+                device.handle_event(event_message)

@@ -1,6 +1,6 @@
 from google_nest_sdm.device import Device
 from google_nest_sdm.device_manager import DeviceManager
-from google_nest_sdm.event import EventMessage
+from google_nest_sdm.event import EventCallback, EventMessage
 from google_nest_sdm.structure import Structure
 
 
@@ -171,3 +171,78 @@ def test_device_created_in_structure():
     )
     device = mgr.devices["enterprises/project-id/devices/device-id"]
     assert 0 == len(device.parent_relations)
+
+
+def test_device_event_callback():
+    device = MakeDevice(
+        {
+            "name": "my/device/name1",
+            "type": "sdm.devices.types.SomeDeviceType",
+            "traits": {
+                "sdm.devices.traits.Connectivity": {
+                    "status": "OFFLINE",
+                },
+            },
+        }
+    )
+    mgr = DeviceManager()
+    mgr.add_device(device)
+    assert 1 == len(mgr.devices)
+    device = mgr.devices["my/device/name1"]
+    assert "sdm.devices.traits.Connectivity" in device.traits
+    trait = device.traits["sdm.devices.traits.Connectivity"]
+    assert "OFFLINE" == trait.status
+
+    class MyCallback(EventCallback):
+        invoked = False
+
+        def handle_event(self, event_message: EventMessage):
+            self.invoked = True
+
+    callback = MyCallback()
+    device.add_event_callback(callback)
+    assert not callback.invoked
+
+    mgr.handle_event(
+        MakeEvent(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": "2019-01-01T00:00:01Z",
+                "resourceUpdate": {
+                    "name": "my/device/name1",
+                    "traits": {
+                        "sdm.devices.traits.Connectivity": {
+                            "status": "ONLINE",
+                        }
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    device = mgr.devices["my/device/name1"]
+    assert "sdm.devices.traits.Connectivity" in device.traits
+    trait = device.traits["sdm.devices.traits.Connectivity"]
+    assert "ONLINE" == trait.status
+    assert callback.invoked
+
+    # Test event not for this device
+    callback.invoked = False
+    mgr.handle_event(
+        MakeEvent(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": "2019-01-01T00:00:01Z",
+                "resourceUpdate": {
+                    "name": "some-device-id",
+                    "traits": {
+                        "sdm.devices.traits.Connectivity": {
+                            "status": "ONLINE",
+                        }
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    assert not callback.invoked
