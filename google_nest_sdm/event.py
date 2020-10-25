@@ -25,18 +25,22 @@ EVENT_MAP = Registry()
 class EventBase(ABC):
     """Base class for all event types."""
 
-    def __init__(self, data):
+    def __init__(self, data, timestamp):
         """Initialize EventBase."""
         self._data = data
+        self._timestamp
 
     @property
     def event_id(self) -> str:
-        """A unique event identifier."""
+        """An ID associated with the event.
+
+        Can be used with CameraEventImageTrait to download the imaage.
+        """
         return self._data[EVENT_ID]
 
     @property
     def event_session_id(self) -> str:
-        """Used to authenticate follow up request related to this event."""
+        """An ID used to associate separate messages with a single event."""
         return self._data[EVENT_SESSION_ID]
 
 

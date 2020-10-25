@@ -141,7 +141,7 @@ class CameraLiveStreamTrait:
 
 
 class EventImage:
-    """Provides access an RTSP live stream URL.
+    """Provides access to an image in response to an event.
 
     Use a ?width or ?height query parameters to customize the resolution
     of the downloaded image. Only one of these parameters need to specified.
