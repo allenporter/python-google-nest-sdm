@@ -25,16 +25,18 @@ def test_camera_sound_event():
         }
     )
     assert "0120ecc7-3b57-4eb4-9941-91609f189fb4" == event.event_id
-    assert (
-        datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.timezone.utc)
-        == event.timestamp
-    )
+    ts = datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.timezone.utc)
+
+    assert ts == event.timestamp
     assert "enterprises/project-id/devices/device-id" == event.resource_update_name
     events = event.resource_update_events
     assert "sdm.devices.events.CameraSound.Sound" in events
     e = events["sdm.devices.events.CameraSound.Sound"]
     assert "FWWVQVUdGNUlTU2V4MGV2aTNXV..." == e.event_id
     assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." == e.event_session_id
+    assert ts == e.timestamp
+    expire_ts = datetime.datetime(2019, 1, 1, 0, 0, 31, tzinfo=datetime.timezone.utc)
+    assert expire_ts == e.expires_at
 
 
 def test_camera_person_event():

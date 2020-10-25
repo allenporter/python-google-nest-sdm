@@ -71,7 +71,7 @@ class RtspStream:
         return self._data[STREAM_EXTENSION_TOKEN]
 
     @property
-    def expires_at(self) -> datetime:
+    def expires_at(self) -> datetime.datetime:
         """Time at which both streamExtensionToken and streamToken expire."""
         expires_at = self._data[EXPIRES_AT]
         return datetime.datetime.fromisoformat(expires_at.replace("Z", "+00:00"))

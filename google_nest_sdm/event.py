@@ -19,15 +19,19 @@ TYPE = "type"
 SUBJECT = "subject"
 OBJECT = "object"
 
+# Event images expire 30 seconds after the event is published
+EVENT_IMAGE_EXPIRE_SECS = 30
+
 EVENT_MAP = Registry()
 
 
-class EventBase(ABC):
-    """Base class for all event types."""
+class ImageEventBase(ABC):
+    """Base class for all image related event types."""
 
-    def __init__(self, data):
+    def __init__(self, data: dict, timestamp: datetime.datetime):
         """Initialize EventBase."""
         self._data = data
+        self._timestamp = timestamp
 
     @property
     def event_id(self) -> str:
@@ -42,30 +46,39 @@ class EventBase(ABC):
         """An ID used to associate separate messages with a single event."""
         return self._data[EVENT_SESSION_ID]
 
+    @property
+    def timestamp(self) -> datetime.datetime:
+        """Timestap when the event occurred."""
+        return self._timestamp
+
+    @property
+    def expires_at(self) -> datetime.datetime:
+        return self._timestamp + datetime.timedelta(seconds=EVENT_IMAGE_EXPIRE_SECS)
+
 
 @EVENT_MAP.register()
-class CameraMotionEvent(EventBase):
+class CameraMotionEvent(ImageEventBase):
     """Motion has been detected by the camera."""
 
     NAME = "sdm.devices.events.CameraMotion.Motion"
 
 
 @EVENT_MAP.register()
-class CameraPersonEvent(EventBase):
+class CameraPersonEvent(ImageEventBase):
     """A person has been detected by the camera."""
 
     NAME = "sdm.devices.events.CameraPerson.Person"
 
 
 @EVENT_MAP.register()
-class CameraSoundEvent(EventBase):
+class CameraSoundEvent(ImageEventBase):
     """Sound has been detected by the camera."""
 
     NAME = "sdm.devices.events.CameraSound.Sound"
 
 
 @EVENT_MAP.register()
-class DoorbellChimeEvent(EventBase):
+class DoorbellChimeEvent(ImageEventBase):
     """The doorbell has been pressed."""
 
     NAME = "sdm.devices.events.DoorbellChime.Chime"
@@ -93,14 +106,14 @@ class RelationUpdate:
         return self._raw_data[OBJECT]
 
 
-def BuildEvents(events: dict, event_map: dict) -> dict:
+def BuildEvents(events: dict, event_map: dict, timestamp: datetime.datetime) -> dict:
     """Builds a trait map out of a response dict."""
     result = {}
     for (event, event_data) in events.items():
         if event not in event_map:
             continue
         cls = event_map[event]
-        result[event] = cls(event_data)
+        result[event] = cls(event_data, timestamp)
     return result
 
 
@@ -136,7 +149,7 @@ class EventMessage:
         if RESOURCE_UPDATE not in self._raw_data:
             return None
         events = self._raw_data[RESOURCE_UPDATE].get(EVENTS, {})
-        return BuildEvents(events, EVENT_MAP)
+        return BuildEvents(events, EVENT_MAP, self.timestamp)
 
     @property
     def resource_update_traits(self) -> dict:
