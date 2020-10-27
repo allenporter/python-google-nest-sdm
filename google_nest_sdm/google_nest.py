@@ -21,8 +21,9 @@ import errno
 import logging
 import os
 import pickle
+import socket
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, TCPConnector
 from google.auth.credentials import Credentials
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -214,7 +215,11 @@ class SubscribeCallback(EventCallback):
 
 
 async def RunTool(args, creds: Credentials):
-    async with ClientSession() as client:
+    conn = TCPConnector(
+        family=socket.AF_INET,
+        verify_ssl=False,
+    )
+    async with ClientSession(connector=conn) as client:
         auth = Auth(client, creds, API_URL)
         api = GoogleNestAPI(auth, args.project_id)
 
