@@ -1,6 +1,7 @@
 """Events from pubsub subscriber."""
 
 import datetime
+import logging
 from abc import ABC, abstractmethod
 
 from .auth import AbstractAuth
@@ -23,6 +24,8 @@ OBJECT = "object"
 EVENT_IMAGE_EXPIRE_SECS = 30
 
 EVENT_MAP = Registry()
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class EventProcessingError(Exception):
@@ -126,13 +129,14 @@ class EventMessage:
 
     def __init__(self, raw_data: dict, auth: AbstractAuth):
         """Initialize an EventMessage."""
+        _LOGGER.debug("EventMessage raw_data=%s", raw_data)
         self._raw_data = raw_data
         self._auth = auth
 
     @property
     def event_id(self) -> str:
         """A unique event identifier."""
-        return self._raw_data[EVENT_ID]
+        return self._raw_data.get(EVENT_ID, None)
 
     @property
     def timestamp(self) -> datetime.datetime:

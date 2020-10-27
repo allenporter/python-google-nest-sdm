@@ -272,5 +272,3 @@ def test_device_event_callback():
     trait = device.traits["sdm.devices.traits.Connectivity"]
     assert "OFFLINE" == trait.status
     assert not callback.invoked
-
-
