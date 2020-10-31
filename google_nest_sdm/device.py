@@ -7,6 +7,7 @@ from typing import Callable
 
 from . import camera_traits  # noqa: F401
 from . import device_traits  # noqa: F401
+from . import doorbell_traits  # noqa: F401
 from . import thermostat_traits  # noqa: F401
 from .auth import AbstractAuth
 from .event import EventCallback, EventMessage, EventProcessingError

@@ -192,3 +192,39 @@ class CameraEventImageTrait:
         response_data = await resp.json()
         results = response_data[RESULTS]
         return EventImage(results, self._cmd)
+
+
+@TRAIT_MAP.register()
+class CameraMotionTrait:
+    """For any device that supports motion detection events."""
+
+    NAME = "sdm.devices.traits.CameraMotion"
+
+    def __init__(self, data: dict, cmd: Command):
+        """Initialize CameraMotionTrait."""
+        self._data = data
+        self._cmd = cmd
+
+
+@TRAIT_MAP.register()
+class CameraPersonTrait:
+    """For any device that supports person detection events."""
+
+    NAME = "sdm.devices.traits.CameraPerson"
+
+    def __init__(self, data: dict, cmd: Command):
+        """Initialize CameraPersonTrait."""
+        self._data = data
+        self._cmd = cmd
+
+
+@TRAIT_MAP.register()
+class CameraSoundTrait:
+    """For any device that supports sound detection events."""
+
+    NAME = "sdm.devices.traits.CameraSound"
+
+    def __init__(self, data: dict, cmd: Command):
+        """Initialize CameraSoundTrait."""
+        self._data = data
+        self._cmd = cmd

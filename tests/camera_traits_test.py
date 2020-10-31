@@ -52,3 +52,36 @@ def test_camera_event_image_traits():
     }
     device = Device.MakeDevice(raw, auth=None)
     assert "sdm.devices.traits.CameraEventImage" in device.traits
+
+
+def test_camera_motion_traits():
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.CameraMotion": {},
+        },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "sdm.devices.traits.CameraMotion" in device.traits
+
+
+def test_camera_person_traits():
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.CameraPerson": {},
+        },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "sdm.devices.traits.CameraPerson" in device.traits
+
+
+def test_camera_sound_traits():
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.CameraSound": {},
+        },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "sdm.devices.traits.CameraSound" in device.traits
