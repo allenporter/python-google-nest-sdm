@@ -184,7 +184,7 @@ class EventCallback(ABC):
         """Process an incoming EventMessage."""
 
 
-class EventFilterCallback(EventCallback):
+class EventTypeFilterCallback(EventCallback):
     """Invokes a delegate only for events that match the trait type."""
 
     def __init__(self, event_name, delegate: EventCallback):
@@ -196,3 +196,24 @@ class EventFilterCallback(EventCallback):
         events = event_message.resource_update_events
         if self._event_name in events:
             self._delegate.handle_event(event_message)
+
+
+class RecentEventFilterCallback(EventCallback):
+    """Invokes a delegate only for recent events."""
+
+    def __init__(self, cutoff_timedelta: datetime.timedelta, delegate: EventCallback):
+        self._cutoff_timedelta = cutoff_timedelta
+        self._delegate = delegate
+
+    def handle_event(self, event_message: EventMessage):
+        """Process an incoming EventMessage."""
+        if not event_message.timestamp:
+            return
+        now = datetime.datetime.now(tz=datetime.timezone.utc)
+        oldest_allowed = now - self._cutoff_timedelta
+        if event_message.timestamp < oldest_allowed:
+            _LOGGER.debug(
+                "Ignoring event that is too old (%s)", event_message.timestamp
+            )
+            return
+        self._delegate.handle_event(event_message)

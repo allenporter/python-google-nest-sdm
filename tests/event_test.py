@@ -1,6 +1,11 @@
 import datetime
 
-from google_nest_sdm.event import EventCallback, EventFilterCallback, EventMessage
+from google_nest_sdm.event import (
+    EventCallback,
+    EventMessage,
+    EventTypeFilterCallback,
+    RecentEventFilterCallback,
+)
 
 
 def MakeEvent(raw_data: dict) -> EventMessage:
@@ -165,7 +170,9 @@ class MyCallback(EventCallback):
 
 def test_event_callback_filter_no_match():
     callback = MyCallback()
-    filter = EventFilterCallback("sdm.devices.events.CameraMotion.Motion", callback)
+    handler = EventTypeFilterCallback(
+        "sdm.devices.events.CameraMotion.Motion", callback
+    )
     assert not callback.invoked
     event = MakeEvent(
         {
@@ -183,13 +190,15 @@ def test_event_callback_filter_no_match():
             "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
         }
     )
-    filter.handle_event(event)
+    handler.handle_event(event)
     assert not callback.invoked
 
 
 def test_event_callback_filter_match():
     callback = MyCallback()
-    filter = EventFilterCallback("sdm.devices.events.CameraMotion.Motion", callback)
+    handler = EventTypeFilterCallback(
+        "sdm.devices.events.CameraMotion.Motion", callback
+    )
     assert not callback.invoked
     event = MakeEvent(
         {
@@ -207,13 +216,15 @@ def test_event_callback_filter_match():
             "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
         }
     )
-    filter.handle_event(event)
+    handler.handle_event(event)
     assert callback.invoked
 
 
 def test_event_callback_filter_trait_update():
     callback = MyCallback()
-    filter = EventFilterCallback("sdm.devices.events.CameraMotion.Motion", callback)
+    handler = EventTypeFilterCallback(
+        "sdm.devices.events.CameraMotion.Motion", callback
+    )
     assert not callback.invoked
     event = MakeEvent(
         {
@@ -230,5 +241,60 @@ def test_event_callback_filter_trait_update():
             "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
         }
     )
-    filter.handle_event(event)
+    handler.handle_event(event)
+    assert not callback.invoked
+
+
+def test_event_recent_event_filter_match():
+
+    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    timestamp = now - datetime.timedelta(seconds=5)
+
+    callback = MyCallback()
+    handler = RecentEventFilterCallback(datetime.timedelta(seconds=10), callback)
+    assert not callback.invoked
+    event = MakeEvent(
+        {
+            "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+            "timestamp": timestamp.isoformat(timespec="seconds"),
+            "resourceUpdate": {
+                "name": "enterprises/project-id/devices/device-id",
+                "events": {
+                    "sdm.devices.events.CameraPerson.Motion": {
+                        "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                        "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
+                    }
+                },
+            },
+            "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+        }
+    )
+    handler.handle_event(event)
+    assert callback.invoked
+
+
+def test_event_recent_event_filter_too_old():
+    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    timestamp = now - datetime.timedelta(seconds=15)
+
+    callback = MyCallback()
+    handler = RecentEventFilterCallback(datetime.timedelta(seconds=10), callback)
+    assert not callback.invoked
+    event = MakeEvent(
+        {
+            "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+            "timestamp": timestamp.isoformat(timespec="seconds"),
+            "resourceUpdate": {
+                "name": "enterprises/project-id/devices/device-id",
+                "events": {
+                    "sdm.devices.events.CameraPerson.Motion": {
+                        "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                        "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
+                    }
+                },
+            },
+            "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+        }
+    )
+    handler.handle_event(event)
     assert not callback.invoked
