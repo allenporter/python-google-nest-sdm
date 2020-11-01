@@ -182,3 +182,17 @@ class EventCallback(ABC):
     @abstractmethod
     def handle_event(self, event_message: EventMessage):
         """Process an incoming EventMessage."""
+
+
+class EventFilterCallback(EventCallback):
+    """Invokes a delegate only for events that match the trait type."""
+
+    def __init__(self, event_name, delegate: EventCallback):
+        self._event_name = event_name
+        self._delegate = delegate
+
+    def handle_event(self, event_message: EventMessage):
+        """Process an incoming EventMessage."""
+        events = event_message.resource_update_events
+        if self._event_name in events:
+            self._delegate.handle_event(event_message)

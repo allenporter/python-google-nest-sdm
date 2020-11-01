@@ -1,6 +1,6 @@
 import datetime
 
-from google_nest_sdm.event import EventMessage
+from google_nest_sdm.event import EventCallback, EventFilterCallback, EventMessage
 
 
 def MakeEvent(raw_data: dict) -> EventMessage:
@@ -154,3 +154,81 @@ def test_relation():
     assert "CREATED" == update.type
     assert "enterprises/project-id/structures/structure-id" == update.subject
     assert "enterprises/project-id/devices/device-id" == update.object
+
+
+class MyCallback(EventCallback):
+    invoked = False
+
+    def handle_event(self, event_message: EventMessage):
+        self.invoked = True
+
+
+def test_event_callback_filter_no_match():
+    callback = MyCallback()
+    filter = EventFilterCallback("sdm.devices.events.CameraMotion.Motion", callback)
+    assert not callback.invoked
+    event = MakeEvent(
+        {
+            "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+            "timestamp": "2019-01-01T00:00:01Z",
+            "resourceUpdate": {
+                "name": "enterprises/project-id/devices/device-id",
+                "events": {
+                    "sdm.devices.events.CameraPerson.Motion": {
+                        "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                        "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
+                    }
+                },
+            },
+            "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+        }
+    )
+    filter.handle_event(event)
+    assert not callback.invoked
+
+
+def test_event_callback_filter_match():
+    callback = MyCallback()
+    filter = EventFilterCallback("sdm.devices.events.CameraMotion.Motion", callback)
+    assert not callback.invoked
+    event = MakeEvent(
+        {
+            "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+            "timestamp": "2019-01-01T00:00:01Z",
+            "resourceUpdate": {
+                "name": "enterprises/project-id/devices/device-id",
+                "events": {
+                    "sdm.devices.events.CameraMotion.Motion": {
+                        "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                        "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
+                    }
+                },
+            },
+            "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+        }
+    )
+    filter.handle_event(event)
+    assert callback.invoked
+
+
+def test_event_callback_filter_trait_update():
+    callback = MyCallback()
+    filter = EventFilterCallback("sdm.devices.events.CameraMotion.Motion", callback)
+    assert not callback.invoked
+    event = MakeEvent(
+        {
+            "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+            "timestamp": "2019-01-01T00:00:01Z",
+            "resourceUpdate": {
+                "name": "enterprises/project-id/devices/device-id",
+                "traits": {
+                    "sdm.devices.traits.Connectivity": {
+                        "status": "ONLINE",
+                    }
+                },
+            },
+            "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+        }
+    )
+    filter.handle_event(event)
+    assert not callback.invoked
