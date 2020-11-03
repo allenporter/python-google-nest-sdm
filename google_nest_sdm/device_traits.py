@@ -46,7 +46,7 @@ class FanTrait:
         Return:
           "ON", "OFF"
         """
-        return self._data[TIMER_MODE]
+        return self._data.get(TIMER_MODE)
 
     @property
     def timer_timeout(self) -> datetime.datetime:

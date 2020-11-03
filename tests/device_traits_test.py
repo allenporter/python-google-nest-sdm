@@ -53,6 +53,20 @@ def test_fan_traits():
         == trait.timer_timeout
     )
 
+def test_fan_traits_empty():
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.Fan": {
+            },
+        },
+    }
+    device = Device.MakeDevice(raw, auth=None)
+    assert "sdm.devices.traits.Fan" in device.traits
+    trait = device.traits["sdm.devices.traits.Fan"]
+    assert trait.timer_mode is None
+    assert trait.timer_timeout is None
+
 
 def test_humidity_traits():
     raw = {
