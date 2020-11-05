@@ -1,6 +1,7 @@
 """Traits belonging to camera devices."""
 
 import datetime
+import urllib.parse as urlparse
 
 from .traits import TRAIT_MAP, Command
 
@@ -86,6 +87,13 @@ class RtspStream:
         resp.raise_for_status()
         response_data = await resp.json()
         results = response_data[RESULTS]
+        # Update the stream url with the new token
+        stream_token = results[STREAM_TOKEN]
+        parsed = urlparse.urlparse(self.rtsp_stream_url)
+        parsed = parsed._replace(query=f"auth={stream_token}")
+        url = urlparse.urlunparse(parsed)
+        results[STREAM_URLS] = {}
+        results[STREAM_URLS][RTSP_URL] = url
         return RtspStream(results, self._cmd)
 
     async def stop_rtsp_stream(self):

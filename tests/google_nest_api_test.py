@@ -278,7 +278,7 @@ async def test_camera_live_stream(aiohttp_server) -> None:
             {
                 "results": {
                     "streamUrls": {
-                        "rtsp_url": "rtsps://someurl.com/CjY5Y3VKaTfMF?auth=g.0.token"
+                        "rtspUrl": "rtsps://someurl.com/CjY5Y3VKaTfMF?auth=g.0.token"
                     },
                     "streamExtensionToken": "CjY5Y3VKaTfMF",
                     "streamToken": "g.0.token",
@@ -327,6 +327,7 @@ async def test_camera_live_stream(aiohttp_server) -> None:
             datetime.datetime(2018, 1, 4, 18, 30, tzinfo=datetime.timezone.utc)
             == stream.expires_at
         )
+        assert "rtsps://someurl.com/CjY5Y3VKaTfMF?auth=g.0.token" == stream.rtsp_stream_url
 
         stream = await stream.extend_rtsp_stream()
         expected_request = {
@@ -341,6 +342,7 @@ async def test_camera_live_stream(aiohttp_server) -> None:
             datetime.datetime(2019, 1, 4, 18, 30, tzinfo=datetime.timezone.utc)
             == stream.expires_at
         )
+        assert "rtsps://someurl.com/CjY5Y3VKaTfMF?auth=g.1.newStreamingToken" == stream.rtsp_stream_url
 
         stream = await stream.extend_rtsp_stream()
         expected_request = {
@@ -355,6 +357,7 @@ async def test_camera_live_stream(aiohttp_server) -> None:
             datetime.datetime(2020, 1, 4, 18, 30, tzinfo=datetime.timezone.utc)
             == stream.expires_at
         )
+        assert "rtsps://someurl.com/CjY5Y3VKaTfMF?auth=g.2.newStreamingToken" == stream.rtsp_stream_url
 
         await stream.stop_rtsp_stream()
         expected_request = {
