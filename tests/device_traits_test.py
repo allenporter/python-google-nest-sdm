@@ -53,12 +53,12 @@ def test_fan_traits():
         == trait.timer_timeout
     )
 
+
 def test_fan_traits_empty():
     raw = {
         "name": "my/device/name",
         "traits": {
-            "sdm.devices.traits.Fan": {
-            },
+            "sdm.devices.traits.Fan": {},
         },
     }
     device = Device.MakeDevice(raw, auth=None)
