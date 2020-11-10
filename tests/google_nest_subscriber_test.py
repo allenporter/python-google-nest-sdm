@@ -122,6 +122,7 @@ async def test_subscribe_no_events(aiohttp_server) -> None:
             "sdm.devices.types.device-type2"
             == devices["enterprises/project-id1/devices/device-id2"].type
         )
+        subscriber.stop_async()
 
 
 async def test_subscribe_device_manager(aiohttp_server) -> None:
@@ -177,6 +178,7 @@ async def test_subscribe_device_manager(aiohttp_server) -> None:
             "sdm.devices.types.device-type2"
             == devices["enterprises/project-id1/devices/device-id2"].type
         )
+        subscriber.stop_async()
 
 
 async def test_subscribe_update_trait(aiohttp_server) -> None:
@@ -245,6 +247,7 @@ async def test_subscribe_update_trait(aiohttp_server) -> None:
         device = devices["enterprises/project-id1/devices/device-id1"]
         trait = device.traits["sdm.devices.traits.Connectivity"]
         assert "OFFLINE" == trait.status
+        subscriber.stop_async()
 
 
 async def test_subscribe_device_manager_init(aiohttp_server) -> None:
@@ -301,10 +304,10 @@ async def test_subscribe_device_manager_init(aiohttp_server) -> None:
             "sdm.devices.types.device-type2"
             == devices["enterprises/project-id1/devices/device-id2"].type
         )
+        subscriber.stop_async()
 
 
 async def test_subscriber_watchdog(aiohttp_server) -> None:
-
     # Waits for the test to wake up the background thread
     event1 = asyncio.Event()
 
@@ -321,39 +324,13 @@ async def test_subscriber_watchdog(aiohttp_server) -> None:
 
     subscriber_factory = FakeSubscriberFactory(tasks=[task1, task2])
     r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "type": "sdm.devices.types.device-type1",
-                "traits": {},
-                "parentRelations": [],
-            },
-            {
-                "name": "enterprises/project-id1/devices/device-id2",
-                "type": "sdm.devices.types.device-type2",
-                "traits": {},
-                "parentRelations": [],
-            },
-        ],
-    )
+    handler = NewDeviceHandler(r, [],)
 
     app = aiohttp.web.Application()
-    app.router.add_get("/enterprises/project-id1/devices", handler)
+    app.router.add_get("/enterprises/project-id1/devices", NewDeviceHandler(r, []))
     app.router.add_get(
-        "/enterprises/project-id1/structures2",
-        NewStructureHandler(
-            r,
-            [
-                {
-                    "name": "enterprises/project-id1/structures/structure-id1",
-                },
-                {
-                    "name": "enterprises/project-id1/structures/structure-id1",
-                },
-            ],
-        ),
+        "/enterprises/project-id1/structures",
+        NewStructureHandler(r, []),
     )
     server = await aiohttp_server(app)
 

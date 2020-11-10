@@ -89,7 +89,8 @@ class GoogleNestSubscriber:
         """Tells the subscriber to start shutting down."""
         if self._watchdog_task:
             self._watchdog_task.cancel()
-        self._subscriber_future.cancel()
+        if self._subscriber_future:
+            self._subscriber_future.cancel()
 
     async def async_get_device_manager(self) -> DeviceManager:
         """Return the DeviceManger with the current state of devices."""
