@@ -324,8 +324,6 @@ async def test_subscriber_watchdog(aiohttp_server) -> None:
 
     subscriber_factory = FakeSubscriberFactory(tasks=[task1, task2])
     r = Recorder()
-    handler = NewDeviceHandler(r, [],)
-
     app = aiohttp.web.Application()
     app.router.add_get("/enterprises/project-id1/devices", NewDeviceHandler(r, []))
     app.router.add_get(

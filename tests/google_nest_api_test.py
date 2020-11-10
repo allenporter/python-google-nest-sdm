@@ -215,7 +215,7 @@ async def test_thermostat_temperature_set_point(aiohttp_server) -> None:
             }
         ],
     )
-    post_handler = NewRequestRecorder(r, [{},{},{}])
+    post_handler = NewRequestRecorder(r, [{}, {}, {}])
 
     app = aiohttp.web.Application()
     app.router.add_get("/enterprises/project-id1/devices", handler)

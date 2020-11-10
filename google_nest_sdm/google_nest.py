@@ -226,7 +226,7 @@ class DeviceWatcherCallback(EventCallback):
 
     def handle_event(self, event_message: EventMessage):
         print(f"event_id: {event_message.event_id}")
-        print(f"Current device state:")
+        print("Current device state:")
         PrintDevice(self._device)
         print("")
 
@@ -274,7 +274,7 @@ async def RunTool(args, user_creds: Credentials, service_creds: Credentials):
                 while True:
                     await asyncio.sleep(10)
             except KeyboardInterrupt:
-              subscriber.stop_async()
+                subscriber.stop_async()
 
         # All other commands require a device_id
         device = await api.async_get_device(args.device_id)
@@ -319,7 +319,9 @@ def main():
         logging.basicConfig(level=logging.DEBUG)
     user_creds = CreateCreds(args)
     if args.creds_json_file:
-        service_account.Credentials.from_service_account_file(args.creds_json_file).with_scopes(scopes=SDM_SCOPES)
+        service_account.Credentials.from_service_account_file(
+            args.creds_json_file
+        ).with_scopes(scopes=SDM_SCOPES)
     else:
         service_creds = user_creds
     loop = asyncio.get_event_loop()
