@@ -26,6 +26,7 @@ import socket
 from aiohttp import ClientSession, TCPConnector
 from google.auth.credentials import Credentials
 from google.auth.transport.requests import Request
+from google.oauth2 import service_account
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 from .auth import AbstractAuth
@@ -44,6 +45,7 @@ parser = argparse.ArgumentParser(
     description="Command line tool for Google Nest SDM API"
 )
 parser.add_argument("--project_id", required=True, help="Device Access program id")
+parser.add_argument("--creds_json_file", help="Service acccount credentials file")
 parser.add_argument("--client_id", help="OAuth credentials client_id")
 parser.add_argument("--client_secret", help="OAuth credentials client_secret")
 parser.add_argument(
@@ -99,6 +101,7 @@ generate_rtsp_stream_parser = cmd_parser.add_parser("generate_rtsp_stream")
 generate_rtsp_stream_parser.add_argument("device_id")
 subscribe_parser = cmd_parser.add_parser("subscribe")
 subscribe_parser.add_argument("subscription_id")
+subscribe_parser.add_argument("device_id", nargs="?")
 
 OAUTH2_AUTHORIZE = (
     "https://nestservices.google.com/partnerconnections/{project_id}/auth"
@@ -117,23 +120,26 @@ class Auth(AbstractAuth):
     def __init__(
         self,
         websession: ClientSession,
-        creds: Credentials,
+        user_creds: Credentials,
+        service_creds: Credentials,
         api_url: str,
     ):
         """Initialize Google Nest Device Access auth."""
         super().__init__(websession, api_url)
-        self._creds = creds
+        self._user_creds = user_creds
+        self._service_creds = service_creds
 
     async def async_get_access_token(self):
         """Return a valid access token."""
-        return self._creds.token
+        return self._user_creds.token
 
     async def async_get_creds(self):
-        return self._creds
+        return self._service_creds
 
 
 def CreateCreds(args) -> Credentials:
     """Runs an interactive flow to get OAuth creds."""
+
     creds = None
     token_cache = os.path.expanduser(args.token_cache)
     if os.path.exists(token_cache):
@@ -214,13 +220,24 @@ class SubscribeCallback(EventCallback):
         print("")
 
 
-async def RunTool(args, creds: Credentials):
+class DeviceWatcherCallback(EventCallback):
+    def __init__(self, device):
+        self._device = device
+
+    def handle_event(self, event_message: EventMessage):
+        print(f"event_id: {event_message.event_id}")
+        print(f"Current device state:")
+        PrintDevice(self._device)
+        print("")
+
+
+async def RunTool(args, user_creds: Credentials, service_creds: Credentials):
     conn = TCPConnector(
         family=socket.AF_INET,
         verify_ssl=False,
     )
     async with ClientSession(connector=conn) as client:
-        auth = Auth(client, creds, API_URL)
+        auth = Auth(client, user_creds, service_creds, API_URL)
         api = GoogleNestAPI(auth, args.project_id)
 
         if args.command == "list_structures":
@@ -245,13 +262,19 @@ async def RunTool(args, creds: Credentials):
             subscriber = GoogleNestSubscriber(
                 auth, args.project_id, args.subscription_id
             )
-            subscriber.set_update_callback(SubscribeCallback())
+            if args.device_id:
+                device_manager = await subscriber.async_get_device_manager()
+                device = device_manager.devices[args.device_id]
+                callback = DeviceWatcherCallback(device)
+                device.add_event_callback(callback)
+            else:
+                subscriber.set_update_callback(SubscribeCallback())
             await subscriber.start_async()
             try:
-                subscriber.wait()
+                while True:
+                    await asyncio.sleep(10)
             except KeyboardInterrupt:
-                subscriber.stop_async()
-            return
+              subscriber.stop_async()
 
         # All other commands require a device_id
         device = await api.async_get_device(args.device_id)
@@ -294,9 +317,13 @@ def main():
     args = parser.parse_args()
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
-    creds = CreateCreds(args)
+    user_creds = CreateCreds(args)
+    if args.creds_json_file:
+        service_account.Credentials.from_service_account_file(args.creds_json_file).with_scopes(scopes=SDM_SCOPES)
+    else:
+        service_creds = user_creds
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(RunTool(args, creds))
+    loop.run_until_complete(RunTool(args, user_creds, service_creds))
     loop.close()
 
 
