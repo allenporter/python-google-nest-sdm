@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 import aiohttp
@@ -27,8 +28,14 @@ class FakeAuth(AbstractAuth):
 
 
 class FakeSubscriberFactory(AbstractSusbcriberFactory):
+    def __init__(self, tasks: list = None):
+        self.tasks = tasks
+
     async def new_subscriber(self, creds, subscription_name, callback):
         self._callback = callback
+        if self.tasks:
+            print("self.tasks len = %s", len(self.tasks))
+            return asyncio.create_task(self.tasks.pop(0)())
         return None
 
     def push_event(self, event):
@@ -102,7 +109,8 @@ async def test_subscribe_no_events(aiohttp_server) -> None:
         subscriber = GoogleNestSubscriber(
             FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, subscriber_factory
         )
-        device_manager = await subscriber.start_async()
+        await subscriber.start_async()
+        device_manager = await subscriber.async_get_device_manager()
         devices = device_manager.devices
         assert "enterprises/project-id1/devices/device-id1" in devices
         assert (
@@ -209,7 +217,8 @@ async def test_subscribe_update_trait(aiohttp_server) -> None:
         subscriber = GoogleNestSubscriber(
             FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, subscriber_factory
         )
-        device_manager = await subscriber.start_async()
+        await subscriber.start_async()
+        device_manager = await subscriber.async_get_device_manager()
         devices = device_manager.devices
         assert "enterprises/project-id1/devices/device-id1" in devices
         device = devices["enterprises/project-id1/devices/device-id1"]
@@ -292,3 +301,76 @@ async def test_subscribe_device_manager_init(aiohttp_server) -> None:
             "sdm.devices.types.device-type2"
             == devices["enterprises/project-id1/devices/device-id2"].type
         )
+
+
+async def test_subscriber_watchdog(aiohttp_server) -> None:
+
+    # Waits for the test to wake up the background thread
+    event1 = asyncio.Event()
+
+    async def task1():
+        print("Task1")
+        await event1.wait()
+        return
+
+    event2 = asyncio.Event()
+
+    async def task2():
+        print("Task2")
+        event2.set()
+
+    subscriber_factory = FakeSubscriberFactory(tasks=[task1, task2])
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "enterprises/project-id1/devices/device-id1",
+                "type": "sdm.devices.types.device-type1",
+                "traits": {},
+                "parentRelations": [],
+            },
+            {
+                "name": "enterprises/project-id1/devices/device-id2",
+                "type": "sdm.devices.types.device-type2",
+                "traits": {},
+                "parentRelations": [],
+            },
+        ],
+    )
+
+    app = aiohttp.web.Application()
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+    app.router.add_get(
+        "/enterprises/project-id1/structures2",
+        NewStructureHandler(
+            r,
+            [
+                {
+                    "name": "enterprises/project-id1/structures/structure-id1",
+                },
+                {
+                    "name": "enterprises/project-id1/structures/structure-id1",
+                },
+            ],
+        ),
+    )
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        subscriber = GoogleNestSubscriber(
+            FakeAuth(client),
+            PROJECT_ID,
+            SUBSCRIBER_ID,
+            subscriber_factory=subscriber_factory,
+            watchdog_delay=0.1,
+        )
+        assert len(subscriber_factory.tasks) == 2
+        await subscriber.start_async()
+        assert len(subscriber_factory.tasks) == 1
+        # Wait for the subscriber to start, then shut it down
+        event1.set()
+        # Block until the new subscriber starts, and notifies this to wake up
+        await event2.wait()
+        assert len(subscriber_factory.tasks) == 0
+        subscriber.stop_async()

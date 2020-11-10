@@ -1,6 +1,7 @@
 """Subscriber for the Smart Device Management event based API."""
 import asyncio
 import json
+import logging
 from abc import ABC, abstractmethod
 
 from google.cloud import pubsub_v1
@@ -9,6 +10,8 @@ from .auth import AbstractAuth
 from .device_manager import DeviceManager
 from .event import EventCallback, EventMessage
 from .google_nest_api import GoogleNestAPI
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class AbstractSusbcriberFactory(ABC):
@@ -39,38 +42,54 @@ class GoogleNestSubscriber:
         auth: AbstractAuth,
         project_id: str,
         subscriber_id: str,
-        subscriber_factory=DefaultSubscriberFactory(),
+        subscriber_factory: AbstractSusbcriberFactory = DefaultSubscriberFactory(),
+        watchdog_delay: float = 10,
     ):
         """Initialize the subscriber for the specified topic"""
         self._auth = auth
         self._subscriber_id = subscriber_id
         self._api = GoogleNestAPI(auth, project_id)
         self._subscriber_factory = subscriber_factory
-        self._future = None
+        self._subscriber_future = None
         self._callback = None
         self._device_manager_task = asyncio.create_task(
             self._async_create_device_manager()
         )
+        self._watchdog_delay = watchdog_delay
+        if self._watchdog_delay > 0:
+            self._watchdog_task = asyncio.create_task(self._watchdog())
+        else:
+            self._watchdog_task = None
 
     def set_update_callback(self, callback: EventCallback):
         """Register a callback invoked when new messages are received."""
         self._callback = callback
 
-    async def start_async(self) -> DeviceManager:
+    async def start_async(self):
         """Starts the subscriber."""
         creds = await self._auth.async_get_creds()
-        self._future = await self._subscriber_factory.new_subscriber(
+        self._subscriber_future = await self._subscriber_factory.new_subscriber(
             creds, self._subscriber_id, self._subscribe_callback
         )
-        return await self._device_manager_task
+
+    async def _watchdog(self):
+        """Background task that watches the subscriber and restarts it."""
+        _LOGGER.debug("Starting background watchdog thread")
+        while True:
+            if self._subscriber_future and self._subscriber_future.done():
+                _LOGGER.debug("Subscriber shut down; restarting")
+                await self.start_async()
+            await asyncio.sleep(self._watchdog_delay)
 
     def wait(self):
         """Blocks on the subscriber."""
-        self._future.result()
+        self._subscriber_future.result()
 
     def stop_async(self):
         """Tells the subscriber to start shutting down."""
-        return self._future.cancel()
+        if self._watchdog_task:
+            self._watchdog_task.cancel()
+        self._subscriber_future.cancel()
 
     async def async_get_device_manager(self) -> DeviceManager:
         """Return the DeviceManger with the current state of devices."""
