@@ -3,14 +3,17 @@ import json
 
 import aiohttp
 import mock
+import pytest
 from google.auth.credentials import Credentials
 from google.cloud import pubsub_v1
 
+from google_nest_sdm.exceptions import SubscriberException, AuthException
 from google_nest_sdm.device import AbstractAuth
 from google_nest_sdm.google_nest_subscriber import (
     AbstractSusbcriberFactory,
     GoogleNestSubscriber,
 )
+from google.api_core.exceptions import Unauthenticated, ClientError
 
 PROJECT_ID = "project-id1"
 SUBSCRIBER_ID = "subscriber-id1"
@@ -34,7 +37,6 @@ class FakeSubscriberFactory(AbstractSusbcriberFactory):
     async def new_subscriber(self, creds, subscription_name, callback):
         self._callback = callback
         if self.tasks:
-            print("self.tasks len = %s", len(self.tasks))
             return asyncio.create_task(self.tasks.pop(0)())
         return None
 
@@ -314,7 +316,6 @@ async def test_subscriber_watchdog(aiohttp_server) -> None:
     async def task1():
         print("Task1")
         await event1.wait()
-        return
 
     event2 = asyncio.Event()
 
@@ -348,4 +349,49 @@ async def test_subscriber_watchdog(aiohttp_server) -> None:
         # Block until the new subscriber starts, and notifies this to wake up
         await event2.wait()
         assert len(subscriber_factory.tasks) == 0
+        subscriber.stop_async()
+
+async def test_subscriber_error(aiohttp_server) -> None:
+    class FailingFactory(AbstractSusbcriberFactory):
+        async def new_subscriber(self, creds, subscription_name, callback):
+            raise ClientError("Some error")
+
+    app = aiohttp.web.Application()
+    r = Recorder()
+    app.router.add_get("/enterprises/project-id1/devices", NewDeviceHandler(r, []))
+    app.router.add_get(
+        "/enterprises/project-id1/structures",
+        NewStructureHandler(r, []),
+    )
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        subscriber = GoogleNestSubscriber(
+            FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, FailingFactory()
+        )
+        with pytest.raises(SubscriberException):
+            await subscriber.start_async()
+        subscriber.stop_async()
+
+
+async def test_subscriber_auth_error(aiohttp_server) -> None:
+    class FailingFactory(AbstractSusbcriberFactory):
+        async def new_subscriber(self, creds, subscription_name, callback):
+            raise Unauthenticated("Auth failure")
+
+    app = aiohttp.web.Application()
+    r = Recorder()
+    app.router.add_get("/enterprises/project-id1/devices", NewDeviceHandler(r, []))
+    app.router.add_get(
+        "/enterprises/project-id1/structures",
+        NewStructureHandler(r, []),
+    )
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        subscriber = GoogleNestSubscriber(
+            FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, FailingFactory()
+        )
+        with pytest.raises(AuthException):
+            await subscriber.start_async()
         subscriber.stop_async()

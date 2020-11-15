@@ -9,9 +9,6 @@ from .exceptions import ApiException, AuthException
 from .structure import Structure
 
 
-HTTP_UNAUTHORIZED = 401
-
-
 class GoogleNestAPI:
     """Class to communicate with the Google Nest SDM API."""
 
@@ -57,14 +54,5 @@ class GoogleNestAPI:
 
     async def _get(self, url) -> aiohttp.ClientResponse:
         """Issues an authenticated HTTP get."""
-        resp = await self._auth.request("get", url)
-        try:
-          resp.raise_for_status()
-        except ClientResponseError as err:
-            if err.status == HTTP_UNAUTHORIZED:
-                raise AuthException("Unable to authenticate with API") from err
-            raise ApiException("Error from API") from err
-        except ClientError as err:
-            raise ApiException("Error from API") from err
-        return resp
+        return await self._auth.request("get", url)
 

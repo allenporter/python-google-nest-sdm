@@ -5,6 +5,12 @@ from abc import ABC, abstractmethod
 import aiohttp
 from google.auth.credentials import Credentials
 
+from aiohttp.client_exceptions import ClientError, ClientResponseError
+from .exceptions import ApiException, AuthException
+
+
+HTTP_UNAUTHORIZED = 401
+
 
 class AbstractAuth(ABC):
     """Abstract class to make authenticated requests."""
@@ -36,4 +42,14 @@ class AbstractAuth(ABC):
         headers["authorization"] = f"Bearer {access_token}"
         url = f"{self._host}/{url}"
         logging.debug("request[%s]=%s", method, url)
-        return await self._websession.request(method, url, **kwargs, headers=headers)
+
+        resp = await self._websession.request(method, url, **kwargs, headers=headers)
+        try:
+          resp.raise_for_status()
+        except ClientResponseError as err:
+            if err.status == HTTP_UNAUTHORIZED:
+                raise AuthException("Unable to authenticate with API") from err
+            raise ApiException("Error from API") from err
+        except ClientError as err:
+            raise ApiException("Error from API") from err
+        return resp

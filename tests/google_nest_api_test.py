@@ -1,8 +1,10 @@
 import datetime
 
 import aiohttp
+import pytest
 
 from google_nest_sdm import google_nest_api
+from google_nest_sdm.exceptions import ApiException
 from google_nest_sdm.device import AbstractAuth
 
 PROJECT_ID = "project-id1"
@@ -463,3 +465,55 @@ async def test_get_structures(aiohttp_server) -> None:
         assert "sdm.structures.traits.Info" in structures[0].traits
         assert "enterprises/project-id1/structures/structure-id2" == structures[1].name
         assert "sdm.structures.traits.Info" in structures[1].traits
+
+
+async def test_api_get_error(aiohttp_server) -> None:
+    # No server endpoint registered
+    app = aiohttp.web.Application()
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
+        with pytest.raises(ApiException):
+          await api.async_get_structures()
+
+async def test_api_post_error(aiohttp_server) -> None:
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "enterprises/project-id1/devices/device-id1",
+                "traits": {
+                    "sdm.devices.traits.ThermostatTemperatureSetpoint": {
+                        "heatCelsius": 23.0,
+                        "coolCelsius": 24.0,
+                    },
+                },
+            }
+        ],
+    )
+    async def fail_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        assert request.headers["Authorization"] == "Bearer some-token"
+        return aiohttp.web.Response(status=502)
+
+
+    app = aiohttp.web.Application()
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+    app.router.add_post(
+        "/enterprises/project-id1/devices/device-id1:executeCommand", fail_handler
+    )
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
+        devices = await api.async_get_devices()
+        assert len(devices) == 1
+        device = devices[0]
+        assert "enterprises/project-id1/devices/device-id1" == device.name
+        trait = device.traits["sdm.devices.traits.ThermostatTemperatureSetpoint"]
+        assert trait.heat_celsius == 23.0
+        assert trait.cool_celsius == 24.0
+
+        with pytest.raises(ApiException):
+            await trait.set_heat(25.0)
