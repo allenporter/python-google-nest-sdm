@@ -1,3 +1,5 @@
+import aiohttp
+
 from .auth import AbstractAuth
 from .registry import Registry
 
@@ -13,10 +15,11 @@ class Command:
         self._device_id = device_id
         self._auth = auth
 
-    async def execute(self, data):
-        return await self._auth.request(
+    async def execute(self, data: dict) -> aiohttp.ClientResponse:
+        resp = await self._auth.request(
             "post", f"{self._device_id}:executeCommand", json=data
         )
+        return AbstractAuth.raise_for_status(resp)
 
 
 def _TraitsDict(traits: dict, trait_map: dict, cmd: Command):

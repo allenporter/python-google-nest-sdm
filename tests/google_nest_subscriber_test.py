@@ -4,16 +4,16 @@ import json
 import aiohttp
 import mock
 import pytest
+from google.api_core.exceptions import ClientError, Unauthenticated
 from google.auth.credentials import Credentials
 from google.cloud import pubsub_v1
 
-from google_nest_sdm.exceptions import SubscriberException, AuthException
 from google_nest_sdm.device import AbstractAuth
+from google_nest_sdm.exceptions import AuthException, SubscriberException
 from google_nest_sdm.google_nest_subscriber import (
     AbstractSusbcriberFactory,
     GoogleNestSubscriber,
 )
-from google.api_core.exceptions import Unauthenticated, ClientError
 
 PROJECT_ID = "project-id1"
 SUBSCRIBER_ID = "subscriber-id1"
@@ -350,6 +350,7 @@ async def test_subscriber_watchdog(aiohttp_server) -> None:
         await event2.wait()
         assert len(subscriber_factory.tasks) == 0
         subscriber.stop_async()
+
 
 async def test_subscriber_error(aiohttp_server) -> None:
     class FailingFactory(AbstractSusbcriberFactory):

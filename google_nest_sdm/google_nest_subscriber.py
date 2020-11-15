@@ -5,13 +5,13 @@ import json
 import logging
 from abc import ABC, abstractmethod
 
-from google.api_core.exceptions import GoogleAPIError, Unauthenticated, NotFound
+from google.api_core.exceptions import GoogleAPIError, NotFound, Unauthenticated
 from google.cloud import pubsub_v1
 
 from .auth import AbstractAuth
 from .device_manager import DeviceManager
 from .event import EventCallback, EventMessage
-from .exceptions import SubscriberException, AuthException
+from .exceptions import AuthException, SubscriberException
 from .google_nest_api import GoogleNestAPI
 
 _LOGGER = logging.getLogger(__name__)
@@ -55,8 +55,10 @@ class DefaultSubscriberFactory(AbstractSusbcriberFactory):
         if subscription.topic:
             if not subscription.topic.startswith(EXPECTED_TOPIC_PREFIX):
                 _LOGGER.warning(
-                    ("Subscription misconfigured. Expected topic name with " \
-                     "prefix '%s' but was '%s'."),
+                    (
+                        "Subscription misconfigured. Expected topic name with "
+                        "prefix '%s' but was '%s'."
+                    ),
                     EXPECTED_TOPIC_PREFIX,
                     subscription.topic,
                 )
@@ -108,11 +110,15 @@ class GoogleNestSubscriber:
                 creds, self._subscriber_id, self._message_callback
             )
         except NotFound as err:
-            raise SubscriberException(f"Failed to create subscriber '{self._subscriber_id}' id was not correct") from err
+            raise SubscriberException(
+                f"Failed to create subscriber '{self._subscriber_id}' id was not found"
+            ) from err
         except Unauthenticated as err:
             raise AuthException("Failed to authenticate subscriber") from err
         except GoogleAPIError as err:
-            raise SubscriberException(f"Failed to create subscriber '{self._subscriber_id}'") from err
+            raise SubscriberException(
+                f"Failed to create subscriber '{self._subscriber_id}'"
+            ) from err
 
         if not self._healthy:
             _LOGGER.info("Subscriber reconnected")

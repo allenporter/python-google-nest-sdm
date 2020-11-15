@@ -4,8 +4,8 @@ import aiohttp
 import pytest
 
 from google_nest_sdm import google_nest_api
-from google_nest_sdm.exceptions import ApiException
 from google_nest_sdm.device import AbstractAuth
+from google_nest_sdm.exceptions import ApiException
 
 PROJECT_ID = "project-id1"
 
@@ -475,7 +475,8 @@ async def test_api_get_error(aiohttp_server) -> None:
     async with aiohttp.test_utils.TestClient(server) as client:
         api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
         with pytest.raises(ApiException):
-          await api.async_get_structures()
+            await api.async_get_structures()
+
 
 async def test_api_post_error(aiohttp_server) -> None:
     r = Recorder()
@@ -493,10 +494,10 @@ async def test_api_post_error(aiohttp_server) -> None:
             }
         ],
     )
+
     async def fail_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         assert request.headers["Authorization"] == "Bearer some-token"
         return aiohttp.web.Response(status=502)
-
 
     app = aiohttp.web.Application()
     app.router.add_get("/enterprises/project-id1/devices", handler)

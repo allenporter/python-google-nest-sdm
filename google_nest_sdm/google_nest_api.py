@@ -1,11 +1,10 @@
 """Library to access the Smart Device Management API."""
 from typing import List
+
 import aiohttp
-from aiohttp.client_exceptions import ClientError, ClientResponseError
 
 from .auth import AbstractAuth
 from .device import Device
-from .exceptions import ApiException, AuthException
 from .structure import Structure
 
 
@@ -51,8 +50,7 @@ class GoogleNestAPI:
         resp = await self._get(device_id)
         return Device.MakeDevice(await resp.json(), self._auth)
 
-
     async def _get(self, url) -> aiohttp.ClientResponse:
         """Issues an authenticated HTTP get."""
-        return await self._auth.request("get", url)
-
+        resp = await self._auth.request("get", url)
+        return AbstractAuth.raise_for_status(resp)
