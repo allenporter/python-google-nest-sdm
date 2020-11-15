@@ -8,6 +8,8 @@ class GoogleNestException(Exception):
 class SubscriberException(GoogleNestException):
     """Raised during problems subscribing to events and updates."""
 
-
 class ApiException(GoogleNestException):
     """Raised during problems talking to the API."""
+
+class AuthException(GoogleNestException):
+    """Raised due to auth problems talking to API or subscriber."""

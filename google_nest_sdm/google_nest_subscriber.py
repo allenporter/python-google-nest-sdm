@@ -5,13 +5,13 @@ import json
 import logging
 from abc import ABC, abstractmethod
 
-from google.api_core.exceptions import GoogleAPIError
+from google.api_core.exceptions import GoogleAPIError, Unauthenticated, NotFound
 from google.cloud import pubsub_v1
 
 from .auth import AbstractAuth
 from .device_manager import DeviceManager
 from .event import EventCallback, EventMessage
-from .exceptions import SubscriberException
+from .exceptions import SubscriberException, AuthException
 from .google_nest_api import GoogleNestAPI
 
 _LOGGER = logging.getLogger(__name__)
@@ -107,6 +107,10 @@ class GoogleNestSubscriber:
             self._subscriber_future = await self._subscriber_factory.new_subscriber(
                 creds, self._subscriber_id, self._message_callback
             )
+        except NotFound as err:
+            raise SubscriberException(f"Failed to create subscriber '{self._subscriber_id}' id was not correct") from err
+        except Unauthenticated as err:
+            raise AuthException("Failed to authenticate subscriber") from err
         except GoogleAPIError as err:
             raise SubscriberException(f"Failed to create subscriber '{self._subscriber_id}'") from err
 

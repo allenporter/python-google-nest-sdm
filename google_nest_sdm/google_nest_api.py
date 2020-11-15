@@ -1,12 +1,15 @@
 """Library to access the Smart Device Management API."""
 from typing import List
-
-from aiohttp.client_exceptions import ClientError
+import aiohttp
+from aiohttp.client_exceptions import ClientError, ClientResponseError
 
 from .auth import AbstractAuth
 from .device import Device
-from .exceptions import ApiException
+from .exceptions import ApiException, AuthException
 from .structure import Structure
+
+
+HTTP_UNAUTHORIZED = 401
 
 
 class GoogleNestAPI:
@@ -23,11 +26,7 @@ class GoogleNestAPI:
 
     async def async_get_structures(self) -> List[Structure]:
         """Return the structures."""
-        resp = await self._auth.request("get", self._structures_url)
-        try:
-            resp.raise_for_status()
-        except ClientError as err:
-            raise ApiException("Error fetching structures") from err
+        resp = await self._get(self._structures_url)
         response_data = await resp.json()
         structures = response_data["structures"]
         return [
@@ -36,11 +35,7 @@ class GoogleNestAPI:
 
     async def async_get_structure(self, structure_id) -> Structure:
         """Return a structure device."""
-        resp = await self._auth.request("get", structure_id)
-        try:
-            resp.raise_for_status()
-        except ClientError as err:
-            raise ApiException("Error fetching structure") from err
+        resp = await self._get(structure_id)
         return Structure.MakeStructure(await resp.json())
 
     @property
@@ -49,20 +44,27 @@ class GoogleNestAPI:
 
     async def async_get_devices(self) -> List[Device]:
         """Return the devices."""
-        resp = await self._auth.request("get", self._devices_url)
-        try:
-            resp.raise_for_status()
-        except ClientError as err:
-            raise ApiException("Error fetching devices") from err
+        resp = await self._get(self._devices_url)
         response_data = await resp.json()
         devices = response_data["devices"]
         return [Device.MakeDevice(device_data, self._auth) for device_data in devices]
 
     async def async_get_device(self, device_id) -> Device:
         """Return a specific device."""
-        resp = await self._auth.request("get", device_id)
-        try:
-            resp.raise_for_status()
-        except ClientError as err:
-            raise ApiException("Error fetching device") from err
+        resp = await self._get(device_id)
         return Device.MakeDevice(await resp.json(), self._auth)
+
+
+    async def _get(self, url) -> aiohttp.ClientResponse:
+        """Issues an authenticated HTTP get."""
+        resp = await self._auth.request("get", url)
+        try:
+          resp.raise_for_status()
+        except ClientResponseError as err:
+            if err.status == HTTP_UNAUTHORIZED:
+                raise AuthException("Unable to authenticate with API") from err
+            raise ApiException("Error from API") from err
+        except ClientError as err:
+            raise ApiException("Error from API") from err
+        return resp
+
