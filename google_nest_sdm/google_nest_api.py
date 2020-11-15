@@ -1,8 +1,11 @@
 """Library to access the Smart Device Management API."""
 from typing import List
 
+from aiohttp.client_exceptions import ClientError
+
 from .auth import AbstractAuth
 from .device import Device
+from .exceptions import ApiException
 from .structure import Structure
 
 
@@ -21,7 +24,10 @@ class GoogleNestAPI:
     async def async_get_structures(self) -> List[Structure]:
         """Return the structures."""
         resp = await self._auth.request("get", self._structures_url)
-        resp.raise_for_status()
+        try:
+            resp.raise_for_status()
+        except ClientError as err:
+            raise ApiException("Error fetching structures") from err
         response_data = await resp.json()
         structures = response_data["structures"]
         return [
@@ -31,7 +37,10 @@ class GoogleNestAPI:
     async def async_get_structure(self, structure_id) -> Structure:
         """Return a structure device."""
         resp = await self._auth.request("get", structure_id)
-        resp.raise_for_status()
+        try:
+            resp.raise_for_status()
+        except ClientError as err:
+            raise ApiException("Error fetching structure") from err
         return Structure.MakeStructure(await resp.json())
 
     @property
@@ -41,7 +50,10 @@ class GoogleNestAPI:
     async def async_get_devices(self) -> List[Device]:
         """Return the devices."""
         resp = await self._auth.request("get", self._devices_url)
-        resp.raise_for_status()
+        try:
+            resp.raise_for_status()
+        except ClientError as err:
+            raise ApiException("Error fetching devices") from err
         response_data = await resp.json()
         devices = response_data["devices"]
         return [Device.MakeDevice(device_data, self._auth) for device_data in devices]
@@ -49,5 +61,8 @@ class GoogleNestAPI:
     async def async_get_device(self, device_id) -> Device:
         """Return a specific device."""
         resp = await self._auth.request("get", device_id)
-        resp.raise_for_status()
+        try:
+            resp.raise_for_status()
+        except ClientError as err:
+            raise ApiException("Error fetching device") from err
         return Device.MakeDevice(await resp.json(), self._auth)

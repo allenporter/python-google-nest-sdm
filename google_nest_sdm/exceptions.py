@@ -1,0 +1,13 @@
+"""Library for exceptions using the Google Nest SDM API and subscriber."""
+
+
+class GoogleNestException(Exception):
+    """Base class for all client exceptions."""
+
+
+class SubscriberException(GoogleNestException):
+    """Raised during problems subscribing to events and updates."""
+
+
+class ApiException(GoogleNestException):
+    """Raised during problems talking to the API."""
