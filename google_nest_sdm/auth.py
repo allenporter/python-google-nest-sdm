@@ -37,7 +37,10 @@ class AbstractAuth(ABC):
             headers = dict(headers)
             del kwargs["headers"]
 
-        access_token = await self.async_get_access_token()
+        try:
+            access_token = await self.async_get_access_token()
+        except ClientError as err:
+            raise AuthException(f"Access token failure: {err}") from err
         headers["authorization"] = f"Bearer {access_token}"
         url = f"{self._host}/{url}"
         logging.debug("request[%s]=%s", method, url)

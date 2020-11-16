@@ -5,9 +5,10 @@ import pytest
 
 from google_nest_sdm import google_nest_api
 from google_nest_sdm.device import AbstractAuth
-from google_nest_sdm.exceptions import ApiException
+from google_nest_sdm.exceptions import ApiException, AuthException
 
 PROJECT_ID = "project-id1"
+FAKE_TOKEN = "some-token"
 
 
 class FakeAuth(AbstractAuth):
@@ -15,24 +16,35 @@ class FakeAuth(AbstractAuth):
         super().__init__(websession, "")
 
     async def async_get_access_token(self) -> str:
-        return "some-token"
+        return FAKE_TOKEN
+
+
+class RefreshingAuth(AbstractAuth):
+    def __init__(self, websession):
+        super().__init__(websession, "")
+
+    async def async_get_access_token(self) -> str:
+        resp = await self._websession.request("get", "/refresh-auth")
+        resp.raise_for_status()
+        json = await resp.json()
+        return json["token"]
 
 
 class Recorder:
     request = None
 
 
-def NewDeviceHandler(r: Recorder, devices: dict):
-    return NewRequestRecorder(r, [{"devices": devices}])
+def NewDeviceHandler(r: Recorder, devices: dict, token=FAKE_TOKEN):
+    return NewRequestRecorder(r, [{"devices": devices}], token=token)
 
 
-def NewStructureHandler(r: Recorder, structures: dict):
-    return NewRequestRecorder(r, [{"structures": structures}])
+def NewStructureHandler(r: Recorder, structures: dict, token=FAKE_TOKEN):
+    return NewRequestRecorder(r, [{"structures": structures}], token=token)
 
 
-def NewRequestRecorder(r: Recorder, response: list):
+def NewRequestRecorder(r: Recorder, response: list, token=FAKE_TOKEN):
     async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
-        assert request.headers["Authorization"] == "Bearer some-token"
+        assert request.headers["Authorization"] == "Bearer %s" % token
         s = await request.text()
         r.request = await request.json() if s else {}
         return aiohttp.web.json_response(response.pop(0))
@@ -496,7 +508,7 @@ async def test_api_post_error(aiohttp_server) -> None:
     )
 
     async def fail_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
-        assert request.headers["Authorization"] == "Bearer some-token"
+        assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
         return aiohttp.web.Response(status=502)
 
     app = aiohttp.web.Application()
@@ -518,3 +530,51 @@ async def test_api_post_error(aiohttp_server) -> None:
 
         with pytest.raises(ApiException):
             await trait.set_heat(25.0)
+
+
+async def test_auth_refresh(aiohttp_server) -> None:
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "enterprises/project-id1/devices/device-id1",
+                "type": "sdm.devices.types.device-type1",
+                "traits": {},
+                "parentRelations": [],
+            },
+        ],
+        token="updated-token",
+    )
+
+    async def auth_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        return aiohttp.web.json_response({"token": "updated-token"})
+
+    app = aiohttp.web.Application()
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+    app.router.add_get("/refresh-auth", auth_handler)
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        api = google_nest_api.GoogleNestAPI(RefreshingAuth(client), PROJECT_ID)
+        devices = await api.async_get_devices()
+        assert len(devices) == 1
+        assert "enterprises/project-id1/devices/device-id1" == devices[0].name
+        assert "sdm.devices.types.device-type1" == devices[0].type
+
+
+async def test_auth_refresh_error(aiohttp_server) -> None:
+    r = Recorder()
+
+    async def auth_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        return aiohttp.web.Response(status=401)
+
+    app = aiohttp.web.Application()
+    app.router.add_get("/enterprises/project-id1/devices", NewDeviceHandler(r, []))
+    app.router.add_get("/refresh-auth", auth_handler)
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        api = google_nest_api.GoogleNestAPI(RefreshingAuth(client), PROJECT_ID)
+        with pytest.raises(AuthException):
+            await api.async_get_devices()
