@@ -141,6 +141,8 @@ class GoogleNestSubscriber:
 
     def stop_async(self):
         """Tells the subscriber to start shutting down."""
+        if self._device_manager_task:
+            self._device_manager_task.cancel()
         if self._watchdog_task:
             self._watchdog_task.cancel()
         if self._subscriber_future:
