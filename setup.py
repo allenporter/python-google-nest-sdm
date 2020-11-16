@@ -28,7 +28,5 @@ setup(name='google_nest_sdm',
           'console_scripts': [
               'google_nest=google_nest_sdm.google_nest:main',
           ],
-      },
-      tests_require=[
-          'pytest_aiohttp>=0.3.0',
-      ])
+      }
+)

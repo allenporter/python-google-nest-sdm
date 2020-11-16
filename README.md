@@ -67,6 +67,8 @@ google_nest --project_id="${PROJECT_ID}" subscribe ${SUBSCRIPTION_ID}
 ```
 $ python3 -m venv venv
 $ source venv/bin/activate
+$ pip3 install -e .
+$ pip3 install -r requirements.txt
 
 # Running tests
 $ pytest
