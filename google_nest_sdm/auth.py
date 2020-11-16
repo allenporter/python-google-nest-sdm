@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 import aiohttp
 from aiohttp.client_exceptions import ClientError, ClientResponseError
 from google.auth.credentials import Credentials
+from google.oauth2.credentials import Credentials as OAuthCredentials
 
 from .exceptions import ApiException, AuthException
 
@@ -25,7 +26,8 @@ class AbstractAuth(ABC):
 
     async def async_get_creds(self) -> Credentials:
         """Return creds for subscriber API."""
-        return None
+        token = await self.async_get_access_token()
+        return OAuthCredentials(token=token)
 
     async def request(self, method: str, url: str, **kwargs) -> aiohttp.ClientResponse:
         """Make a request."""

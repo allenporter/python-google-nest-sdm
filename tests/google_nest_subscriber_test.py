@@ -5,7 +5,6 @@ import aiohttp
 import mock
 import pytest
 from google.api_core.exceptions import ClientError, Unauthenticated
-from google.auth.credentials import Credentials
 from google.cloud import pubsub_v1
 
 from google_nest_sdm.device import AbstractAuth
@@ -17,6 +16,7 @@ from google_nest_sdm.google_nest_subscriber import (
 
 PROJECT_ID = "project-id1"
 SUBSCRIBER_ID = "subscriber-id1"
+FAKE_TOKEN = "some-token"
 
 
 class FakeAuth(AbstractAuth):
@@ -24,10 +24,21 @@ class FakeAuth(AbstractAuth):
         super().__init__(websession, "")
 
     async def async_get_access_token(self) -> str:
-        return "some-token"
+        return FAKE_TOKEN
 
-    async def creds(self) -> Credentials:
-        return None
+
+class RefreshingAuth(FakeAuth):
+    def __init__(self, websession):
+        super().__init__(websession)
+        self._updated_token = None
+    
+    async def async_get_access_token(self) -> str:
+        if not self._updated_token:
+            resp = await self._websession.request("get", "/refresh-auth")
+            resp.raise_for_status()
+            json = await resp.json()
+            self._updated_token = json["token"]
+        return self._updated_token
 
 
 class FakeSubscriberFactory(AbstractSusbcriberFactory):
@@ -52,18 +63,18 @@ class Recorder:
     request = None
 
 
-def NewDeviceHandler(r: Recorder, devices: dict):
-    return NewRequestRecorder(r, [{"devices": devices}])
+def NewDeviceHandler(r: Recorder, devices: dict, token=FAKE_TOKEN):
+    return NewHandler(r, [{"devices": devices}], token=token)
 
 
-def NewStructureHandler(r: Recorder, structures: dict):
-    return NewRequestRecorder(r, [{"structures": structures}])
+def NewStructureHandler(r: Recorder, structures: dict, token=FAKE_TOKEN):
+    return NewHandler(r, [{"structures": structures}], token=token)
 
 
-def NewRequestRecorder(r: Recorder, response: list):
+def NewHandler(r: Recorder, response: list, token=FAKE_TOKEN):
     async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         print(f"handler{response}")
-        assert request.headers["Authorization"] == "Bearer some-token"
+        assert request.headers["Authorization"] == "Bearer %s" % token
         s = await request.text()
         r.request = await request.json() if s else {}
         return aiohttp.web.json_response(response.pop(0))
@@ -72,7 +83,6 @@ def NewRequestRecorder(r: Recorder, response: list):
 
 
 async def test_subscribe_no_events(aiohttp_server) -> None:
-    subscriber_factory = FakeSubscriberFactory()
     r = Recorder()
     handler = NewDeviceHandler(
         r,
@@ -109,7 +119,7 @@ async def test_subscribe_no_events(aiohttp_server) -> None:
 
     async with aiohttp.test_utils.TestClient(server) as client:
         subscriber = GoogleNestSubscriber(
-            FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, subscriber_factory
+            FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, FakeSubscriberFactory()
         )
         await subscriber.start_async()
         device_manager = await subscriber.async_get_device_manager()
@@ -128,7 +138,6 @@ async def test_subscribe_no_events(aiohttp_server) -> None:
 
 
 async def test_subscribe_device_manager(aiohttp_server) -> None:
-    subscriber_factory = FakeSubscriberFactory()
     r = Recorder()
     handler = NewDeviceHandler(
         r,
@@ -165,7 +174,7 @@ async def test_subscribe_device_manager(aiohttp_server) -> None:
 
     async with aiohttp.test_utils.TestClient(server) as client:
         subscriber = GoogleNestSubscriber(
-            FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, subscriber_factory
+            FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, FakeSubscriberFactory(),
         )
         await subscriber.start_async()
         device_manager = await subscriber.async_get_device_manager()
@@ -219,7 +228,7 @@ async def test_subscribe_update_trait(aiohttp_server) -> None:
 
     async with aiohttp.test_utils.TestClient(server) as client:
         subscriber = GoogleNestSubscriber(
-            FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, subscriber_factory
+            FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, subscriber_factory,
         )
         await subscriber.start_async()
         device_manager = await subscriber.async_get_device_manager()
@@ -253,7 +262,6 @@ async def test_subscribe_update_trait(aiohttp_server) -> None:
 
 
 async def test_subscribe_device_manager_init(aiohttp_server) -> None:
-    subscriber_factory = FakeSubscriberFactory()
     r = Recorder()
     handler = NewDeviceHandler(
         r,
@@ -290,7 +298,7 @@ async def test_subscribe_device_manager_init(aiohttp_server) -> None:
 
     async with aiohttp.test_utils.TestClient(server) as client:
         subscriber = GoogleNestSubscriber(
-            FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, subscriber_factory
+            FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, FakeSubscriberFactory()
         )
         start_async = subscriber.start_async()
         device_manager = await subscriber.async_get_device_manager()
@@ -392,6 +400,102 @@ async def test_subscriber_auth_error(aiohttp_server) -> None:
     async with aiohttp.test_utils.TestClient(server) as client:
         subscriber = GoogleNestSubscriber(
             FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, FailingFactory()
+        )
+        with pytest.raises(AuthException):
+            await subscriber.start_async()
+        subscriber.stop_async()
+
+
+async def test_auth_refresh(aiohttp_server) -> None:
+    r = Recorder()
+    async def auth_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        return aiohttp.web.json_response({"token": "updated-token"})
+
+    app = aiohttp.web.Application()
+    app.router.add_get("/enterprises/project-id1/devices",
+        NewDeviceHandler(
+            r,
+            [
+                {
+                    "name": "enterprises/project-id1/devices/device-id1",
+                    "type": "sdm.devices.types.device-type1",
+                    "traits": {},
+                    "parentRelations": [],
+                },
+            ],
+            token="updated-token"
+
+        )
+    )
+    app.router.add_get(
+        "/enterprises/project-id1/structures",
+        NewStructureHandler(
+            r,
+            [
+                {
+                    "name": "enterprises/project-id1/structures/structure-id1",
+                }
+            ],
+            token="updated-token",
+        ),
+    )
+    app.router.add_get("/refresh-auth", auth_handler)
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        subscriber = GoogleNestSubscriber(
+            RefreshingAuth(client), PROJECT_ID, SUBSCRIBER_ID, FakeSubscriberFactory()
+        )
+        await subscriber.start_async()
+        device_manager = await subscriber.async_get_device_manager()
+        devices = device_manager.devices
+        assert "enterprises/project-id1/devices/device-id1" in devices
+        assert (
+            "sdm.devices.types.device-type1"
+            == devices["enterprises/project-id1/devices/device-id1"].type
+        )
+        subscriber.stop_async()
+
+
+async def test_auth_refresh_error(aiohttp_server) -> None:
+    r = Recorder()
+    async def auth_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        return aiohttp.web.Response(status=401)
+
+    app = aiohttp.web.Application()
+    app.router.add_get("/enterprises/project-id1/devices",
+        NewDeviceHandler(
+            r,
+            [
+                {
+                    "name": "enterprises/project-id1/devices/device-id1",
+                    "type": "sdm.devices.types.device-type1",
+                    "traits": {},
+                    "parentRelations": [],
+                },
+            ],
+            token="updated-token"
+
+        )
+    )
+    app.router.add_get(
+        "/enterprises/project-id1/structures",
+        NewStructureHandler(
+            r,
+            [
+                {
+                    "name": "enterprises/project-id1/structures/structure-id1",
+                }
+            ],
+            token="updated-token",
+        ),
+    )
+    app.router.add_get("/refresh-auth", auth_handler)
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        subscriber = GoogleNestSubscriber(
+            RefreshingAuth(client), PROJECT_ID, SUBSCRIBER_ID, FakeSubscriberFactory()
         )
         with pytest.raises(AuthException):
             await subscriber.start_async()
