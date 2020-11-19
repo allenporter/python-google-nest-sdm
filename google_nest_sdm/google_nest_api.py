@@ -7,6 +7,10 @@ from .auth import AbstractAuth
 from .device import Device
 from .structure import Structure
 
+STRUCTURES = "structures"
+DEVICES = "devices"
+NAME = "name"
+
 
 class GoogleNestAPI:
     """Class to communicate with the Google Nest SDM API."""
@@ -24,15 +28,20 @@ class GoogleNestAPI:
         """Return the structures."""
         resp = await self._get(self._structures_url)
         response_data = await resp.json()
-        structures = response_data["structures"]
+        if STRUCTURES not in response_data:
+            return []
+        structures = response_data[STRUCTURES]
         return [
             Structure.MakeStructure(structure_data) for structure_data in structures
         ]
 
     async def async_get_structure(self, structure_id) -> Structure:
         """Return a structure device."""
-        resp = await self._get(structure_id)
-        return Structure.MakeStructure(await resp.json())
+        resp = await self._get(f"{self._structures_url}/{structure_id}")
+        data = await resp.json()
+        if NAME not in data:
+            return None
+        return Structure.MakeStructure(data)
 
     @property
     def _devices_url(self) -> str:
@@ -42,13 +51,18 @@ class GoogleNestAPI:
         """Return the devices."""
         resp = await self._get(self._devices_url)
         response_data = await resp.json()
-        devices = response_data["devices"]
+        if DEVICES not in response_data:
+            return []
+        devices = response_data[DEVICES]
         return [Device.MakeDevice(device_data, self._auth) for device_data in devices]
 
     async def async_get_device(self, device_id) -> Device:
         """Return a specific device."""
-        resp = await self._get(device_id)
-        return Device.MakeDevice(await resp.json(), self._auth)
+        resp = await self._get(f"{self._devices_url}/{device_id}")
+        data = await resp.json()
+        if NAME not in data:
+            return None
+        return Device.MakeDevice(data, self._auth)
 
     async def _get(self, url) -> aiohttp.ClientResponse:
         """Issues an authenticated HTTP get."""

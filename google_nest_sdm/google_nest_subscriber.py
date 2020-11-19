@@ -5,7 +5,7 @@ import json
 import logging
 from abc import ABC, abstractmethod
 
-from aiohttp.client_exceptions import ClientError, ClientResponseError
+from aiohttp.client_exceptions import ClientError
 from google.api_core.exceptions import GoogleAPIError, NotFound, Unauthenticated
 from google.cloud import pubsub_v1
 
@@ -109,7 +109,6 @@ class GoogleNestSubscriber:
             creds = await self._auth.async_get_creds()
         except ClientError as err:
             raise AuthException(f"Access token failure: {err}") from err
-
 
         try:
             self._subscriber_future = await self._subscriber_factory.new_subscriber(

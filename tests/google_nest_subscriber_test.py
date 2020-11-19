@@ -31,7 +31,7 @@ class RefreshingAuth(FakeAuth):
     def __init__(self, websession):
         super().__init__(websession)
         self._updated_token = None
-    
+
     async def async_get_access_token(self) -> str:
         if not self._updated_token:
             resp = await self._websession.request("get", "/refresh-auth")
@@ -174,7 +174,10 @@ async def test_subscribe_device_manager(aiohttp_server) -> None:
 
     async with aiohttp.test_utils.TestClient(server) as client:
         subscriber = GoogleNestSubscriber(
-            FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, FakeSubscriberFactory(),
+            FakeAuth(client),
+            PROJECT_ID,
+            SUBSCRIBER_ID,
+            FakeSubscriberFactory(),
         )
         await subscriber.start_async()
         device_manager = await subscriber.async_get_device_manager()
@@ -228,7 +231,10 @@ async def test_subscribe_update_trait(aiohttp_server) -> None:
 
     async with aiohttp.test_utils.TestClient(server) as client:
         subscriber = GoogleNestSubscriber(
-            FakeAuth(client), PROJECT_ID, SUBSCRIBER_ID, subscriber_factory,
+            FakeAuth(client),
+            PROJECT_ID,
+            SUBSCRIBER_ID,
+            subscriber_factory,
         )
         await subscriber.start_async()
         device_manager = await subscriber.async_get_device_manager()
@@ -408,11 +414,13 @@ async def test_subscriber_auth_error(aiohttp_server) -> None:
 
 async def test_auth_refresh(aiohttp_server) -> None:
     r = Recorder()
+
     async def auth_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         return aiohttp.web.json_response({"token": "updated-token"})
 
     app = aiohttp.web.Application()
-    app.router.add_get("/enterprises/project-id1/devices",
+    app.router.add_get(
+        "/enterprises/project-id1/devices",
         NewDeviceHandler(
             r,
             [
@@ -423,9 +431,8 @@ async def test_auth_refresh(aiohttp_server) -> None:
                     "parentRelations": [],
                 },
             ],
-            token="updated-token"
-
-        )
+            token="updated-token",
+        ),
     )
     app.router.add_get(
         "/enterprises/project-id1/structures",
@@ -459,11 +466,13 @@ async def test_auth_refresh(aiohttp_server) -> None:
 
 async def test_auth_refresh_error(aiohttp_server) -> None:
     r = Recorder()
+
     async def auth_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         return aiohttp.web.Response(status=401)
 
     app = aiohttp.web.Application()
-    app.router.add_get("/enterprises/project-id1/devices",
+    app.router.add_get(
+        "/enterprises/project-id1/devices",
         NewDeviceHandler(
             r,
             [
@@ -474,9 +483,8 @@ async def test_auth_refresh_error(aiohttp_server) -> None:
                     "parentRelations": [],
                 },
             ],
-            token="updated-token"
-
-        )
+            token="updated-token",
+        ),
     )
     app.router.add_get(
         "/enterprises/project-id1/structures",

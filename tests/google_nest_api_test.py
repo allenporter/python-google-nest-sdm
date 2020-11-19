@@ -35,14 +35,14 @@ class Recorder:
 
 
 def NewDeviceHandler(r: Recorder, devices: dict, token=FAKE_TOKEN):
-    return NewRequestRecorder(r, [{"devices": devices}], token=token)
+    return NewHandler(r, [{"devices": devices}], token=token)
 
 
 def NewStructureHandler(r: Recorder, structures: dict, token=FAKE_TOKEN):
-    return NewRequestRecorder(r, [{"structures": structures}], token=token)
+    return NewHandler(r, [{"structures": structures}], token=token)
 
 
-def NewRequestRecorder(r: Recorder, response: list, token=FAKE_TOKEN):
+def NewHandler(r: Recorder, response: list, token=FAKE_TOKEN):
     async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         assert request.headers["Authorization"] == "Bearer %s" % token
         s = await request.text()
@@ -101,7 +101,7 @@ async def test_fan_set_timer(aiohttp_server) -> None:
             }
         ],
     )
-    post_handler = NewRequestRecorder(r, [{}])
+    post_handler = NewHandler(r, [{}])
 
     app = aiohttp.web.Application()
     app.router.add_get("/enterprises/project-id1/devices", handler)
@@ -147,7 +147,7 @@ async def test_thermostat_eco_set_mode(aiohttp_server) -> None:
             }
         ],
     )
-    post_handler = NewRequestRecorder(r, [{}])
+    post_handler = NewHandler(r, [{}])
 
     app = aiohttp.web.Application()
     app.router.add_get("/enterprises/project-id1/devices", handler)
@@ -188,7 +188,7 @@ async def test_thermostat_mode_set_mode(aiohttp_server) -> None:
             }
         ],
     )
-    post_handler = NewRequestRecorder(r, [{}])
+    post_handler = NewHandler(r, [{}])
 
     app = aiohttp.web.Application()
     app.router.add_get("/enterprises/project-id1/devices", handler)
@@ -229,7 +229,7 @@ async def test_thermostat_temperature_set_point(aiohttp_server) -> None:
             }
         ],
     )
-    post_handler = NewRequestRecorder(r, [{}, {}, {}])
+    post_handler = NewHandler(r, [{}, {}, {}])
 
     app = aiohttp.web.Application()
     app.router.add_get("/enterprises/project-id1/devices", handler)
@@ -286,7 +286,7 @@ async def test_camera_live_stream(aiohttp_server) -> None:
         ],
     )
 
-    post_handler = NewRequestRecorder(
+    post_handler = NewHandler(
         r,
         [
             {
@@ -405,7 +405,7 @@ async def test_camera_event_image(aiohttp_server) -> None:
         ],
     )
 
-    post_handler = NewRequestRecorder(
+    post_handler = NewHandler(
         r,
         [
             {
@@ -578,3 +578,51 @@ async def test_auth_refresh_error(aiohttp_server) -> None:
         api = google_nest_api.GoogleNestAPI(RefreshingAuth(client), PROJECT_ID)
         with pytest.raises(AuthException):
             await api.async_get_devices()
+
+
+async def test_no_devices(aiohttp_server) -> None:
+    r = Recorder()
+    app = aiohttp.web.Application()
+    app.router.add_get("/enterprises/project-id1/devices", NewHandler(r, [{}]))
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
+        devices = await api.async_get_devices()
+        assert len(devices) == 0
+
+
+async def test_missing_device(aiohttp_server) -> None:
+    r = Recorder()
+    app = aiohttp.web.Application()
+    app.router.add_get("/enterprises/project-id1/devices/abc", NewHandler(r, [{}]))
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
+        device = await api.async_get_device("abc")
+        assert device is None
+
+
+async def test_no_structures(aiohttp_server) -> None:
+    r = Recorder()
+    app = aiohttp.web.Application()
+    app.router.add_get("/enterprises/project-id1/structures", NewHandler(r, [{}]))
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
+        structures = await api.async_get_structures()
+        assert len(structures) == 0
+
+
+async def test_missing_structures(aiohttp_server) -> None:
+    r = Recorder()
+    app = aiohttp.web.Application()
+    app.router.add_get("/enterprises/project-id1/structures/abc", NewHandler(r, [{}]))
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
+        structure = await api.async_get_structure("abc")
+        assert structure is None
