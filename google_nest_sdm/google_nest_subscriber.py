@@ -3,6 +3,7 @@ import asyncio
 import concurrent.futures
 import json
 import logging
+import re
 from abc import ABC, abstractmethod
 
 from aiohttp.client_exceptions import ClientError
@@ -17,9 +18,11 @@ from .google_nest_api import GoogleNestAPI
 
 _LOGGER = logging.getLogger(__name__)
 
+# Used to catch invalid subscriber id
+EXPECTED_SUBSCRIBER_REGEXP = re.compile("projects/.*/subscriptions/.*")
 
 # Used to catch a topic misconfiguration
-EXPECTED_TOPIC_PREFIX = "projects/sdm-prod/"
+EXPECTED_TOPIC_REGEXP = re.compile("projects/sdm-prod/.*")
 
 
 class AbstractSusbcriberFactory(ABC):
@@ -54,14 +57,11 @@ class DefaultSubscriberFactory(AbstractSusbcriberFactory):
         """Issues a command to verify subscriber creds are correct."""
         subscription = subscriber.get_subscription(subscription=subscription_name)
         if subscription.topic:
-            if not subscription.topic.startswith(EXPECTED_TOPIC_PREFIX):
-                _LOGGER.warning(
-                    (
-                        "Subscription misconfigured. Expected topic name with "
-                        "prefix '%s' but was '%s'."
-                    ),
-                    EXPECTED_TOPIC_PREFIX,
-                    subscription.topic,
+            if not EXPECTED_TOPIC_REGEXP.match(subscription.topic):
+                raise SubscriberException(
+                    "Subscription misconfigured. Expected topic name to "
+                    f"match '{EXPECTED_TOPIC_REGEXP.pattern}' but was "
+                    f"'{subscription.topic}'."
                 )
             else:
                 _LOGGER.debug(
@@ -105,6 +105,12 @@ class GoogleNestSubscriber:
 
     async def start_async(self):
         """Starts the subscriber."""
+        if not EXPECTED_SUBSCRIBER_REGEXP.match(self._subscriber_id):
+            raise SubscriberException(
+                "Subscription misconfigured. Expected subscriber_id to "
+                f"match '{EXPECTED_SUBSCRIBER_REGEXP.pattern}' but was "
+                f"'{self._subscriber_id}'"
+            )
         try:
             creds = await self._auth.async_get_creds()
         except ClientError as err:

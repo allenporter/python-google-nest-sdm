@@ -15,7 +15,7 @@ from google_nest_sdm.google_nest_subscriber import (
 )
 
 PROJECT_ID = "project-id1"
-SUBSCRIBER_ID = "subscriber-id1"
+SUBSCRIBER_ID = "projects/some-project-id/subscriptions/subscriber-id1"
 FAKE_TOKEN = "some-token"
 
 
@@ -508,3 +508,23 @@ async def test_auth_refresh_error(aiohttp_server) -> None:
         with pytest.raises(AuthException):
             await subscriber.start_async()
         subscriber.stop_async()
+
+async def test_subscriber_id_error(aiohttp_server) -> None:
+    app = aiohttp.web.Application()
+    r = Recorder()
+    app.router.add_get("/enterprises/project-id1/devices", NewDeviceHandler(r, []))
+    app.router.add_get(
+        "/enterprises/project-id1/structures",
+        NewStructureHandler(r, []),
+    )
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        subscriber = GoogleNestSubscriber(
+            FakeAuth(client), PROJECT_ID, "bad-subscriber-id", FakeSubscriberFactory()
+        )
+        with pytest.raises(SubscriberException):
+            await subscriber.start_async()
+        subscriber.stop_async()
+
+
