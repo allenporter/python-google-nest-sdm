@@ -43,7 +43,7 @@ class Device:
         device_id = raw_data.get(DEVICE_NAME)
         cmd = Command(device_id, auth)
         traits = raw_data.get(DEVICE_TRAITS, {})
-        traits_dict = BuildTraits(traits, cmd)
+        traits_dict = BuildTraits(traits, cmd, raw_data.get(DEVICE_TYPE))
         return Device(raw_data, traits_dict)
 
     @property
