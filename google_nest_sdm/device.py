@@ -10,7 +10,7 @@ from . import device_traits  # noqa: F401
 from . import doorbell_traits  # noqa: F401
 from . import thermostat_traits  # noqa: F401
 from .auth import AbstractAuth
-from .event import EventCallback, EventMessage, EventProcessingError
+from .event import AsyncEventCallback, EventMessage, EventProcessingError
 from .traits import BuildTraits, Command
 
 _LOGGER = logging.getLogger(__name__)
@@ -76,8 +76,10 @@ class Device:
         """"Assignee details of the device (e.g. room/structure)."""
         return self._relations
 
-    def add_event_callback(self, event_callback: EventCallback) -> Callable[[], None]:
-        """Register an EventCallback for udpates to this device.
+    def add_event_callback(
+        self, event_callback: AsyncEventCallback
+    ) -> Callable[[], None]:
+        """Register an AsyncEventCallback for udpates to this device.
 
         The return value is a callable that will unregister the callback.
         """
@@ -89,7 +91,7 @@ class Device:
 
         return remove_callback
 
-    def handle_event(self, event_message: EventMessage) -> None:
+    async def async_handle_event(self, event_message: EventMessage) -> None:
         """Process an event from the pubsub subscriber."""
         _LOGGER.debug(
             "Processing update %s @ %s", event_message.event_id, event_message.timestamp
@@ -111,4 +113,4 @@ class Device:
             self._traits[trait_name] = trait
 
         for callback in self._callbacks:
-            callback.handle_event(event_message)
+            await callback.async_handle_event(event_message)

@@ -1,6 +1,6 @@
 from google_nest_sdm.device import Device
 from google_nest_sdm.device_manager import DeviceManager
-from google_nest_sdm.event import EventCallback, EventMessage
+from google_nest_sdm.event import AsyncEventCallback, EventMessage
 from google_nest_sdm.structure import Structure
 
 
@@ -60,7 +60,7 @@ def test_duplicate_device():
     assert 1 == len(mgr.devices)
 
 
-def test_update_traits():
+async def test_update_traits():
     mgr = DeviceManager()
     mgr.add_device(
         MakeDevice(
@@ -80,7 +80,7 @@ def test_update_traits():
     assert "sdm.devices.traits.Connectivity" in device.traits
     trait = device.traits["sdm.devices.traits.Connectivity"]
     assert "OFFLINE" == trait.status
-    mgr.handle_event(
+    await mgr.async_handle_event(
         MakeEvent(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
@@ -103,7 +103,7 @@ def test_update_traits():
     assert "ONLINE" == trait.status
 
 
-def test_device_created_in_structure():
+async def test_device_created_in_structure():
     mgr = DeviceManager()
     mgr.add_device(
         MakeDevice(
@@ -136,7 +136,7 @@ def test_device_created_in_structure():
     trait = structure.traits["sdm.structures.traits.Info"]
     assert "Structure Name" == trait.custom_name
 
-    mgr.handle_event(
+    await mgr.async_handle_event(
         MakeEvent(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
@@ -155,7 +155,7 @@ def test_device_created_in_structure():
         "enterprises/project-id/structures/structure-id": "Structure Name",
     } == device.parent_relations
 
-    mgr.handle_event(
+    await mgr.async_handle_event(
         MakeEvent(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
@@ -173,7 +173,7 @@ def test_device_created_in_structure():
     assert 0 == len(device.parent_relations)
 
 
-def test_device_event_callback():
+async def test_device_event_callback():
     device = MakeDevice(
         {
             "name": "my/device/name1",
@@ -193,17 +193,17 @@ def test_device_event_callback():
     trait = device.traits["sdm.devices.traits.Connectivity"]
     assert "OFFLINE" == trait.status
 
-    class MyCallback(EventCallback):
+    class MyCallback(AsyncEventCallback):
         invoked = False
 
-        def handle_event(self, event_message: EventMessage):
+        async def async_handle_event(self, event_message: EventMessage):
             self.invoked = True
 
     callback = MyCallback()
     unregister = device.add_event_callback(callback)
     assert not callback.invoked
 
-    mgr.handle_event(
+    await mgr.async_handle_event(
         MakeEvent(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
@@ -228,7 +228,7 @@ def test_device_event_callback():
 
     # Test event not for this device
     callback.invoked = False
-    mgr.handle_event(
+    await mgr.async_handle_event(
         MakeEvent(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
@@ -250,7 +250,7 @@ def test_device_event_callback():
     # Unregister the callback.  The event is still processed, but the callback
     # is not invoked
     unregister()
-    mgr.handle_event(
+    await mgr.async_handle_event(
         MakeEvent(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",

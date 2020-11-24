@@ -33,7 +33,7 @@ from .auth import AbstractAuth
 from .camera_traits import CameraLiveStreamTrait
 from .event import EventMessage
 from .google_nest_api import GoogleNestAPI
-from .google_nest_subscriber import EventCallback, GoogleNestSubscriber
+from .google_nest_subscriber import AsyncEventCallback, GoogleNestSubscriber
 from .thermostat_traits import (
     ThermostatEcoTrait,
     ThermostatModeTrait,
@@ -200,8 +200,8 @@ def PrintDevice(device):
     print("")
 
 
-class SubscribeCallback(EventCallback):
-    def handle_event(self, event_message: EventMessage):
+class SubscribeCallback(AsyncEventCallback):
+    async def async_handle_event(self, event_message: EventMessage):
         print(f"event_id: {event_message.event_id}")
         print(f"timestamp: {event_message.timestamp}")
         print(f"resource_update_name: {event_message.resource_update_name}")
@@ -220,11 +220,11 @@ class SubscribeCallback(EventCallback):
         print("")
 
 
-class DeviceWatcherCallback(EventCallback):
+class DeviceWatcherCallback(AsyncEventCallback):
     def __init__(self, device):
         self._device = device
 
-    def handle_event(self, event_message: EventMessage):
+    async def async_handle_event(self, event_message: EventMessage):
         print(f"event_id: {event_message.event_id}")
         print("Current device state:")
         PrintDevice(self._device)

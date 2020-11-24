@@ -1,11 +1,11 @@
 """Device Manager keeps track of the current state of all devices."""
 
 from .device import Device
-from .event import EventCallback, EventMessage
+from .event import AsyncEventCallback, EventMessage
 from .structure import InfoTrait, RoomInfoTrait, Structure
 
 
-class DeviceManager(EventCallback):
+class DeviceManager(AsyncEventCallback):
     """DeviceManager holds current state of all devices."""
 
     def __init__(self):
@@ -31,7 +31,7 @@ class DeviceManager(EventCallback):
         """Tracks the specified device."""
         self._structures[structure.name] = structure
 
-    def handle_event(self, event_message: EventMessage):
+    async def async_handle_event(self, event_message: EventMessage):
         """Invokes by the subscriber when a new message is received."""
         if event_message.relation_update:
             relation = event_message.relation_update
@@ -56,4 +56,4 @@ class DeviceManager(EventCallback):
             device_id = event_message.resource_update_name
             if device_id in self._devices:
                 device = self._devices[device_id]
-                device.handle_event(event_message)
+                await device.async_handle_event(event_message)

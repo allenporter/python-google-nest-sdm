@@ -1,8 +1,9 @@
 import asyncio
 import json
+import logging
+from unittest.mock import create_autospec
 
 import aiohttp
-import mock
 import pytest
 from google.api_core.exceptions import ClientError, Unauthenticated
 from google.cloud import pubsub_v1
@@ -45,18 +46,18 @@ class FakeSubscriberFactory(AbstractSusbcriberFactory):
     def __init__(self, tasks: list = None):
         self.tasks = tasks
 
-    async def new_subscriber(self, creds, subscription_name, callback):
-        self._callback = callback
+    async def async_new_subscriber(
+        self, creds, subscription_name, loop, async_callback
+    ):
+        self._async_callback = async_callback
         if self.tasks:
             return asyncio.create_task(self.tasks.pop(0)())
         return None
 
-    def push_event(self, event):
-        message = mock.create_autospec(
-            pubsub_v1.subscriber.message.Message, instance=True
-        )
+    async def async_push_event(self, event):
+        message = create_autospec(pubsub_v1.subscriber.message.Message, instance=True)
         message.data = json.dumps(event).encode()
-        self._callback(message)
+        return await self._async_callback(message)
 
 
 class Recorder:
@@ -73,7 +74,6 @@ def NewStructureHandler(r: Recorder, structures: dict, token=FAKE_TOKEN):
 
 def NewHandler(r: Recorder, response: list, token=FAKE_TOKEN):
     async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
-        print(f"handler{response}")
         assert request.headers["Authorization"] == "Bearer %s" % token
         s = await request.text()
         r.request = await request.json() if s else {}
@@ -234,7 +234,7 @@ async def test_subscribe_update_trait(aiohttp_server) -> None:
             FakeAuth(client),
             PROJECT_ID,
             SUBSCRIBER_ID,
-            subscriber_factory,
+            subscriber_factory=subscriber_factory,
         )
         await subscriber.start_async()
         device_manager = await subscriber.async_get_device_manager()
@@ -257,7 +257,7 @@ async def test_subscribe_update_trait(aiohttp_server) -> None:
             },
             "userId": "AVPHwEv75jw4WFshx6-XhBLhotn3r8IXOzCusfSOn5QU",
         }
-        subscriber_factory.push_event(event)
+        await subscriber_factory.async_push_event(event)
 
         devices = device_manager.devices
         assert "enterprises/project-id1/devices/device-id1" in devices
@@ -328,13 +328,11 @@ async def test_subscriber_watchdog(aiohttp_server) -> None:
     event1 = asyncio.Event()
 
     async def task1():
-        print("Task1")
         await event1.wait()
 
     event2 = asyncio.Event()
 
     async def task2():
-        print("Task2")
         event2.set()
 
     subscriber_factory = FakeSubscriberFactory(tasks=[task1, task2])
@@ -368,7 +366,9 @@ async def test_subscriber_watchdog(aiohttp_server) -> None:
 
 async def test_subscriber_error(aiohttp_server) -> None:
     class FailingFactory(AbstractSusbcriberFactory):
-        async def new_subscriber(self, creds, subscription_name, callback):
+        async def async_new_subscriber(
+            self, creds, subscription_name, loop, async_callback
+        ):
             raise ClientError("Some error")
 
     app = aiohttp.web.Application()
@@ -391,7 +391,9 @@ async def test_subscriber_error(aiohttp_server) -> None:
 
 async def test_subscriber_auth_error(aiohttp_server) -> None:
     class FailingFactory(AbstractSusbcriberFactory):
-        async def new_subscriber(self, creds, subscription_name, callback):
+        async def async_new_subscriber(
+            self, creds, subscription_name, loop, async_callback
+        ):
             raise Unauthenticated("Auth failure")
 
     app = aiohttp.web.Application()
@@ -509,6 +511,7 @@ async def test_auth_refresh_error(aiohttp_server) -> None:
             await subscriber.start_async()
         subscriber.stop_async()
 
+
 async def test_subscriber_id_error(aiohttp_server) -> None:
     app = aiohttp.web.Application()
     r = Recorder()
@@ -526,5 +529,3 @@ async def test_subscriber_id_error(aiohttp_server) -> None:
         with pytest.raises(SubscriberException):
             await subscriber.start_async()
         subscriber.stop_async()
-
-

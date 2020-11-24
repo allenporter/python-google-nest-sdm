@@ -1,7 +1,7 @@
 import datetime
 
 from google_nest_sdm.event import (
-    EventCallback,
+    AsyncEventCallback,
     EventMessage,
     EventTypeFilterCallback,
     RecentEventFilterCallback,
@@ -161,14 +161,14 @@ def test_relation():
     assert "enterprises/project-id/devices/device-id" == update.object
 
 
-class MyCallback(EventCallback):
+class MyCallback(AsyncEventCallback):
     invoked = False
 
-    def handle_event(self, event_message: EventMessage):
+    async def async_handle_event(self, event_message: EventMessage):
         self.invoked = True
 
 
-def test_event_callback_filter_no_match():
+async def test_event_callback_filter_no_match():
     callback = MyCallback()
     handler = EventTypeFilterCallback(
         "sdm.devices.events.CameraMotion.Motion", callback
@@ -190,11 +190,11 @@ def test_event_callback_filter_no_match():
             "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
         }
     )
-    handler.handle_event(event)
+    await handler.async_handle_event(event)
     assert not callback.invoked
 
 
-def test_event_callback_filter_match():
+async def test_event_callback_filter_match():
     callback = MyCallback()
     handler = EventTypeFilterCallback(
         "sdm.devices.events.CameraMotion.Motion", callback
@@ -216,11 +216,11 @@ def test_event_callback_filter_match():
             "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
         }
     )
-    handler.handle_event(event)
+    await handler.async_handle_event(event)
     assert callback.invoked
 
 
-def test_event_callback_filter_trait_update():
+async def test_event_callback_filter_trait_update():
     callback = MyCallback()
     handler = EventTypeFilterCallback(
         "sdm.devices.events.CameraMotion.Motion", callback
@@ -241,11 +241,11 @@ def test_event_callback_filter_trait_update():
             "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
         }
     )
-    handler.handle_event(event)
+    await handler.async_handle_event(event)
     assert not callback.invoked
 
 
-def test_event_recent_event_filter_match():
+async def test_event_recent_event_filter_match():
 
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     timestamp = now - datetime.timedelta(seconds=5)
@@ -269,11 +269,11 @@ def test_event_recent_event_filter_match():
             "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
         }
     )
-    handler.handle_event(event)
+    await handler.async_handle_event(event)
     assert callback.invoked
 
 
-def test_event_recent_event_filter_too_old():
+async def test_event_recent_event_filter_too_old():
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     timestamp = now - datetime.timedelta(seconds=15)
 
@@ -296,5 +296,5 @@ def test_event_recent_event_filter_too_old():
             "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
         }
     )
-    handler.handle_event(event)
+    await handler.async_handle_event(event)
     assert not callback.invoked

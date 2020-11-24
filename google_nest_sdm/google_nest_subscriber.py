@@ -5,6 +5,7 @@ import json
 import logging
 import re
 from abc import ABC, abstractmethod
+from typing import Optional
 
 from aiohttp.client_exceptions import ClientError
 from google.api_core.exceptions import GoogleAPIError, NotFound, Unauthenticated
@@ -12,7 +13,7 @@ from google.cloud import pubsub_v1
 
 from .auth import AbstractAuth
 from .device_manager import DeviceManager
-from .event import EventCallback, EventMessage
+from .event import AsyncEventCallback, EventMessage
 from .exceptions import AuthException, SubscriberException
 from .google_nest_api import GoogleNestAPI
 
@@ -29,8 +30,8 @@ class AbstractSusbcriberFactory(ABC):
     """Abstract class for creating a subscriber, to facilitate testing."""
 
     @abstractmethod
-    async def new_subscriber(
-        self, creds, subscription_name, callback
+    async def async_new_subscriber(
+        self, creds, subscription_name, async_callback
     ) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
         """Create a new event subscriber."""
 
@@ -38,23 +39,25 @@ class AbstractSusbcriberFactory(ABC):
 class DefaultSubscriberFactory(AbstractSusbcriberFactory):
     """Default implementation that creates Google Pubsub subscriber."""
 
-    async def new_subscriber(
-        self, creds, subscription_name, callback
+    async def async_new_subscriber(
+        self, creds, subscription_name, loop, async_callback
     ) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
-        subscriber = pubsub_v1.SubscriberClient(credentials=creds)
-        # Verify creds and subscription name are correct at startup to make it
-        # easier to detect a misconfiguration.  You can't easily tell from the
-        # subscribe streaming future if it was connected initially.
+        """Creates a new subscriber with a blocking to async bridge."""
+        def callback_wrapper(message: pubsub_v1.subscriber.message.Message):
+            future = asyncio.run_coroutine_threadsafe(async_callback(message), loop)
+            future.result()
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                executor, self._verify_subscriber_config, subscriber, subscription_name
+            return await loop.run_in_executor(
+                executor,
+                self._new_subscriber,
+                creds,
+                subscription_name,
+                callback_wrapper,
             )
 
-        return subscriber.subscribe(subscription_name, callback)
-
-    def _verify_subscriber_config(self, subscriber, subscription_name):
+    def _new_subscriber(self, creds, subscription_name, callback_wrapper):
         """Issues a command to verify subscriber creds are correct."""
+        subscriber = pubsub_v1.SubscriberClient(credentials=creds)
         subscription = subscriber.get_subscription(subscription=subscription_name)
         if subscription.topic:
             if not EXPECTED_TOPIC_REGEXP.match(subscription.topic):
@@ -69,6 +72,7 @@ class DefaultSubscriberFactory(AbstractSusbcriberFactory):
                     subscription_name,
                     subscription.topic,
                 )
+        return subscriber.subscribe(subscription_name, callback_wrapper)
 
 
 class GoogleNestSubscriber:
@@ -80,12 +84,14 @@ class GoogleNestSubscriber:
         project_id: str,
         subscriber_id: str,
         subscriber_factory: AbstractSusbcriberFactory = DefaultSubscriberFactory(),
+        loop: Optional[asyncio.AbstractEventLoop] = None,
         watchdog_delay: float = 10,
     ):
         """Initialize the subscriber for the specified topic"""
         self._auth = auth
         self._subscriber_id = subscriber_id
         self._api = GoogleNestAPI(auth, project_id)
+        self._loop = loop or asyncio.get_event_loop()
         self._subscriber_factory = subscriber_factory
         self._subscriber_future = None
         self._callback = None
@@ -99,7 +105,7 @@ class GoogleNestSubscriber:
         else:
             self._watchdog_task = None
 
-    def set_update_callback(self, callback: EventCallback):
+    def set_update_callback(self, callback: AsyncEventCallback):
         """Register a callback invoked when new messages are received."""
         self._callback = callback
 
@@ -117,8 +123,10 @@ class GoogleNestSubscriber:
             raise AuthException(f"Access token failure: {err}") from err
 
         try:
-            self._subscriber_future = await self._subscriber_factory.new_subscriber(
-                creds, self._subscriber_id, self._message_callback
+            self._subscriber_future = (
+                await self._subscriber_factory.async_new_subscriber(
+                    creds, self._subscriber_id, self._loop, self._async_message_callback
+                )
             )
         except NotFound as err:
             raise SubscriberException(
@@ -187,16 +195,17 @@ class GoogleNestSubscriber:
             else:
                 _LOGGER.debug("Subscriber failure: %s: %s", type(ex), ex)
 
-    def _message_callback(self, message: pubsub_v1.subscriber.message.Message):
+    async def _async_message_callback(
+        self, message: pubsub_v1.subscriber.message.Message
+    ):
         """Invoked when a message is received."""
-
         payload = json.loads(bytes.decode(message.data))
         event = EventMessage(payload, self._auth)
         # Only accept device events once the Device Manager has been loaded.
         # We are ok with missing messages on startup since the device manager
-        # will do a live read.
+        # will do a live read .
         if self._device_manager_task.done():
-            self._device_manager_task.result().handle_event(event)
+            await self._device_manager_task.result().async_handle_event(event)
         if self._callback:
-            self._callback.handle_event(event)
+            await self._callback.async_handle_event(event)
         message.ack()
