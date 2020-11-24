@@ -22,7 +22,7 @@ def test_doorbell_chime_trait_hack():
     assert "sdm.devices.traits.DoorbellChime" in device.traits
 
 def test_doorbell_chime_trait_hack_not_applied():
-    """Adds the DoorbellChime trait even when missing from the API to fix an API bug."""
+    """The doorbell chime trait hack is not applied for other types."""
     raw = {
         "name": "my/device/name",
         "type": "sdm.devices.types.CAMERA",
