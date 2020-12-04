@@ -1,10 +1,12 @@
 """A device from the Smart Device Management API."""
 
-import logging
 import json
+import logging
 
 # Import traits for registration
 from typing import Callable
+
+import yaml
 
 from . import camera_traits  # noqa: F401
 from . import device_traits  # noqa: F401
@@ -80,6 +82,10 @@ class Device:
     def toJson(self) -> str:
         """Return the raw data as a json string."""
         return json.dumps(self._raw_data)
+
+    def toYaml(self) -> str:
+        """Return the raw data as a Yaml string."""
+        return yaml.dump(self._raw_data)
 
     def add_event_callback(
         self, event_callback: AsyncEventCallback

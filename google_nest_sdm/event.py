@@ -1,8 +1,11 @@
 """Events from pubsub subscriber."""
 
 import datetime
+import json
 import logging
 from abc import ABC, abstractmethod
+
+import yaml
 
 from .auth import AbstractAuth
 from .registry import Registry
@@ -174,6 +177,14 @@ class EventMessage:
         if RELATION_UPDATE not in self._raw_data:
             return None
         return RelationUpdate(self._raw_data[RELATION_UPDATE])
+
+    def toJson(self) -> str:
+        """Return the raw data as a json string."""
+        return json.dumps(self._raw_data)
+
+    def toYaml(self) -> str:
+        """Return the raw data as a Yaml string."""
+        return yaml.dump(self._raw_data)
 
 
 class AsyncEventCallback(ABC):

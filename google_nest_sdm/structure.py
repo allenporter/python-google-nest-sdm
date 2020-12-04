@@ -1,5 +1,9 @@
 """Traits for structures / rooms."""
 
+import json
+
+import yaml
+
 STRUCTURE_NAME = "name"
 STRUCTURE_TRAITS = "traits"
 CUSTOM_NAME = "customName"
@@ -79,3 +83,11 @@ class Structure:
         """Return the raw dictionary for the specified trait."""
         traits_dict = self._raw_data.get(STRUCTURE_TRAITS, {})
         return traits_dict.get(trait, {})
+
+    def toJson(self) -> str:
+        """Return the raw data as a json string."""
+        return json.dumps(self._raw_data)
+
+    def toYaml(self) -> str:
+        """Return the raw data as a Yaml string."""
+        return yaml.dump(self._raw_data)

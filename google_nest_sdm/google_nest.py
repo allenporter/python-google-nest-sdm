@@ -57,7 +57,11 @@ parser.add_argument(
     "-v", "--verbose", help="Increase output verbosity", action="store_true"
 )
 parser.add_argument(
-    "--output_type", help="Change the output type from friendly (default) to `json`.", default=""
+    "--output_type",
+    type=str,
+    choices=['console', 'json', 'yaml'],
+    help="Change the output type from console formatted to json or yaml.",
+    default='console',
 )
 
 cmd_parser = parser.add_subparsers(dest="command", required=True)
@@ -181,19 +185,24 @@ def CreateCreds(args) -> Credentials:
     return creds
 
 
-def PrintStructure(structure):
-    print(f"id: {structure.name}")
-    print("traits:")
-    for (trait_name, trait) in structure.traits.items():
-        print(f"  {trait_name}: {trait._data}")
-    print("")
+def PrintStructure(structure, output_type):
+    if output_type == "json":
+        print(structure.toJson())
+    elif output_type == "yaml":
+        print(structure.toYaml())
+    else:
+        print(f"id: {structure.name}")
+        print("traits:")
+        for (trait_name, trait) in structure.traits.items():
+            print(f"  {trait_name}: {trait._data}")
+        print("")
 
 
 def PrintDevice(device, output_type):
     if output_type == "json":
-        print("")
         print(device.toJson())
-        print("")
+    elif output_type == "yaml":
+        print(device.toYaml())
     else:
         print(f"id: {device.name}")
         print(f"type: {device.type}")
@@ -205,27 +214,35 @@ def PrintDevice(device, output_type):
         print("traits:")
         for (trait_name, trait) in device.traits.items():
             print(f"  {trait_name}: {trait._data}")
-    print("")
+        print("")
 
 
 class SubscribeCallback(AsyncEventCallback):
+    def __init__(self, output_type=None):
+        self._output_type = output_type
+
     async def async_handle_event(self, event_message: EventMessage):
-        print(f"event_id: {event_message.event_id}")
-        print(f"timestamp: {event_message.timestamp}")
-        print(f"resource_update_name: {event_message.resource_update_name}")
-        traits = event_message.resource_update_traits
-        if traits:
-            print("traits:")
-            for (name, trait) in traits.items():
-                print(f"  {name}: {trait._data}")
-        events = event_message.resource_update_events
-        if events:
-            print("events:")
-            for (name, event) in events.items():
-                print(f"  {name}:")
-                print(f"    event_id: {event.event_id}")
-                print(f"    event_session_id: {event.event_session_id}")
-        print("")
+        if self._output_type == "json":
+            print(event_message.toJson())
+        elif self._output_type == "yaml":
+            print(event_message.toYaml())
+        else:
+            print(f"event_id: {event_message.event_id}")
+            print(f"timestamp: {event_message.timestamp}")
+            print(f"resource_update_name: {event_message.resource_update_name}")
+            traits = event_message.resource_update_traits
+            if traits:
+                print("traits:")
+                for (name, trait) in traits.items():
+                    print(f"  {name}: {trait._data}")
+            events = event_message.resource_update_events
+            if events:
+                print("events:")
+                for (name, event) in events.items():
+                    print(f"  {name}:")
+                    print(f"    event_id: {event.event_id}")
+                    print(f"    event_session_id: {event.event_session_id}")
+            print("")
 
 
 class DeviceWatcherCallback(AsyncEventCallback):
@@ -252,12 +269,12 @@ async def RunTool(args, user_creds: Credentials, service_creds: Credentials):
         if args.command == "list_structures":
             structures = await api.async_get_structures()
             for structure in structures:
-                PrintStructure(structure)
+                PrintStructure(structure, args.output_type)
             return
 
         if args.command == "get_structure":
             structure = await api.async_get_structure(args.structure_id)
-            PrintStructure(structure)
+            PrintStructure(structure, args.output_type)
             return
 
         if args.command == "list_devices":
@@ -274,10 +291,10 @@ async def RunTool(args, user_creds: Credentials, service_creds: Credentials):
             if args.device_id:
                 device_manager = await subscriber.async_get_device_manager()
                 device = device_manager.devices[args.device_id]
-                callback = DeviceWatcherCallback(device, args.print_jason)
+                callback = DeviceWatcherCallback(device, args.output_type)
                 device.add_event_callback(callback)
             else:
-                subscriber.set_update_callback(SubscribeCallback())
+                subscriber.set_update_callback(SubscribeCallback(args.output_type))
             await subscriber.start_async()
             try:
                 while True:
