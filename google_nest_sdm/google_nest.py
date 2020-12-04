@@ -56,6 +56,9 @@ parser.add_argument(
 parser.add_argument(
     "-v", "--verbose", help="Increase output verbosity", action="store_true"
 )
+parser.add_argument(
+    "--output_type", help="Change the output type from friendly (default) to `json`.", default=""
+)
 
 cmd_parser = parser.add_subparsers(dest="command", required=True)
 list_structures_parser = cmd_parser.add_parser("list_structures")
@@ -186,17 +189,22 @@ def PrintStructure(structure):
     print("")
 
 
-def PrintDevice(device):
-    print(f"id: {device.name}")
-    print(f"type: {device.type}")
-    print("room/structure: ")
-    for (parent_id, parent_name) in device.parent_relations.items():
-        print(f"  id: {parent_id}")
-        print(f"  name: {parent_name}")
+def PrintDevice(device, output_type):
+    if output_type == "json":
+        print("")
+        print(device.toJson())
+        print("")
+    else:
+        print(f"id: {device.name}")
+        print(f"type: {device.type}")
+        print("room/structure: ")
+        for (parent_id, parent_name) in device.parent_relations.items():
+            print(f"  id: {parent_id}")
+            print(f"  name: {parent_name}")
 
-    print("traits:")
-    for (trait_name, trait) in device.traits.items():
-        print(f"  {trait_name}: {trait._data}")
+        print("traits:")
+        for (trait_name, trait) in device.traits.items():
+            print(f"  {trait_name}: {trait._data}")
     print("")
 
 
@@ -221,13 +229,14 @@ class SubscribeCallback(AsyncEventCallback):
 
 
 class DeviceWatcherCallback(AsyncEventCallback):
-    def __init__(self, device):
+    def __init__(self, device, output_type):
         self._device = device
+        self._output_type = output_type
 
     async def async_handle_event(self, event_message: EventMessage):
         print(f"event_id: {event_message.event_id}")
         print("Current device state:")
-        PrintDevice(self._device)
+        PrintDevice(self._device, self._output_type)
         print("")
 
 
@@ -254,7 +263,7 @@ async def RunTool(args, user_creds: Credentials, service_creds: Credentials):
         if args.command == "list_devices":
             devices = await api.async_get_devices()
             for device in devices:
-                PrintDevice(device)
+                PrintDevice(device, args.output_type)
             return
 
         if args.command == "subscribe":
@@ -265,7 +274,7 @@ async def RunTool(args, user_creds: Credentials, service_creds: Credentials):
             if args.device_id:
                 device_manager = await subscriber.async_get_device_manager()
                 device = device_manager.devices[args.device_id]
-                callback = DeviceWatcherCallback(device)
+                callback = DeviceWatcherCallback(device, args.print_jason)
                 device.add_event_callback(callback)
             else:
                 subscriber.set_update_callback(SubscribeCallback())
@@ -280,7 +289,7 @@ async def RunTool(args, user_creds: Credentials, service_creds: Credentials):
         device = await api.async_get_device(args.device_id)
 
         if args.command == "get_device":
-            PrintDevice(device)
+            PrintDevice(device, args.output_type)
 
         if args.command == "set_mode":
             mode = args.mode

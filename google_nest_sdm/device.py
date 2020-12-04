@@ -1,6 +1,7 @@
 """A device from the Smart Device Management API."""
 
 import logging
+import json
 
 # Import traits for registration
 from typing import Callable
@@ -75,6 +76,10 @@ class Device:
     def parent_relations(self) -> dict:
         """"Assignee details of the device (e.g. room/structure)."""
         return self._relations
+
+    def toJson(self) -> str:
+        """Return the raw data as a json string."""
+        return json.dumps(self._raw_data)
 
     def add_event_callback(
         self, event_callback: AsyncEventCallback

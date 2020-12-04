@@ -43,9 +43,11 @@ class DefaultSubscriberFactory(AbstractSusbcriberFactory):
         self, creds, subscription_name, loop, async_callback
     ) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
         """Creates a new subscriber with a blocking to async bridge."""
+
         def callback_wrapper(message: pubsub_v1.subscriber.message.Message):
             future = asyncio.run_coroutine_threadsafe(async_callback(message), loop)
             future.result()
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             return await loop.run_in_executor(
                 executor,

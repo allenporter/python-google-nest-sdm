@@ -1,6 +1,5 @@
 import asyncio
 import json
-import logging
 from unittest.mock import create_autospec
 
 import aiohttp
