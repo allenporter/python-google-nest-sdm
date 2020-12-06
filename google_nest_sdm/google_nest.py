@@ -18,11 +18,13 @@ $ google_nest --project_id=<project_id> get <device_id>
 import argparse
 import asyncio
 import errno
+import json
 import logging
 import os
 import pickle
 import socket
 
+import yaml
 from aiohttp import ClientSession, TCPConnector
 from google.auth.credentials import Credentials
 from google.auth.transport.requests import Request
@@ -59,9 +61,9 @@ parser.add_argument(
 parser.add_argument(
     "--output_type",
     type=str,
-    choices=['console', 'json', 'yaml'],
-    help="Change the output type from console formatted to json or yaml.",
-    default='console',
+    choices=["json", "yaml"],
+    help="Change the output type from json or yaml (default).",
+    default="yaml",
 )
 
 cmd_parser = parser.add_subparsers(dest="command", required=True)
@@ -187,34 +189,16 @@ def CreateCreds(args) -> Credentials:
 
 def PrintStructure(structure, output_type):
     if output_type == "json":
-        print(structure.toJson())
-    elif output_type == "yaml":
-        print(structure.toYaml())
+        print(json.dumps(structure.raw_data))
     else:
-        print(f"id: {structure.name}")
-        print("traits:")
-        for (trait_name, trait) in structure.traits.items():
-            print(f"  {trait_name}: {trait._data}")
-        print("")
+        print(yaml.dump(structure.raw_data))
 
 
 def PrintDevice(device, output_type):
     if output_type == "json":
-        print(device.toJson())
-    elif output_type == "yaml":
-        print(device.toYaml())
+        print(json.dumps(device.raw_data))
     else:
-        print(f"id: {device.name}")
-        print(f"type: {device.type}")
-        print("room/structure: ")
-        for (parent_id, parent_name) in device.parent_relations.items():
-            print(f"  id: {parent_id}")
-            print(f"  name: {parent_name}")
-
-        print("traits:")
-        for (trait_name, trait) in device.traits.items():
-            print(f"  {trait_name}: {trait._data}")
-        print("")
+        print(yaml.dump(device.raw_data))
 
 
 class SubscribeCallback(AsyncEventCallback):
@@ -223,26 +207,9 @@ class SubscribeCallback(AsyncEventCallback):
 
     async def async_handle_event(self, event_message: EventMessage):
         if self._output_type == "json":
-            print(event_message.toJson())
-        elif self._output_type == "yaml":
-            print(event_message.toYaml())
+            print(json.dumps(event_message.raw_data))
         else:
-            print(f"event_id: {event_message.event_id}")
-            print(f"timestamp: {event_message.timestamp}")
-            print(f"resource_update_name: {event_message.resource_update_name}")
-            traits = event_message.resource_update_traits
-            if traits:
-                print("traits:")
-                for (name, trait) in traits.items():
-                    print(f"  {name}: {trait._data}")
-            events = event_message.resource_update_events
-            if events:
-                print("events:")
-                for (name, event) in events.items():
-                    print(f"  {name}:")
-                    print(f"    event_id: {event.event_id}")
-                    print(f"    event_session_id: {event.event_session_id}")
-            print("")
+            print(yaml.dump(event_message.raw_data))
 
 
 class DeviceWatcherCallback(AsyncEventCallback):
