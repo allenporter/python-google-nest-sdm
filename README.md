@@ -31,9 +31,9 @@ PROJECT_ID="some-project-id"
 CLIENT_ID="some-client-id"
 CLIENT_SECRET="some-client-secret"
 # Initial call will ask you to authorize OAuth2 then cache the token
-google_nest --project_id="${PROJECT_ID}" --client_id="${CLIENT_ID}" --client_secret="${CLIENT_SECRET}" list
+google_nest --project_id="${PROJECT_ID}" --client_id="${CLIENT_ID}" --client_secret="${CLIENT_SECRET}" list_structures
 # Subsequent calls only need the project id
-google_nest --project_id="${PROJECT_ID}" get "some-device-id"
+google_nest --project_id="${PROJECT_ID}" get_device "some-device-id"
 google_nest --project_id="${PROJECT_ID}" set_mode COOL
 google_nest --project_id="${PROJECT_ID}" set_cool 25.0
 ```

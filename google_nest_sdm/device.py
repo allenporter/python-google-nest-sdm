@@ -76,6 +76,11 @@ class Device:
         """"Assignee details of the device (e.g. room/structure)."""
         return self._relations
 
+    @property
+    def raw_data(self) -> str:
+        """Return the raw data string."""
+        return self._raw_data
+
     def add_event_callback(
         self, event_callback: AsyncEventCallback
     ) -> Callable[[], None]:

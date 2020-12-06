@@ -175,6 +175,11 @@ class EventMessage:
             return None
         return RelationUpdate(self._raw_data[RELATION_UPDATE])
 
+    @property
+    def raw_data(self) -> str:
+        """Return the raw data string."""
+        return self._raw_data
+
 
 class AsyncEventCallback(ABC):
     """For implementers to get notified about EventMessages."""
