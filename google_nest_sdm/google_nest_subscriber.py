@@ -23,7 +23,7 @@ _LOGGER = logging.getLogger(__name__)
 EXPECTED_SUBSCRIBER_REGEXP = re.compile("projects/.*/subscriptions/.*")
 
 # Used to catch a topic misconfiguration
-EXPECTED_TOPIC_REGEXP = re.compile("projects/sdm-prod/.*")
+EXPECTED_TOPIC_REGEXP = re.compile("projects/sdm-[a-z]+/topics/.*")
 
 
 class AbstractSusbcriberFactory(ABC):
