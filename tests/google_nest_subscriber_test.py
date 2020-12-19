@@ -8,7 +8,11 @@ from google.api_core.exceptions import ClientError, Unauthenticated
 from google.cloud import pubsub_v1
 
 from google_nest_sdm.device import AbstractAuth
-from google_nest_sdm.exceptions import AuthException, SubscriberException
+from google_nest_sdm.exceptions import (
+    AuthException,
+    ConfigurationException,
+    SubscriberException,
+)
 from google_nest_sdm.google_nest_subscriber import (
     AbstractSusbcriberFactory,
     GoogleNestSubscriber,
@@ -525,6 +529,6 @@ async def test_subscriber_id_error(aiohttp_server) -> None:
         subscriber = GoogleNestSubscriber(
             FakeAuth(client), PROJECT_ID, "bad-subscriber-id", FakeSubscriberFactory()
         )
-        with pytest.raises(SubscriberException):
+        with pytest.raises(ConfigurationException):
             await subscriber.start_async()
         subscriber.stop_async()

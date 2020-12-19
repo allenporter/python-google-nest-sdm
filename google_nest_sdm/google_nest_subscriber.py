@@ -14,7 +14,7 @@ from google.cloud import pubsub_v1
 from .auth import AbstractAuth
 from .device_manager import DeviceManager
 from .event import AsyncEventCallback, EventMessage
-from .exceptions import AuthException, SubscriberException
+from .exceptions import AuthException, ConfigurationException, SubscriberException
 from .google_nest_api import GoogleNestAPI
 
 _LOGGER = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ class DefaultSubscriberFactory(AbstractSusbcriberFactory):
         subscription = subscriber.get_subscription(subscription=subscription_name)
         if subscription.topic:
             if not EXPECTED_TOPIC_REGEXP.match(subscription.topic):
-                raise SubscriberException(
+                raise ConfigurationException(
                     "Subscription misconfigured. Expected topic name to "
                     f"match '{EXPECTED_TOPIC_REGEXP.pattern}' but was "
                     f"'{subscription.topic}'."
@@ -94,12 +94,10 @@ class GoogleNestSubscriber:
         self._subscriber_id = subscriber_id
         self._api = GoogleNestAPI(auth, project_id)
         self._loop = loop or asyncio.get_event_loop()
+        self._device_manager_task = None
         self._subscriber_factory = subscriber_factory
         self._subscriber_future = None
         self._callback = None
-        self._device_manager_task = asyncio.create_task(
-            self._async_create_device_manager()
-        )
         self._healthy = True
         self._watchdog_delay = watchdog_delay
         if self._watchdog_delay > 0:
@@ -114,7 +112,7 @@ class GoogleNestSubscriber:
     async def start_async(self):
         """Starts the subscriber."""
         if not EXPECTED_SUBSCRIBER_REGEXP.match(self._subscriber_id):
-            raise SubscriberException(
+            raise ConfigurationException(
                 "Subscription misconfigured. Expected subscriber_id to "
                 f"match '{EXPECTED_SUBSCRIBER_REGEXP.pattern}' but was "
                 f"'{self._subscriber_id}'"
@@ -135,14 +133,14 @@ class GoogleNestSubscriber:
                 f"Failed to create subscriber '{self._subscriber_id}' id was not found"
             ) from err
         except Unauthenticated as err:
-            raise AuthException("Failed to authenticate subscriber") from err
+            raise AuthException("Failed to authenticate subscriber: {err}") from err
         except GoogleAPIError as err:
             raise SubscriberException(
-                f"Failed to create subscriber '{self._subscriber_id}'"
+                f"Failed to create subscriber '{self._subscriber_id}': {err}"
             ) from err
 
         if not self._healthy:
-            _LOGGER.info("Subscriber reconnected")
+            _LOGGER.debug("Subscriber reconnected")
             self._healthy = True
         if self._subscriber_future:
             self._subscriber_future.add_done_callback(self._done_callback)
@@ -171,6 +169,10 @@ class GoogleNestSubscriber:
 
     async def async_get_device_manager(self) -> DeviceManager:
         """Return the DeviceManger with the current state of devices."""
+        if not self._device_manager_task:
+            self._device_manager_task = asyncio.create_task(
+                self._async_create_device_manager()
+            )
         return await self._device_manager_task
 
     async def _async_create_device_manager(self):
@@ -191,9 +193,7 @@ class GoogleNestSubscriber:
             ex = future.exception()
             if self._healthy:
                 self._healthy = False
-            _LOGGER.debug(
-                "Subscriber disconnected, will restart: %s: %s", type(ex), ex
-            )
+            _LOGGER.debug("Subscriber disconnected, will restart: %s: %s", type(ex), ex)
 
     async def _async_message_callback(
         self, message: pubsub_v1.subscriber.message.Message

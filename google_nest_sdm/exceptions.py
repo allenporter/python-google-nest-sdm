@@ -15,3 +15,7 @@ class ApiException(GoogleNestException):
 
 class AuthException(GoogleNestException):
     """Raised due to auth problems talking to API or subscriber."""
+
+
+class ConfigurationException(GoogleNestException):
+    """Raised due to misconfiguration problems."""
