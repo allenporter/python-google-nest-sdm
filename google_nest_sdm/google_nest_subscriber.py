@@ -42,7 +42,7 @@ class DefaultSubscriberFactory(AbstractSusbcriberFactory):
     async def async_new_subscriber(
         self, creds, subscription_name, loop, async_callback
     ) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
-        """Creates a new subscriber with a blocking to async bridge."""
+        """Create a new subscriber with a blocking to async bridge."""
 
         def callback_wrapper(message: pubsub_v1.subscriber.message.Message):
             future = asyncio.run_coroutine_threadsafe(async_callback(message), loop)
@@ -58,7 +58,7 @@ class DefaultSubscriberFactory(AbstractSusbcriberFactory):
             )
 
     def _new_subscriber(self, creds, subscription_name, callback_wrapper):
-        """Issues a command to verify subscriber creds are correct."""
+        """Issue a command to verify subscriber creds are correct."""
         subscriber = pubsub_v1.SubscriberClient(credentials=creds)
         subscription = subscriber.get_subscription(subscription=subscription_name)
         if subscription.topic:
@@ -78,7 +78,7 @@ class DefaultSubscriberFactory(AbstractSusbcriberFactory):
 
 
 class GoogleNestSubscriber:
-    """Subscribes to events from the Google Nest feed."""
+    """Subscribe to events from the Google Nest feed."""
 
     def __init__(
         self,
@@ -89,7 +89,7 @@ class GoogleNestSubscriber:
         loop: Optional[asyncio.AbstractEventLoop] = None,
         watchdog_delay: float = 10,
     ):
-        """Initialize the subscriber for the specified topic"""
+        """Initialize the subscriber for the specified topic."""
         self._auth = auth
         self._subscriber_id = subscriber_id
         self._api = GoogleNestAPI(auth, project_id)
@@ -110,7 +110,7 @@ class GoogleNestSubscriber:
         self._callback = callback
 
     async def start_async(self):
-        """Starts the subscriber."""
+        """Start the subscriber."""
         if not EXPECTED_SUBSCRIBER_REGEXP.match(self._subscriber_id):
             raise ConfigurationException(
                 "Subscription misconfigured. Expected subscriber_id to "
@@ -155,11 +155,11 @@ class GoogleNestSubscriber:
             await asyncio.sleep(self._watchdog_delay)
 
     def wait(self):
-        """Blocks on the subscriber."""
+        """Block on the subscriber."""
         self._subscriber_future.result()
 
     def stop_async(self):
-        """Tells the subscriber to start shutting down."""
+        """Tell the subscriber to start shutting down."""
         if self._device_manager_task:
             self._device_manager_task.cancel()
         if self._watchdog_task:
@@ -176,7 +176,7 @@ class GoogleNestSubscriber:
         return await self._device_manager_task
 
     async def _async_create_device_manager(self):
-        """Creates a DeviceManager, populated with initial state."""
+        """Create a DeviceManager, populated with initial state."""
         device_manager = DeviceManager()
         structures = await self._api.async_get_structures()
         for structure in structures:
@@ -188,7 +188,7 @@ class GoogleNestSubscriber:
         return device_manager
 
     def _done_callback(self, future):
-        """Invoked when the subscriber is completed."""
+        """Teardown subscriber."""
         if future.exception():
             ex = future.exception()
             if self._healthy:
@@ -198,7 +198,7 @@ class GoogleNestSubscriber:
     async def _async_message_callback(
         self, message: pubsub_v1.subscriber.message.Message
     ):
-        """Invoked when a message is received."""
+        """Handle a received message."""
         payload = json.loads(bytes.decode(message.data))
         event = EventMessage(payload, self._auth)
         # Only accept device events once the Device Manager has been loaded.

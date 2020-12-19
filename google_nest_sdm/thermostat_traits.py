@@ -26,7 +26,7 @@ class ThermostatEcoTrait:
 
     @property
     def mode(self) -> str:
-        """The current Eco mode of the thermostat."""
+        """Eco mode of the thermostat."""
         return self._data[MODE]
 
     async def set_mode(self, mode):
@@ -60,7 +60,7 @@ class ThermostatHvacTrait:
 
     @property
     def status(self) -> list:
-        """Current HVAC status of the thermostat."""
+        """HVAC status of the thermostat."""
         return self._data[STATUS]
 
 
@@ -82,7 +82,7 @@ class ThermostatModeTrait:
 
     @property
     def mode(self) -> str:
-        """The current mode of the thermostat."""
+        """Mode of the thermostat."""
         return self._data[MODE]
 
     async def set_mode(self, mode):

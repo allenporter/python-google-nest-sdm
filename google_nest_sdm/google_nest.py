@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-"""Command line tool for the Google Nest Smart Device Management API
+"""Command line tool for the Google Nest Smart Device Management API.
 
 You must configure your device as described:
   https://developers.google.com/nest/device-access/get-started
@@ -143,12 +143,12 @@ class Auth(AbstractAuth):
         return self._user_creds.token
 
     async def async_get_creds(self):
+        """Return valid OAuth creds."""
         return self._service_creds
 
 
 def CreateCreds(args) -> Credentials:
-    """Runs an interactive flow to get OAuth creds."""
-
+    """Run an interactive flow to get OAuth creds."""
     creds = None
     token_cache = os.path.expanduser(args.token_cache)
     if os.path.exists(token_cache):
@@ -188,6 +188,7 @@ def CreateCreds(args) -> Credentials:
 
 
 def PrintStructure(structure, output_type):
+    """Print the structure."""
     if output_type == "json":
         print(json.dumps(structure.raw_data))
     else:
@@ -195,6 +196,7 @@ def PrintStructure(structure, output_type):
 
 
 def PrintDevice(device, output_type):
+    """Print the device."""
     if output_type == "json":
         print(json.dumps(device.raw_data))
     else:
@@ -202,10 +204,14 @@ def PrintDevice(device, output_type):
 
 
 class SubscribeCallback(AsyncEventCallback):
+    """Print the event message."""
+
     def __init__(self, output_type=None):
+        """Initialize SubscribeCallback."""
         self._output_type = output_type
 
     async def async_handle_event(self, event_message: EventMessage):
+        """Handle an EventMessage."""
         if self._output_type == "json":
             print(json.dumps(event_message.raw_data))
         else:
@@ -213,11 +219,15 @@ class SubscribeCallback(AsyncEventCallback):
 
 
 class DeviceWatcherCallback(AsyncEventCallback):
+    """Print the event message."""
+
     def __init__(self, device, output_type):
+        """Initialize DeviceWatcherCallback."""
         self._device = device
         self._output_type = output_type
 
     async def async_handle_event(self, event_message: EventMessage):
+        """Handle an EventMessage."""
         print(f"event_id: {event_message.event_id}")
         print("Current device state:")
         PrintDevice(self._device, self._output_type)
@@ -225,6 +235,7 @@ class DeviceWatcherCallback(AsyncEventCallback):
 
 
 async def RunTool(args, user_creds: Credentials, service_creds: Credentials):
+    """Run the command."""
     conn = TCPConnector(
         family=socket.AF_INET,
         verify_ssl=False,
@@ -307,6 +318,7 @@ async def RunTool(args, user_creds: Credentials, service_creds: Credentials):
 
 
 def main():
+    """Nest command line tool."""
     args = parser.parse_args()
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)

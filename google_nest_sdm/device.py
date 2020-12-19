@@ -39,7 +39,7 @@ class Device:
 
     @staticmethod
     def MakeDevice(raw_data: dict, auth: AbstractAuth):
-        """Creates a device with the appropriate traits."""
+        """Create a device with the appropriate traits."""
         device_id = raw_data.get(DEVICE_NAME)
         cmd = Command(device_id, auth)
         traits = raw_data.get(DEVICE_TRAITS, {})
@@ -48,7 +48,7 @@ class Device:
 
     @property
     def name(self) -> str:
-        """The resource name of the device such as 'enterprises/XYZ/devices/123'."""
+        """Resource name of the device such as 'enterprises/XYZ/devices/123'."""
         return self._raw_data[DEVICE_NAME]
 
     @property
@@ -73,7 +73,7 @@ class Device:
 
     @property
     def parent_relations(self) -> dict:
-        """"Assignee details of the device (e.g. room/structure)."""
+        """Room or structure for the device."""
         return self._relations
 
     @property

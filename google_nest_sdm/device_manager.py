@@ -9,6 +9,7 @@ class DeviceManager(AsyncEventCallback):
     """DeviceManager holds current state of all devices."""
 
     def __init__(self):
+        """Initialize DeviceManager."""
         self._devices = {}
         self._structures = {}
         self._callback = None
@@ -24,15 +25,15 @@ class DeviceManager(AsyncEventCallback):
         return self._structures
 
     def add_device(self, device: Device):
-        """Tracks the specified device."""
+        """Track the specified device."""
         self._devices[device.name] = device
 
     def add_structure(self, structure: Structure):
-        """Tracks the specified device."""
+        """Track the specified device."""
         self._structures[structure.name] = structure
 
     async def async_handle_event(self, event_message: EventMessage):
-        """Invokes by the subscriber when a new message is received."""
+        """Handle a new message received."""
         if event_message.relation_update:
             relation = event_message.relation_update
             if relation.object in self._devices:

@@ -1,3 +1,5 @@
+"""Library for traits about devices."""
+
 import datetime
 
 from .traits import TRAIT_MAP, Command
@@ -17,6 +19,7 @@ class ConnectivityTrait:
     NAME = "sdm.devices.traits.Connectivity"
 
     def __init__(self, data: dict, cmd: Command):
+        """Initialize ConnectivityTrait."""
         self._data = data
 
     @property
@@ -36,12 +39,13 @@ class FanTrait:
     NAME = "sdm.devices.traits.Fan"
 
     def __init__(self, data: dict, cmd: Command):
+        """Initialize FanTrait."""
         self._data = data
         self._cmd = cmd
 
     @property
     def timer_mode(self) -> str:
-        """Current timer mode.
+        """Timer mode for the fan.
 
         Return:
           "ON", "OFF"
@@ -76,11 +80,12 @@ class InfoTrait:
     NAME = "sdm.devices.traits.Info"
 
     def __init__(self, data: dict, cmd: Command):
+        """Initialize InfoTrait."""
         self._data = data
 
     @property
     def custom_name(self) -> str:
-        """Custom name of the device."""
+        """Name of the device."""
         return self._data[CUSTOM_NAME]
 
 
@@ -91,6 +96,7 @@ class HumidityTrait:
     NAME = "sdm.devices.traits.Humidity"
 
     def __init__(self, data: dict, cmd: Command):
+        """Initialize HumidityTrait."""
         self._data = data
 
     @property
@@ -106,6 +112,7 @@ class TemperatureTrait:
     NAME = "sdm.devices.traits.Temperature"
 
     def __init__(self, data: dict, cmd: Command):
+        """Initialize TemperatureTrait."""
         self._data = data
 
     @property

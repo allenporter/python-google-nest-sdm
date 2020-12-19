@@ -161,13 +161,13 @@ class EventImage:
     """
 
     def __init__(self, data: dict, cmd: Command):
+        """Initialize the EventImage."""
         self._data = data
         self._cmd = cmd
 
     @property
     def url(self) -> str:
-        """The URL to download the camera image from."""
-
+        """URL to download the camera image from."""
         return self._data[URL]
 
     @property
@@ -188,7 +188,7 @@ class CameraEventImageTrait:
         self._cmd = cmd
 
     async def generate_image(self, event_id: str) -> EventImage:
-        """Provides a URL to download a camera image from."""
+        """Provide a URL to download a camera image from."""
         data = {
             "command": "sdm.devices.commands.CameraEventImage.GenerateImage",
             "params": {

@@ -11,11 +11,12 @@ class InfoTrait:
     NAME = "sdm.structures.traits.Info"
 
     def __init__(self, data: dict):
+        """Initialize InfoTrait."""
         self._data = data
 
     @property
     def custom_name(self) -> str:
-        """Custom name of the structure."""
+        """Name of the structure."""
         return self._data[CUSTOM_NAME]
 
 
@@ -25,11 +26,12 @@ class RoomInfoTrait:
     NAME = "sdm.structures.traits.RoomInfo"
 
     def __init__(self, data: dict):
+        """Initialize RoomInfoTrait."""
         self._data = data
 
     @property
     def custom_name(self) -> str:
-        """Custom name of the room."""
+        """Name of the room."""
         return self._data[CUSTOM_NAME]
 
 
@@ -60,14 +62,14 @@ class Structure:
 
     @staticmethod
     def MakeStructure(raw_data: dict):
-        """Creates a structure with the appropriate traits."""
+        """Create a structure with the appropriate traits."""
         traits = raw_data.get(STRUCTURE_TRAITS, {})
         traits_dict = _TraitsDict(traits, _ALL_TRAIT_MAP)
         return Structure(raw_data, traits_dict)
 
     @property
     def name(self) -> str:
-        """The resource name of the structure e.g. 'enterprises/XYZ/structures/123'."""
+        """Resource name of the structure e.g. 'enterprises/XYZ/structures/123'."""
         return self._raw_data[STRUCTURE_NAME]
 
     @property

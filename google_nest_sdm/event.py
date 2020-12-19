@@ -42,7 +42,7 @@ class ImageEventBase(ABC):
 
     @property
     def event_id(self) -> str:
-        """An ID associated with the event.
+        """ID associated with the event.
 
         Can be used with CameraEventImageTrait to download the imaage.
         """
@@ -50,7 +50,7 @@ class ImageEventBase(ABC):
 
     @property
     def event_session_id(self) -> str:
-        """An ID used to associate separate messages with a single event."""
+        """ID used to associate separate messages with a single event."""
         return self._data[EVENT_SESSION_ID]
 
     @property
@@ -60,6 +60,7 @@ class ImageEventBase(ABC):
 
     @property
     def expires_at(self) -> datetime.datetime:
+        """Timestamp when the message expires."""
         return self._timestamp + datetime.timedelta(seconds=EVENT_IMAGE_EXPIRE_SECS)
 
 
@@ -95,26 +96,27 @@ class RelationUpdate:
     """Represents a relational update for a resource."""
 
     def __init__(self, raw_data: dict):
+        """Initialize the RelationUpdate."""
         self._raw_data = raw_data
 
     @property
     def type(self) -> str:
-        """The type of relation event 'CREATED', 'UPDATED', 'DELETED'."""
+        """Type of relation event 'CREATED', 'UPDATED', 'DELETED'."""
         return self._raw_data[TYPE]
 
     @property
     def subject(self) -> str:
-        """The resource that the object is now in relation with."""
+        """Resource that the object is now in relation with."""
         return self._raw_data[SUBJECT]
 
     @property
     def object(self) -> str:
-        """The resource that triggered the event."""
+        """Resource that triggered the event."""
         return self._raw_data[OBJECT]
 
 
 def BuildEvents(events: dict, event_map: dict, timestamp: datetime.datetime) -> dict:
-    """Builds a trait map out of a response dict."""
+    """Build a trait map out of a response dict."""
     result = {}
     for (event, event_data) in events.items():
         if event not in event_map:
@@ -135,7 +137,7 @@ class EventMessage:
 
     @property
     def event_id(self) -> str:
-        """A unique event identifier."""
+        """Event identifier."""
         return self._raw_data.get(EVENT_ID, None)
 
     @property
@@ -146,14 +148,14 @@ class EventMessage:
 
     @property
     def resource_update_name(self) -> str:
-        """Returns the id of the device that was updated."""
+        """Return the id of the device that was updated."""
         if RESOURCE_UPDATE not in self._raw_data:
             return None
         return self._raw_data[RESOURCE_UPDATE][NAME]
 
     @property
     def resource_update_events(self) -> dict:
-        """Returns the set of events that happened."""
+        """Return the set of events that happened."""
         if RESOURCE_UPDATE not in self._raw_data:
             return None
         events = self._raw_data[RESOURCE_UPDATE].get(EVENTS, {})
@@ -161,7 +163,7 @@ class EventMessage:
 
     @property
     def resource_update_traits(self) -> dict:
-        """Returns the set of traits that were updated."""
+        """Return the set of traits that were updated."""
         if RESOURCE_UPDATE not in self._raw_data:
             return None
         cmd = Command(self.resource_update_name, self._auth)
@@ -190,9 +192,10 @@ class AsyncEventCallback(ABC):
 
 
 class EventTypeFilterCallback(AsyncEventCallback):
-    """Invokes a delegate only for events that match the trait type."""
+    """Invoke a delegate only for events that match the trait type."""
 
     def __init__(self, event_name, delegate: AsyncEventCallback):
+        """Initialize EventTypeFilterCallback."""
         self._event_name = event_name
         self._delegate = delegate
 
@@ -209,6 +212,7 @@ class RecentEventFilterCallback(AsyncEventCallback):
     def __init__(
         self, cutoff_timedelta: datetime.timedelta, delegate: AsyncEventCallback
     ):
+        """Initialize RecentEventFilterCallback."""
         self._cutoff_timedelta = cutoff_timedelta
         self._delegate = delegate
 
