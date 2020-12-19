@@ -191,11 +191,9 @@ class GoogleNestSubscriber:
             ex = future.exception()
             if self._healthy:
                 self._healthy = False
-                _LOGGER.warning(
-                    "Subscriber disconnected, will restart: %s: %s", type(ex), ex
-                )
-            else:
-                _LOGGER.debug("Subscriber failure: %s: %s", type(ex), ex)
+            _LOGGER.debug(
+                "Subscriber disconnected, will restart: %s: %s", type(ex), ex
+            )
 
     async def _async_message_callback(
         self, message: pubsub_v1.subscriber.message.Message
