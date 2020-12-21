@@ -175,6 +175,16 @@ class EventImage:
         """Token to use in the HTTP Authorization header when downloading."""
         return self._data[TOKEN]
 
+    async def contents(self, width=None, height=None) -> bytes:
+        """Download the image bytes."""
+        if width:
+            fetch_url = f"{self.url}?width={width}"
+        elif height:
+            fetch_url = f"{self.url}?width={height}"
+        else:
+            fetch_url = self.url
+        return await self._cmd.fetch_image(fetch_url, basic_auth=self.token)
+
 
 @TRAIT_MAP.register()
 class CameraEventImageTrait:

@@ -51,6 +51,14 @@ def NewHandler(r: Recorder, response: list, token=FAKE_TOKEN):
 
     return handler
 
+def NewImageHandler(response: list, token=FAKE_TOKEN):
+    async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        assert request.headers["Authorization"] == "Basic %s" % token
+        return aiohttp.web.Response(body=response.pop(0))
+
+    return handler
+
+
 
 async def test_get_devices(aiohttp_server) -> None:
     r = Recorder()
@@ -439,6 +447,54 @@ async def test_camera_event_image(aiohttp_server) -> None:
         assert expected_request == r.request
         assert "https://domain/sdm_event/dGNUlTU2CjY5Y3VKaTZwR3o4Y" == image.url
         assert "g.0.eventToken" == image.token
+
+
+async def test_camera_event_image_bytes(aiohttp_server) -> None:
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "enterprises/project-id1/devices/device-id1",
+                "traits": {
+                    "sdm.devices.traits.CameraEventImage": {},
+                },
+            }
+        ],
+    )
+
+    post_handler = NewHandler(
+        r,
+        [
+            {
+                "results": {
+                    "url": "image-url",
+                    "token": "g.0.eventToken",
+                },
+            }
+        ],
+    )
+    image_handler = NewImageHandler([ b"image-bytes" ], token="g.0.eventToken")
+
+
+    app = aiohttp.web.Application()
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+    app.router.add_post(
+        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
+    )
+    app.router.add_get("/image-url", image_handler)
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
+        devices = await api.async_get_devices()
+        assert len(devices) == 1
+        device = devices[0]
+        assert "enterprises/project-id1/devices/device-id1" == device.name
+        trait = device.traits["sdm.devices.traits.CameraEventImage"]
+        event_image = await trait.generate_image("some-eventId")
+        image_bytes = await event_image.contents()
+        assert image_bytes == b"image-bytes"
 
 
 async def test_get_structures(aiohttp_server) -> None:

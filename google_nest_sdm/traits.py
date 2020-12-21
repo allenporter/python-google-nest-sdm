@@ -26,6 +26,16 @@ class Command:
         return AbstractAuth.raise_for_status(resp)
 
 
+    async def fetch_image(self, url, basic_auth=None) -> bytes:
+        """Fetch an image at the specified url."""
+        headers = None
+        if basic_auth:
+            headers = {"Authorization": f"Basic {basic_auth}"}
+        resp = await self._auth.request("get", url, headers=headers)
+        AbstractAuth.raise_for_status(resp)
+        return await resp.read()
+
+
 def _TraitsDict(traits: dict, trait_map: dict, cmd: Command):
     d = {}
     for (trait, trait_data) in traits.items():
