@@ -10,6 +10,7 @@ from google.oauth2.credentials import Credentials as OAuthCredentials
 from .exceptions import ApiException, AuthException
 
 HTTP_UNAUTHORIZED = 401
+AUTHORIZATION_HEADER = "Authorization"
 
 
 class AbstractAuth(ABC):
@@ -38,13 +39,14 @@ class AbstractAuth(ABC):
         else:
             headers = dict(headers)
             del kwargs["headers"]
-
-        try:
-            access_token = await self.async_get_access_token()
-        except ClientError as err:
-            raise AuthException(f"Access token failure: {err}") from err
-        headers["authorization"] = f"Bearer {access_token}"
-        url = f"{self._host}/{url}"
+        if AUTHORIZATION_HEADER not in headers:
+            try:
+                access_token = await self.async_get_access_token()
+            except ClientError as err:
+                raise AuthException(f"Access token failure: {err}") from err
+            headers[AUTHORIZATION_HEADER] = f"Bearer {access_token}"
+        if not (url.startswith("http://") or url.startswith("https://")):
+            url = f"{self._host}/{url}"
         logging.debug("request[%s]=%s", method, url)
         return await self._websession.request(method, url, **kwargs, headers=headers)
 
