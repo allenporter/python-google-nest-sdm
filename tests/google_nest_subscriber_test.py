@@ -354,7 +354,8 @@ async def test_subscriber_watchdog(aiohttp_server) -> None:
             PROJECT_ID,
             SUBSCRIBER_ID,
             subscriber_factory=subscriber_factory,
-            watchdog_delay=0.1,
+            watchdog_check_interval_seconds=0.1,
+            watchdog_restart_delay_min_seconds=0.1,
         )
         assert len(subscriber_factory.tasks) == 2
         await subscriber.start_async()

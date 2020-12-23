@@ -25,6 +25,14 @@ EXPECTED_SUBSCRIBER_REGEXP = re.compile("projects/.*/subscriptions/.*")
 # Used to catch a topic misconfiguration
 EXPECTED_TOPIC_REGEXP = re.compile("projects/sdm-[a-z]+/topics/.*")
 
+WATCHDOG_CHECK_INTERVAL_SECONDS = 10
+
+# Restart the subscriber after some delay, with exponential backoff
+WATCHDOG_RESTART_DELAY_MIN_SECONDS = 10
+WATCHDOG_RESTART_DELAY_MAX_SECONDS = 300
+# Reset watchdog backoff
+WATCHDOG_RESET_THRESHOLD_SECONDS = 60
+
 
 class AbstractSusbcriberFactory(ABC):
     """Abstract class for creating a subscriber, to facilitate testing."""
@@ -87,7 +95,8 @@ class GoogleNestSubscriber:
         subscriber_id: str,
         subscriber_factory: AbstractSusbcriberFactory = DefaultSubscriberFactory(),
         loop: Optional[asyncio.AbstractEventLoop] = None,
-        watchdog_delay: float = 10,
+        watchdog_check_interval_seconds: float = WATCHDOG_CHECK_INTERVAL_SECONDS,
+        watchdog_restart_delay_min_seconds: float = WATCHDOG_RESTART_DELAY_MIN_SECONDS,
     ):
         """Initialize the subscriber for the specified topic."""
         self._auth = auth
@@ -99,8 +108,10 @@ class GoogleNestSubscriber:
         self._subscriber_future = None
         self._callback = None
         self._healthy = True
-        self._watchdog_delay = watchdog_delay
-        if self._watchdog_delay > 0:
+        self._watchdog_check_interval_seconds = watchdog_check_interval_seconds
+        self._watchdog_restart_delay_min_seconds = watchdog_restart_delay_min_seconds
+        self._watchdog_restart_delay_seconds = watchdog_restart_delay_min_seconds
+        if self._watchdog_check_interval_seconds > 0:
             self._watchdog_task = asyncio.create_task(self._watchdog())
         else:
             self._watchdog_task = None
@@ -142,6 +153,7 @@ class GoogleNestSubscriber:
         if not self._healthy:
             _LOGGER.debug("Subscriber reconnected")
             self._healthy = True
+            self._watchdog_restart_delay_seconds = self._watchdog_restart_delay_min_seconds
         if self._subscriber_future:
             self._subscriber_future.add_done_callback(self._done_callback)
 
@@ -150,9 +162,12 @@ class GoogleNestSubscriber:
         _LOGGER.debug("Starting background watchdog thread")
         while True:
             if self._subscriber_future and self._subscriber_future.done():
-                _LOGGER.debug("Watchdog: subscriber shut down; restarting")
+                _LOGGER.debug("Watchdog: subscriber shut down; restarting in %s seconds", self._watchdog_restart_delay_seconds)
+                await asyncio.sleep(self._watchdog_restart_delay_seconds)
+                self._watchdog_restart_delay_seconds *= 2
+                self._watchdog_restart_delay_seconds = max(self._watchdog_restart_delay_seconds, WATCHDOG_RESTART_DELAY_MAX_SECONDS)
                 await self.start_async()
-            await asyncio.sleep(self._watchdog_delay)
+            await asyncio.sleep(self._watchdog_check_interval_seconds)
 
     def wait(self):
         """Block on the subscriber."""
