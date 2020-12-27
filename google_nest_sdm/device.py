@@ -81,14 +81,14 @@ class Device:
         return self._raw_data
 
     def add_update_listener(
-        self, target: Callable[[], Awaitable[None]]
+        self, target: Callable[[], None]
     ) -> Callable[[], None]:
         """Register a simple event listener notified on updates.
 
         The return value is a callable that will unregister the callback.
         """
         async def handle_event(event_message: EventMessage):
-            await target()
+            target()
         return self.add_event_callback(handle_event)
 
     def add_event_callback(
