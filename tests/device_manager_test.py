@@ -273,3 +273,105 @@ async def test_device_event_callback():
     trait = device.traits["sdm.devices.traits.Connectivity"]
     assert "OFFLINE" == trait.status
     assert not callback.invoked
+
+
+async def test_device_update_listener():
+    device = MakeDevice(
+        {
+            "name": "my/device/name1",
+            "type": "sdm.devices.types.SomeDeviceType",
+            "traits": {
+                "sdm.devices.traits.Connectivity": {
+                    "status": "OFFLINE",
+                },
+            },
+        }
+    )
+    mgr = DeviceManager()
+    mgr.add_device(device)
+    assert 1 == len(mgr.devices)
+    device = mgr.devices["my/device/name1"]
+    assert "sdm.devices.traits.Connectivity" in device.traits
+    trait = device.traits["sdm.devices.traits.Connectivity"]
+    assert "OFFLINE" == trait.status
+
+    class MyCallback:
+        def __init__(self):
+            self.invoked = False
+
+        async def async_handle_event(self):
+            self.invoked = True
+
+    callback = MyCallback()
+    unregister = device.add_update_listener(callback.async_handle_event)
+    assert not callback.invoked
+
+    await mgr.async_handle_event(
+        MakeEvent(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": "2019-01-01T00:00:01Z",
+                "resourceUpdate": {
+                    "name": "my/device/name1",
+                    "traits": {
+                        "sdm.devices.traits.Connectivity": {
+                            "status": "ONLINE",
+                        }
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    device = mgr.devices["my/device/name1"]
+    assert "sdm.devices.traits.Connectivity" in device.traits
+    trait = device.traits["sdm.devices.traits.Connectivity"]
+    assert "ONLINE" == trait.status
+    assert callback.invoked
+
+    # Test event not for this device
+    callback.invoked = False
+    await mgr.async_handle_event(
+        MakeEvent(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": "2019-01-01T00:00:01Z",
+                "resourceUpdate": {
+                    "name": "some-device-id",
+                    "traits": {
+                        "sdm.devices.traits.Connectivity": {
+                            "status": "ONLINE",
+                        }
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    assert not callback.invoked
+
+    # Unregister the callback.  The event is still processed, but the callback
+    # is not invoked
+    unregister()
+    await mgr.async_handle_event(
+        MakeEvent(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": "2019-01-01T00:00:01Z",
+                "resourceUpdate": {
+                    "name": "my/device/name1",
+                    "traits": {
+                        "sdm.devices.traits.Connectivity": {
+                            "status": "OFFLINE",
+                        }
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    device = mgr.devices["my/device/name1"]
+    assert "sdm.devices.traits.Connectivity" in device.traits
+    trait = device.traits["sdm.devices.traits.Connectivity"]
+    assert "OFFLINE" == trait.status
+    assert not callback.invoked

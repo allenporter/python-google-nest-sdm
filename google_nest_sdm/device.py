@@ -1,9 +1,8 @@
 """A device from the Smart Device Management API."""
 
 import logging
-
 # Import traits for registration
-from typing import Callable
+from typing import Awaitable, Callable
 
 from . import camera_traits  # noqa: F401
 from . import device_traits  # noqa: F401
@@ -81,8 +80,19 @@ class Device:
         """Return the raw data string."""
         return self._raw_data
 
+    def add_update_listener(
+        self, target: Callable[[], Awaitable[None]]
+    ) -> Callable[[], None]:
+        """Register a simple event listener notified on updates.
+
+        The return value is a callable that will unregister the callback.
+        """
+        async def handle_event(event_message: EventMessage):
+            await target()
+        return self.add_event_callback(handle_event)
+
     def add_event_callback(
-        self, target: Callable[[EventMessage], None]
+        self, target: Callable[[EventMessage], Awaitable[None]]
     ) -> Callable[[], None]:
         """Register an event callback for updates to this device.
 

@@ -5,7 +5,7 @@ import json
 import logging
 import re
 from abc import ABC, abstractmethod
-from typing import Callable, Optional
+from typing import Awaitable, Callable, Optional
 
 from aiohttp.client_exceptions import ClientError
 from google.api_core.exceptions import GoogleAPIError, NotFound, Unauthenticated
@@ -116,7 +116,7 @@ class GoogleNestSubscriber:
         else:
             self._watchdog_task = None
 
-    def set_update_callback(self, target: Callable[[EventMessage], None]):
+    def set_update_callback(self, target: Callable[[EventMessage], Awaitable[None]]):
         """Register a callback invoked when new messages are received."""
         self._callback = target
 
