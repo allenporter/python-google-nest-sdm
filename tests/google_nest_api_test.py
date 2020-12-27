@@ -51,13 +51,13 @@ def NewHandler(r: Recorder, response: list, token=FAKE_TOKEN):
 
     return handler
 
+
 def NewImageHandler(response: list, token=FAKE_TOKEN):
     async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         assert request.headers["Authorization"] == "Basic %s" % token
         return aiohttp.web.Response(body=response.pop(0))
 
     return handler
-
 
 
 async def test_get_devices(aiohttp_server) -> None:
@@ -474,8 +474,7 @@ async def test_camera_event_image_bytes(aiohttp_server) -> None:
             }
         ],
     )
-    image_handler = NewImageHandler([ b"image-bytes" ], token="g.0.eventToken")
-
+    image_handler = NewImageHandler([b"image-bytes"], token="g.0.eventToken")
 
     app = aiohttp.web.Application()
     app.router.add_get("/enterprises/project-id1/devices", handler)

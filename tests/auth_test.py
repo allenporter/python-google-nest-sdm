@@ -43,6 +43,7 @@ async def test_request(aiohttp_server) -> None:
 
 async def test_auth_header(aiohttp_server) -> None:
     """Test that a request with an Ahthorization header is preserved."""
+
     async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         assert request.path == "/path-prefix/some-path"
         assert request.headers["header-1"] == "value-1"
@@ -73,6 +74,7 @@ async def test_auth_header(aiohttp_server) -> None:
 
 async def test_full_url(aiohttp_server) -> None:
     """Test that a request with an Ahthorization header is preserved."""
+
     async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         assert request.path == "/path-prefix/some-path"
         assert request.headers["header-1"] == "value-1"
@@ -104,5 +106,3 @@ async def test_full_url(aiohttp_server) -> None:
         resp.raise_for_status()
         data = await resp.json()
         assert data["some-key"] == "some-value"
-
-

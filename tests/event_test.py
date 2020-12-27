@@ -251,7 +251,9 @@ async def test_event_recent_event_filter_match():
     timestamp = now - datetime.timedelta(seconds=5)
 
     callback = MyCallback()
-    handler = RecentEventFilterCallback(datetime.timedelta(seconds=10), callback.async_handle_event)
+    handler = RecentEventFilterCallback(
+        datetime.timedelta(seconds=10), callback.async_handle_event
+    )
     assert not callback.invoked
     event = MakeEvent(
         {
@@ -278,7 +280,9 @@ async def test_event_recent_event_filter_too_old():
     timestamp = now - datetime.timedelta(seconds=15)
 
     callback = MyCallback()
-    handler = RecentEventFilterCallback(datetime.timedelta(seconds=10), callback.async_handle_event)
+    handler = RecentEventFilterCallback(
+        datetime.timedelta(seconds=10), callback.async_handle_event
+    )
     assert not callback.invoked
     event = MakeEvent(
         {

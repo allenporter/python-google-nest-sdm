@@ -25,7 +25,6 @@ class Command:
         )
         return AbstractAuth.raise_for_status(resp)
 
-
     async def fetch_image(self, url, basic_auth=None) -> bytes:
         """Fetch an image at the specified url."""
         headers = None

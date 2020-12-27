@@ -2,7 +2,7 @@
 
 import datetime
 import logging
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Callable
 
 from .auth import AbstractAuth
@@ -184,8 +184,6 @@ class EventMessage:
         return self._raw_data
 
 
-
-
 class EventTypeFilterCallback:
     """Invoke a delegate only for events that match the trait type."""
 
@@ -204,7 +202,11 @@ class EventTypeFilterCallback:
 class RecentEventFilterCallback:
     """Invokes a delegate only for recent events."""
 
-    def __init__(self, cutoff_timedelta: datetime.timedelta, delegate: Callable[[EventMessage], None]):
+    def __init__(
+        self,
+        cutoff_timedelta: datetime.timedelta,
+        delegate: Callable[[EventMessage], None],
+    ):
         """Initialize RecentEventFilterCallback."""
         self._cutoff_timedelta = cutoff_timedelta
         self._delegate = delegate

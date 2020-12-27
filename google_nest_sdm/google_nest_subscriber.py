@@ -5,7 +5,7 @@ import json
 import logging
 import re
 from abc import ABC, abstractmethod
-from typing import Optional, Callable
+from typing import Callable, Optional
 
 from aiohttp.client_exceptions import ClientError
 from google.api_core.exceptions import GoogleAPIError, NotFound, Unauthenticated
@@ -153,7 +153,9 @@ class GoogleNestSubscriber:
         if not self._healthy:
             _LOGGER.debug("Subscriber reconnected")
             self._healthy = True
-            self._watchdog_restart_delay_seconds = self._watchdog_restart_delay_min_seconds
+            self._watchdog_restart_delay_seconds = (
+                self._watchdog_restart_delay_min_seconds
+            )
         if self._subscriber_future:
             self._subscriber_future.add_done_callback(self._done_callback)
 
@@ -162,10 +164,16 @@ class GoogleNestSubscriber:
         _LOGGER.debug("Starting background watchdog thread")
         while True:
             if self._subscriber_future and self._subscriber_future.done():
-                _LOGGER.debug("Watchdog: subscriber shut down; restarting in %s seconds", self._watchdog_restart_delay_seconds)
+                _LOGGER.debug(
+                    "Watchdog: subscriber shut down; restarting in %s seconds",
+                    self._watchdog_restart_delay_seconds,
+                )
                 await asyncio.sleep(self._watchdog_restart_delay_seconds)
                 self._watchdog_restart_delay_seconds *= 2
-                self._watchdog_restart_delay_seconds = max(self._watchdog_restart_delay_seconds, WATCHDOG_RESTART_DELAY_MAX_SECONDS)
+                self._watchdog_restart_delay_seconds = max(
+                    self._watchdog_restart_delay_seconds,
+                    WATCHDOG_RESTART_DELAY_MAX_SECONDS,
+                )
                 await self.start_async()
             await asyncio.sleep(self._watchdog_check_interval_seconds)
 
