@@ -5,7 +5,7 @@ import json
 import logging
 import re
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Callable
 
 from aiohttp.client_exceptions import ClientError
 from google.api_core.exceptions import GoogleAPIError, NotFound, Unauthenticated
@@ -13,7 +13,7 @@ from google.cloud import pubsub_v1
 
 from .auth import AbstractAuth
 from .device_manager import DeviceManager
-from .event import AsyncEventCallback, EventMessage
+from .event import EventMessage
 from .exceptions import AuthException, ConfigurationException, SubscriberException
 from .google_nest_api import GoogleNestAPI
 
@@ -116,9 +116,9 @@ class GoogleNestSubscriber:
         else:
             self._watchdog_task = None
 
-    def set_update_callback(self, callback: AsyncEventCallback):
+    def set_update_callback(self, target: Callable[[EventMessage], None]):
         """Register a callback invoked when new messages are received."""
-        self._callback = callback
+        self._callback = target
 
     async def start_async(self):
         """Start the subscriber."""
@@ -222,5 +222,5 @@ class GoogleNestSubscriber:
         if self._device_manager_task.done():
             await self._device_manager_task.result().async_handle_event(event)
         if self._callback:
-            await self._callback.async_handle_event(event)
+            await self._callback(event)
         message.ack()

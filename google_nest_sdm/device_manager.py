@@ -1,11 +1,11 @@
 """Device Manager keeps track of the current state of all devices."""
 
 from .device import Device
-from .event import AsyncEventCallback, EventMessage
+from .event import EventMessage
 from .structure import InfoTrait, RoomInfoTrait, Structure
 
 
-class DeviceManager(AsyncEventCallback):
+class DeviceManager:
     """DeviceManager holds current state of all devices."""
 
     def __init__(self):

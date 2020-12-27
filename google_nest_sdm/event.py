@@ -3,6 +3,7 @@
 import datetime
 import logging
 from abc import ABC, abstractmethod
+from typing import Callable
 
 from .auth import AbstractAuth
 from .registry import Registry
@@ -183,18 +184,12 @@ class EventMessage:
         return self._raw_data
 
 
-class AsyncEventCallback(ABC):
-    """For implementers to get notified about EventMessages."""
-
-    @abstractmethod
-    async def async_handle_event(self, event_message: EventMessage):
-        """Process an incoming EventMessage."""
 
 
-class EventTypeFilterCallback(AsyncEventCallback):
+class EventTypeFilterCallback:
     """Invoke a delegate only for events that match the trait type."""
 
-    def __init__(self, event_name, delegate: AsyncEventCallback):
+    def __init__(self, event_name, delegate: Callable[[EventMessage], None]):
         """Initialize EventTypeFilterCallback."""
         self._event_name = event_name
         self._delegate = delegate
@@ -203,15 +198,13 @@ class EventTypeFilterCallback(AsyncEventCallback):
         """Process an incoming EventMessage."""
         events = event_message.resource_update_events
         if self._event_name in events:
-            await self._delegate.async_handle_event(event_message)
+            await self._delegate(event_message)
 
 
-class RecentEventFilterCallback(AsyncEventCallback):
+class RecentEventFilterCallback:
     """Invokes a delegate only for recent events."""
 
-    def __init__(
-        self, cutoff_timedelta: datetime.timedelta, delegate: AsyncEventCallback
-    ):
+    def __init__(self, cutoff_timedelta: datetime.timedelta, delegate: Callable[[EventMessage], None]):
         """Initialize RecentEventFilterCallback."""
         self._cutoff_timedelta = cutoff_timedelta
         self._delegate = delegate
@@ -227,4 +220,4 @@ class RecentEventFilterCallback(AsyncEventCallback):
                 "Ignoring event that is too old (%s)", event_message.timestamp
             )
             return
-        await self._delegate.async_handle_event(event_message)
+        await self._delegate(event_message)

@@ -1,6 +1,6 @@
 from google_nest_sdm.device import Device
 from google_nest_sdm.device_manager import DeviceManager
-from google_nest_sdm.event import AsyncEventCallback, EventMessage
+from google_nest_sdm.event import EventMessage
 from google_nest_sdm.structure import Structure
 
 
@@ -193,14 +193,15 @@ async def test_device_event_callback():
     trait = device.traits["sdm.devices.traits.Connectivity"]
     assert "OFFLINE" == trait.status
 
-    class MyCallback(AsyncEventCallback):
-        invoked = False
+    class MyCallback:
+        def __init__(self):
+            self.invoked = False
 
         async def async_handle_event(self, event_message: EventMessage):
             self.invoked = True
 
     callback = MyCallback()
-    unregister = device.add_event_callback(callback)
+    unregister = device.add_event_callback(callback.async_handle_event)
     assert not callback.invoked
 
     await mgr.async_handle_event(

@@ -35,7 +35,7 @@ from .auth import AbstractAuth
 from .camera_traits import CameraLiveStreamTrait
 from .event import EventMessage
 from .google_nest_api import GoogleNestAPI
-from .google_nest_subscriber import AsyncEventCallback, GoogleNestSubscriber
+from .google_nest_subscriber import GoogleNestSubscriber
 from .thermostat_traits import (
     ThermostatEcoTrait,
     ThermostatModeTrait,
@@ -203,7 +203,7 @@ def PrintDevice(device, output_type):
         print(yaml.dump(device.raw_data))
 
 
-class SubscribeCallback(AsyncEventCallback):
+class SubscribeCallback:
     """Print the event message."""
 
     def __init__(self, output_type=None):
@@ -218,7 +218,7 @@ class SubscribeCallback(AsyncEventCallback):
             print(yaml.dump(event_message.raw_data))
 
 
-class DeviceWatcherCallback(AsyncEventCallback):
+class DeviceWatcherCallback:
     """Print the event message."""
 
     def __init__(self, device, output_type):
@@ -270,9 +270,10 @@ async def RunTool(args, user_creds: Credentials, service_creds: Credentials):
                 device_manager = await subscriber.async_get_device_manager()
                 device = device_manager.devices[args.device_id]
                 callback = DeviceWatcherCallback(device, args.output_type)
-                device.add_event_callback(callback)
+                device.add_event_callback(callback.async_handle_event)
             else:
-                subscriber.set_update_callback(SubscribeCallback(args.output_type))
+                callback = SubscribeCallback(args.output_type)
+                subscriber.set_update_callback(callback.async_handle_event)
             await subscriber.start_async()
             try:
                 while True:

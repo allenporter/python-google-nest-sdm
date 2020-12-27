@@ -1,7 +1,6 @@
 import datetime
 
 from google_nest_sdm.event import (
-    AsyncEventCallback,
     EventMessage,
     EventTypeFilterCallback,
     RecentEventFilterCallback,
@@ -161,8 +160,9 @@ def test_relation():
     assert "enterprises/project-id/devices/device-id" == update.object
 
 
-class MyCallback(AsyncEventCallback):
-    invoked = False
+class MyCallback:
+    def __init__(self):
+        self.invoked = False
 
     async def async_handle_event(self, event_message: EventMessage):
         self.invoked = True
@@ -171,7 +171,7 @@ class MyCallback(AsyncEventCallback):
 async def test_event_callback_filter_no_match():
     callback = MyCallback()
     handler = EventTypeFilterCallback(
-        "sdm.devices.events.CameraMotion.Motion", callback
+        "sdm.devices.events.CameraMotion.Motion", callback.async_handle_event
     )
     assert not callback.invoked
     event = MakeEvent(
@@ -197,7 +197,7 @@ async def test_event_callback_filter_no_match():
 async def test_event_callback_filter_match():
     callback = MyCallback()
     handler = EventTypeFilterCallback(
-        "sdm.devices.events.CameraMotion.Motion", callback
+        "sdm.devices.events.CameraMotion.Motion", callback.async_handle_event
     )
     assert not callback.invoked
     event = MakeEvent(
@@ -223,7 +223,7 @@ async def test_event_callback_filter_match():
 async def test_event_callback_filter_trait_update():
     callback = MyCallback()
     handler = EventTypeFilterCallback(
-        "sdm.devices.events.CameraMotion.Motion", callback
+        "sdm.devices.events.CameraMotion.Motion", callback.async_handle_event
     )
     assert not callback.invoked
     event = MakeEvent(
@@ -251,7 +251,7 @@ async def test_event_recent_event_filter_match():
     timestamp = now - datetime.timedelta(seconds=5)
 
     callback = MyCallback()
-    handler = RecentEventFilterCallback(datetime.timedelta(seconds=10), callback)
+    handler = RecentEventFilterCallback(datetime.timedelta(seconds=10), callback.async_handle_event)
     assert not callback.invoked
     event = MakeEvent(
         {
@@ -278,7 +278,7 @@ async def test_event_recent_event_filter_too_old():
     timestamp = now - datetime.timedelta(seconds=15)
 
     callback = MyCallback()
-    handler = RecentEventFilterCallback(datetime.timedelta(seconds=10), callback)
+    handler = RecentEventFilterCallback(datetime.timedelta(seconds=10), callback.async_handle_event)
     assert not callback.invoked
     event = MakeEvent(
         {
