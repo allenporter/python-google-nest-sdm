@@ -1,5 +1,4 @@
 import aiohttp
-from yarl import URL
 
 from google_nest_sdm.device import AbstractAuth
 

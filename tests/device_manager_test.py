@@ -1,3 +1,5 @@
+import datetime
+
 from google_nest_sdm.device import Device
 from google_nest_sdm.device_manager import DeviceManager
 from google_nest_sdm.event import EventMessage
@@ -299,7 +301,8 @@ async def test_device_update_listener():
         def __init__(self):
             self.invoked = False
 
-        async def async_handle_event(self):
+        def async_handle_event(self):
+            print("async_handle_event")
             self.invoked = True
 
     callback = MyCallback()
@@ -375,3 +378,69 @@ async def test_device_update_listener():
     trait = device.traits["sdm.devices.traits.Connectivity"]
     assert "OFFLINE" == trait.status
     assert not callback.invoked
+
+
+async def test_event_image_tracking():
+    """Hold on to the last receieved event image."""
+    device = MakeDevice(
+        {
+            "name": "my/device/name1",
+            "type": "sdm.devices.types.SomeDeviceType",
+            "traits": {
+                "sdm.devices.traits.CameraEventImage": {},
+                "sdm.devices.traits.CameraMotion": {},
+                "sdm.devices.traits.CameraSound": {},
+            },
+        }
+    )
+    mgr = DeviceManager()
+    mgr.add_device(device)
+    assert 1 == len(mgr.devices)
+    device = mgr.devices["my/device/name1"]
+    trait = device.traits["sdm.devices.traits.CameraMotion"]
+    assert trait.active_event is None
+
+    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    timestamp = now - datetime.timedelta(seconds=10)
+    await mgr.async_handle_event(
+        MakeEvent(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": timestamp.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": "my/device/name1",
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    device = mgr.devices["my/device/name1"]
+    assert "sdm.devices.traits.CameraMotion" in device.traits
+    trait = device.traits["sdm.devices.traits.CameraMotion"]
+    assert trait.active_event is not None
+
+    event = trait.active_event
+    assert "FWWVQVUdGNUlTU2V4MGV2aTNXV..." == event.event_id
+    assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." == event.event_session_id
+
+    # Verify active event functionality works
+    assert len(device.active_events([])) == 0
+    assert len(device.active_events(["unknown"])) == 0
+    assert len(device.active_events(["sdm.devices.events.CameraMotion.Motion"])) == 1
+    assert (
+        len(
+            device.active_events(
+                [
+                    "sdm.devices.events.CameraMotion.Motion",
+                    "sdm.devices.traits.CameraSound",
+                ]
+            )
+        )
+        == 1
+    )

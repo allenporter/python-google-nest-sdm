@@ -93,6 +93,34 @@ class DoorbellChimeEvent(ImageEventBase):
     NAME = "sdm.devices.events.DoorbellChime.Chime"
 
 
+class EventTrait(ABC):
+    """Parent class for traits related to handling events."""
+
+    def __init__(self):
+        """Initialize an EventTrait."""
+        self._last_event = None
+
+    @property
+    def last_event(self) -> ImageEventBase:
+        """The last received event."""
+        return self._last_event
+
+    @property
+    def active_event(self) -> ImageEventBase:
+        """The any current active events."""
+        if not self._last_event:
+            return None
+        if self._last_event.expires_at < datetime.datetime.now(
+            tz=datetime.timezone.utc
+        ):
+            return None
+        return self._last_event
+
+    def handle_event(self, event: ImageEventBase):
+        """Recieve an event message."""
+        self._last_event = event
+
+
 class RelationUpdate:
     """Represents a relational update for a resource."""
 

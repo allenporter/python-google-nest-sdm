@@ -3,6 +3,12 @@
 import datetime
 import urllib.parse as urlparse
 
+from .event import (
+    CameraMotionEvent,
+    CameraPersonEvent,
+    CameraSoundEvent,
+    EventTrait,
+)
 from .traits import TRAIT_MAP, Command
 
 MAX_IMAGE_RESOLUTION = "maxImageResolution"
@@ -213,36 +219,42 @@ class CameraEventImageTrait:
 
 
 @TRAIT_MAP.register()
-class CameraMotionTrait:
+class CameraMotionTrait(EventTrait):
     """For any device that supports motion detection events."""
 
     NAME = "sdm.devices.traits.CameraMotion"
+    EVENT_NAME = CameraMotionEvent.NAME
 
     def __init__(self, data: dict, cmd: Command):
         """Initialize CameraMotionTrait."""
+        super().__init__()
         self._data = data
         self._cmd = cmd
 
 
 @TRAIT_MAP.register()
-class CameraPersonTrait:
+class CameraPersonTrait(EventTrait):
     """For any device that supports person detection events."""
 
     NAME = "sdm.devices.traits.CameraPerson"
+    EVENT_NAME = CameraPersonEvent.NAME
 
     def __init__(self, data: dict, cmd: Command):
         """Initialize CameraPersonTrait."""
+        super().__init__()
         self._data = data
         self._cmd = cmd
 
 
 @TRAIT_MAP.register()
-class CameraSoundTrait:
+class CameraSoundTrait(EventTrait):
     """For any device that supports sound detection events."""
 
     NAME = "sdm.devices.traits.CameraSound"
+    EVENT_NAME = CameraSoundEvent.NAME
 
     def __init__(self, data: dict, cmd: Command):
         """Initialize CameraSoundTrait."""
+        super().__init__()
         self._data = data
         self._cmd = cmd

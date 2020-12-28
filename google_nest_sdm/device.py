@@ -1,9 +1,9 @@
 """A device from the Smart Device Management API."""
 
 import logging
-# Import traits for registration
 from typing import Awaitable, Callable
 
+# Import traits for registration
 from . import camera_traits  # noqa: F401
 from . import device_traits  # noqa: F401
 from . import doorbell_traits  # noqa: F401
@@ -35,6 +35,11 @@ class Device:
                 continue
             self._relations[relation[PARENT]] = relation[DISPLAYNAME]
         self._callbacks = []
+        self._event_trait_map = {}
+        for (trait_name, trait) in self._traits.items():
+            if not hasattr(trait, "EVENT_NAME"):
+                continue
+            self._event_trait_map[trait.EVENT_NAME] = trait
 
     @staticmethod
     def MakeDevice(raw_data: dict, auth: AbstractAuth):
@@ -80,15 +85,15 @@ class Device:
         """Return the raw data string."""
         return self._raw_data
 
-    def add_update_listener(
-        self, target: Callable[[], None]
-    ) -> Callable[[], None]:
+    def add_update_listener(self, target: Callable[[], None]) -> Callable[[], None]:
         """Register a simple event listener notified on updates.
 
         The return value is a callable that will unregister the callback.
         """
+
         async def handle_event(event_message: EventMessage):
             target()
+
         return self.add_event_callback(handle_event)
 
     def add_event_callback(
@@ -127,5 +132,20 @@ class Device:
         for (trait_name, trait) in traits.items():
             self._traits[trait_name] = trait
 
+        for (event_name, event) in events.items():
+            if event_name not in self._event_trait_map:
+                continue
+            self._event_trait_map[event_name].handle_event(event)
+
         for callback in self._callbacks:
             await callback(event_message)
+
+    def active_events(self, event_types: list) -> {}:
+        """Return any active events for the specified trait names."""
+        active_events = {}
+        for event_type in event_types:
+            trait = self._event_trait_map.get(event_type)
+            if not trait or not trait.active_event:
+                continue
+            active_events[event_type] = trait.active_event
+        return active_events
