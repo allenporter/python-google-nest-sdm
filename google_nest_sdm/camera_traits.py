@@ -3,12 +3,7 @@
 import datetime
 import urllib.parse as urlparse
 
-from .event import (
-    CameraMotionEvent,
-    CameraPersonEvent,
-    CameraSoundEvent,
-    EventTrait,
-)
+from .event import CameraMotionEvent, CameraPersonEvent, CameraSoundEvent, EventTrait
 from .traits import TRAIT_MAP, Command
 
 MAX_IMAGE_RESOLUTION = "maxImageResolution"
@@ -230,6 +225,14 @@ class CameraMotionTrait(EventTrait):
         super().__init__()
         self._data = data
         self._cmd = cmd
+        self._event_image = CameraEventImageTrait({}, cmd)
+
+    async def generate_active_event_image(self) -> EventImage:
+        """Provide a URL to download a camera image from the active event."""
+        event = self.active_event
+        if not event:
+            return None
+        return await self._event_image.generate_image(event.event_id)
 
 
 @TRAIT_MAP.register()
@@ -244,6 +247,14 @@ class CameraPersonTrait(EventTrait):
         super().__init__()
         self._data = data
         self._cmd = cmd
+        self._event_image = CameraEventImageTrait({}, cmd)
+
+    async def generate_active_event_image(self) -> EventImage:
+        """Provide a URL to download a camera image from the active event."""
+        event = self.active_event
+        if not event:
+            return None
+        return await self._event_image.generate_image(event.event_id)
 
 
 @TRAIT_MAP.register()
@@ -258,3 +269,11 @@ class CameraSoundTrait(EventTrait):
         super().__init__()
         self._data = data
         self._cmd = cmd
+        self._event_image = CameraEventImageTrait({}, cmd)
+
+    async def generate_active_event_image(self) -> EventImage:
+        """Provide a URL to download a camera image from the active event."""
+        event = self.active_event
+        if not event:
+            return None
+        return await self._event_image.generate_image(event.event_id)

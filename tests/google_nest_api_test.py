@@ -5,6 +5,7 @@ import pytest
 
 from google_nest_sdm import google_nest_api
 from google_nest_sdm.device import AbstractAuth
+from google_nest_sdm.event import EventMessage
 from google_nest_sdm.exceptions import ApiException, AuthException
 
 PROJECT_ID = "project-id1"
@@ -443,6 +444,81 @@ async def test_camera_event_image(aiohttp_server) -> None:
         expected_request = {
             "command": "sdm.devices.commands.CameraEventImage.GenerateImage",
             "params": {"eventId": "some-eventId"},
+        }
+        assert expected_request == r.request
+        assert "https://domain/sdm_event/dGNUlTU2CjY5Y3VKaTZwR3o4Y" == image.url
+        assert "g.0.eventToken" == image.token
+
+
+async def test_camera_active_event_image(aiohttp_server) -> None:
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "enterprises/project-id1/devices/device-id1",
+                "traits": {
+                    "sdm.devices.traits.CameraEventImage": {},
+                    "sdm.devices.traits.CameraMotion": {},
+                },
+            }
+        ],
+    )
+
+    post_handler = NewHandler(
+        r,
+        [
+            {
+                "results": {
+                    "url": "https://domain/sdm_event/dGNUlTU2CjY5Y3VKaTZwR3o4Y",
+                    "token": "g.0.eventToken",
+                },
+            }
+        ],
+    )
+
+    app = aiohttp.web.Application()
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+    app.router.add_post(
+        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
+    )
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        auth = FakeAuth(client)
+        api = google_nest_api.GoogleNestAPI(auth, PROJECT_ID)
+        devices = await api.async_get_devices()
+        assert len(devices) == 1
+        device = devices[0]
+        assert "enterprises/project-id1/devices/device-id1" == device.name
+
+        now = datetime.datetime.now(tz=datetime.timezone.utc)
+        await device.async_handle_event(
+            EventMessage(
+                {
+                    "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                    "timestamp": now.isoformat(timespec="seconds"),
+                    "resourceUpdate": {
+                        "name": "enterprises/project-id1/devices/device-id1",
+                        "events": {
+                            "sdm.devices.events.CameraMotion.Motion": {
+                                "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                                "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
+                            },
+                        },
+                    },
+                    "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+                },
+                auth=auth,
+            )
+        )
+
+        trait = device.traits["sdm.devices.traits.CameraMotion"]
+        assert trait.active_event is not None
+        image = await trait.generate_active_event_image()
+        expected_request = {
+            "command": "sdm.devices.commands.CameraEventImage.GenerateImage",
+            "params": {"eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV..."},
         }
         assert expected_request == r.request
         assert "https://domain/sdm_event/dGNUlTU2CjY5Y3VKaTZwR3o4Y" == image.url
