@@ -22,6 +22,17 @@ PARENT = "parent"
 DISPLAYNAME = "displayName"
 
 
+def _MakeEventTraitMap(traits: dict):
+    if camera_traits.CameraEventImageTrait.NAME not in traits:
+        return {}
+    event_trait_map = {}
+    for (trait_name, trait) in traits.items():
+        if not hasattr(trait, "EVENT_NAME"):
+            continue
+        event_trait_map[trait.EVENT_NAME] = trait
+    return event_trait_map
+
+
 class Device:
     """Class that represents a device object in the Google Nest SDM API."""
 
@@ -35,11 +46,7 @@ class Device:
                 continue
             self._relations[relation[PARENT]] = relation[DISPLAYNAME]
         self._callbacks = []
-        self._event_trait_map = {}
-        for (trait_name, trait) in self._traits.items():
-            if not hasattr(trait, "EVENT_NAME"):
-                continue
-            self._event_trait_map[trait.EVENT_NAME] = trait
+        self._event_trait_map = _MakeEventTraitMap(self._traits)
 
     @staticmethod
     def MakeDevice(raw_data: dict, auth: AbstractAuth):
