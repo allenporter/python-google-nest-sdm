@@ -102,12 +102,12 @@ class EventTrait(ABC):
 
     @property
     def last_event(self) -> ImageEventBase:
-        """The last received event."""
+        """Last received event."""
         return self._last_event
 
     @property
     def active_event(self) -> ImageEventBase:
-        """The any current active events."""
+        """Any current active events."""
         if not self._last_event:
             return None
         if self._last_event.expires_at < datetime.datetime.now(

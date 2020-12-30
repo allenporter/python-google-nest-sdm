@@ -525,6 +525,100 @@ async def test_camera_active_event_image(aiohttp_server) -> None:
         assert "g.0.eventToken" == image.token
 
 
+async def test_camera_last_active_event_image(aiohttp_server) -> None:
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "enterprises/project-id1/devices/device-id1",
+                "traits": {
+                    "sdm.devices.traits.CameraEventImage": {},
+                    "sdm.devices.traits.CameraMotion": {},
+                    "sdm.devices.traits.CameraSound": {},
+                },
+            }
+        ],
+    )
+
+    post_handler = NewHandler(
+        r,
+        [
+            {
+                "results": {
+                    "url": "https://domain/sdm_event/dGNUlTU2CjY5Y3VKaTZwR3o4Y",
+                    "token": "g.0.eventToken",
+                },
+            }
+        ],
+    )
+
+    app = aiohttp.web.Application()
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+    app.router.add_post(
+        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
+    )
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        auth = FakeAuth(client)
+        api = google_nest_api.GoogleNestAPI(auth, PROJECT_ID)
+        devices = await api.async_get_devices()
+        assert len(devices) == 1
+        device = devices[0]
+        assert "enterprises/project-id1/devices/device-id1" == device.name
+
+        # Later message arrives first
+        t2 = datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(
+            seconds=5
+        )
+        await device.async_handle_event(
+            EventMessage(
+                {
+                    "eventId": "4bf981f90619-1499-4be4-75b3-7cce0210",
+                    "timestamp": t2.isoformat(timespec="seconds"),
+                    "resourceUpdate": {
+                        "name": "enterprises/project-id1/devices/device-id1",
+                        "events": {
+                            "sdm.devices.events.CameraSound.Sound": {
+                                "eventSessionId": "FMfVTbY91Y4o3RwZTaKV3Y5jC...",
+                                "eventId": "VXNTa2VGM4V2UTlUNGdUVQVWWF...",
+                            },
+                        },
+                    },
+                    "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+                },
+                auth=auth,
+            )
+        )
+        t1 = datetime.datetime.now(tz=datetime.timezone.utc)
+        await device.async_handle_event(
+            EventMessage(
+                {
+                    "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                    "timestamp": t1.isoformat(timespec="seconds"),
+                    "resourceUpdate": {
+                        "name": "enterprises/project-id1/devices/device-id1",
+                        "events": {
+                            "sdm.devices.events.CameraMotion.Motion": {
+                                "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                                "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
+                            },
+                        },
+                    },
+                    "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+                },
+                auth=auth,
+            )
+        )
+
+        trait = device.active_event_trait()
+        assert trait.active_event is not None
+        assert trait.last_event is not None
+        assert trait.last_event.event_session_id == "FMfVTbY91Y4o3RwZTaKV3Y5jC..."
+        assert trait.last_event.event_id == "VXNTa2VGM4V2UTlUNGdUVQVWWF..."
+
+
 async def test_camera_event_image_bytes(aiohttp_server) -> None:
     r = Recorder()
     handler = NewDeviceHandler(

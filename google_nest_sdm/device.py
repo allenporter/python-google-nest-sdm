@@ -9,7 +9,7 @@ from . import device_traits  # noqa: F401
 from . import doorbell_traits  # noqa: F401
 from . import thermostat_traits  # noqa: F401
 from .auth import AbstractAuth
-from .event import EventMessage, EventProcessingError
+from .event import EventMessage, EventProcessingError, EventTrait
 from .traits import BuildTraits, Command
 
 _LOGGER = logging.getLogger(__name__)
@@ -149,3 +149,17 @@ class Device:
                 continue
             active_events[event_type] = trait.active_event
         return active_events
+
+    def active_event_trait(self) -> EventTrait:
+        """Return trait with the most recently received active event."""
+        trait_to_return = None
+        for trait in self._event_trait_map.values():
+            if not trait.active_event:
+                continue
+            if trait_to_return is None:
+                trait_to_return = trait
+            else:
+                event = trait.last_event
+                if event.expires_at > trait_to_return.last_event.expires_at:
+                    trait_to_return = trait
+        return trait_to_return
