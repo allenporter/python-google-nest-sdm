@@ -150,6 +150,7 @@ class Device:
             active_events[event_type] = trait.active_event
         return active_events
 
+    @property
     def active_event_trait(self) -> EventTrait:
         """Return trait with the most recently received active event."""
         trait_to_return = None

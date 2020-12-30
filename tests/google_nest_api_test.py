@@ -612,7 +612,7 @@ async def test_camera_last_active_event_image(aiohttp_server) -> None:
             )
         )
 
-        trait = device.active_event_trait()
+        trait = device.active_event_trait
         assert trait.active_event is not None
         assert trait.last_event is not None
         assert trait.last_event.event_session_id == "FMfVTbY91Y4o3RwZTaKV3Y5jC..."
