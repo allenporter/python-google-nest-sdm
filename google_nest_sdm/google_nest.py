@@ -155,7 +155,6 @@ def CreateCreds(args) -> Credentials:
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            print("Not refreshing credentials")
             creds.refresh(Request())
         else:
             if not args.client_id or not args.client_secret:
