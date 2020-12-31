@@ -227,7 +227,7 @@ class GoogleNestSubscriber:
         # Only accept device events once the Device Manager has been loaded.
         # We are ok with missing messages on startup since the device manager
         # will do a live read .
-        if self._device_manager_task.done():
+        if self._device_manager_task and self._device_manager_task.done():
             await self._device_manager_task.result().async_handle_event(event)
         if self._callback:
             await self._callback(event)
