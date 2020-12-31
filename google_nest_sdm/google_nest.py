@@ -47,7 +47,6 @@ parser = argparse.ArgumentParser(
     description="Command line tool for Google Nest SDM API"
 )
 parser.add_argument("--project_id", required=True, help="Device Access program id")
-parser.add_argument("--creds_json_file", help="Service acccount credentials file")
 parser.add_argument("--client_id", help="OAuth credentials client_id")
 parser.add_argument("--client_secret", help="OAuth credentials client_secret")
 parser.add_argument(
@@ -130,13 +129,11 @@ class Auth(AbstractAuth):
         self,
         websession: ClientSession,
         user_creds: Credentials,
-        service_creds: Credentials,
         api_url: str,
     ):
         """Initialize Google Nest Device Access auth."""
         super().__init__(websession, api_url)
         self._user_creds = user_creds
-        self._service_creds = service_creds
 
     async def async_get_access_token(self):
         """Return a valid access token."""
@@ -144,7 +141,7 @@ class Auth(AbstractAuth):
 
     async def async_get_creds(self):
         """Return valid OAuth creds."""
-        return self._service_creds
+        return self._user_creds
 
 
 def CreateCreds(args) -> Credentials:
@@ -158,6 +155,7 @@ def CreateCreds(args) -> Credentials:
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
+            print("Not refreshing credentials")
             creds.refresh(Request())
         else:
             if not args.client_id or not args.client_secret:
@@ -234,14 +232,14 @@ class DeviceWatcherCallback:
         print("")
 
 
-async def RunTool(args, user_creds: Credentials, service_creds: Credentials):
+async def RunTool(args, user_creds: Credentials):
     """Run the command."""
     conn = TCPConnector(
         family=socket.AF_INET,
         verify_ssl=False,
     )
     async with ClientSession(connector=conn) as client:
-        auth = Auth(client, user_creds, service_creds, API_URL)
+        auth = Auth(client, user_creds, API_URL)
         api = GoogleNestAPI(auth, args.project_id)
 
         if args.command == "list_structures":
@@ -324,14 +322,8 @@ def main():
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
     user_creds = CreateCreds(args)
-    if args.creds_json_file:
-        service_account.Credentials.from_service_account_file(
-            args.creds_json_file
-        ).with_scopes(scopes=SDM_SCOPES)
-    else:
-        service_creds = user_creds
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(RunTool(args, user_creds, service_creds))
+    loop.run_until_complete(RunTool(args, user_creds))
     loop.close()
 
 
