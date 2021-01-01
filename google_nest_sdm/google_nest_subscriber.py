@@ -34,7 +34,7 @@ WATCHDOG_RESTART_DELAY_MAX_SECONDS = 300
 WATCHDOG_RESET_THRESHOLD_SECONDS = 60
 
 
-class AbstractSusbcriberFactory(ABC):
+class AbstractSubscriberFactory(ABC):
     """Abstract class for creating a subscriber, to facilitate testing."""
 
     @abstractmethod
@@ -44,7 +44,7 @@ class AbstractSusbcriberFactory(ABC):
         """Create a new event subscriber."""
 
 
-class DefaultSubscriberFactory(AbstractSusbcriberFactory):
+class DefaultSubscriberFactory(AbstractSubscriberFactory):
     """Default implementation that creates Google Pubsub subscriber."""
 
     async def async_new_subscriber(
@@ -78,7 +78,7 @@ class DefaultSubscriberFactory(AbstractSusbcriberFactory):
                 )
             else:
                 _LOGGER.debug(
-                    "Susbcriber '%s' configured on topic '%s'",
+                    "Subscriber '%s' configured on topic '%s'",
                     subscription_name,
                     subscription.topic,
                 )
@@ -93,7 +93,7 @@ class GoogleNestSubscriber:
         auth: AbstractAuth,
         project_id: str,
         subscriber_id: str,
-        subscriber_factory: AbstractSusbcriberFactory = DefaultSubscriberFactory(),
+        subscriber_factory: AbstractSubscriberFactory = DefaultSubscriberFactory(),
         loop: Optional[asyncio.AbstractEventLoop] = None,
         watchdog_check_interval_seconds: float = WATCHDOG_CHECK_INTERVAL_SECONDS,
         watchdog_restart_delay_min_seconds: float = WATCHDOG_RESTART_DELAY_MIN_SECONDS,
