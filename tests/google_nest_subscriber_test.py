@@ -14,7 +14,7 @@ from google_nest_sdm.exceptions import (
     SubscriberException,
 )
 from google_nest_sdm.google_nest_subscriber import (
-    AbstractSusbcriberFactory,
+    AbstractSubscriberFactory,
     GoogleNestSubscriber,
 )
 
@@ -45,7 +45,7 @@ class RefreshingAuth(FakeAuth):
         return self._updated_token
 
 
-class FakeSubscriberFactory(AbstractSusbcriberFactory):
+class FakeSubscriberFactory(AbstractSubscriberFactory):
     def __init__(self, tasks: list = None):
         self.tasks = tasks
 
@@ -369,7 +369,7 @@ async def test_subscriber_watchdog(aiohttp_server) -> None:
 
 
 async def test_subscriber_error(aiohttp_server) -> None:
-    class FailingFactory(AbstractSusbcriberFactory):
+    class FailingFactory(AbstractSubscriberFactory):
         async def async_new_subscriber(
             self, creds, subscription_name, loop, async_callback
         ):
@@ -394,7 +394,7 @@ async def test_subscriber_error(aiohttp_server) -> None:
 
 
 async def test_subscriber_auth_error(aiohttp_server) -> None:
-    class FailingFactory(AbstractSusbcriberFactory):
+    class FailingFactory(AbstractSubscriberFactory):
         async def async_new_subscriber(
             self, creds, subscription_name, loop, async_callback
         ):
