@@ -233,11 +233,7 @@ class DeviceWatcherCallback:
 
 async def RunTool(args, user_creds: Credentials):
     """Run the command."""
-    conn = TCPConnector(
-        family=socket.AF_INET,
-        verify_ssl=False,
-    )
-    async with ClientSession(connector=conn) as client:
+    async with ClientSession() as client:
         auth = Auth(client, user_creds, API_URL)
         api = GoogleNestAPI(auth, args.project_id)
 
