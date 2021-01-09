@@ -22,13 +22,11 @@ import json
 import logging
 import os
 import pickle
-import socket
 
 import yaml
-from aiohttp import ClientSession, TCPConnector
+from aiohttp import ClientSession
 from google.auth.credentials import Credentials
 from google.auth.transport.requests import Request
-from google.oauth2 import service_account
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 from .auth import AbstractAuth
