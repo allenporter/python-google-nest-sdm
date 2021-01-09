@@ -1,4 +1,5 @@
 import datetime
+from unittest.mock import patch
 
 import aiohttp
 import pytest
@@ -702,6 +703,20 @@ async def test_get_structures(aiohttp_server) -> None:
         assert "sdm.structures.traits.Info" in structures[0].traits
         assert "enterprises/project-id1/structures/structure-id2" == structures[1].name
         assert "sdm.structures.traits.Info" in structures[1].traits
+
+
+async def test_client_error(aiohttp_server) -> None:
+    # No server endpoint registered
+    app = aiohttp.web.Application()
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
+        with patch(
+            "google_nest_sdm.google_nest_api.AbstractAuth.request",
+            side_effect=aiohttp.ClientConnectionError(),
+        ), pytest.raises(ApiException):
+            await api.async_get_structures()
 
 
 async def test_api_get_error(aiohttp_server) -> None:

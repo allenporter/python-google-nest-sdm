@@ -1,8 +1,6 @@
 """Library to access the Smart Device Management API."""
 from typing import List
 
-import aiohttp
-
 from .auth import AbstractAuth
 from .device import Device
 from .structure import Structure
@@ -26,7 +24,7 @@ class GoogleNestAPI:
 
     async def async_get_structures(self) -> List[Structure]:
         """Return the structures."""
-        resp = await self._get(self._structures_url)
+        resp = await self._auth.get(self._structures_url)
         response_data = await resp.json()
         if STRUCTURES not in response_data:
             return []
@@ -37,7 +35,7 @@ class GoogleNestAPI:
 
     async def async_get_structure(self, structure_id) -> Structure:
         """Return a structure device."""
-        resp = await self._get(f"{self._structures_url}/{structure_id}")
+        resp = await self._auth.get(f"{self._structures_url}/{structure_id}")
         data = await resp.json()
         if NAME not in data:
             return None
@@ -49,7 +47,7 @@ class GoogleNestAPI:
 
     async def async_get_devices(self) -> List[Device]:
         """Return the devices."""
-        resp = await self._get(self._devices_url)
+        resp = await self._auth.get(self._devices_url)
         response_data = await resp.json()
         if DEVICES not in response_data:
             return []
@@ -58,13 +56,8 @@ class GoogleNestAPI:
 
     async def async_get_device(self, device_id) -> Device:
         """Return a specific device."""
-        resp = await self._get(f"{self._devices_url}/{device_id}")
+        resp = await self._auth.get(f"{self._devices_url}/{device_id}")
         data = await resp.json()
         if NAME not in data:
             return None
         return Device.MakeDevice(data, self._auth)
-
-    async def _get(self, url) -> aiohttp.ClientResponse:
-        """Issues an authenticated HTTP get."""
-        resp = await self._auth.request("get", url)
-        return AbstractAuth.raise_for_status(resp)

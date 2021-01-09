@@ -50,6 +50,22 @@ class AbstractAuth(ABC):
         logging.debug("request[%s]=%s", method, url)
         return await self._websession.request(method, url, **kwargs, headers=headers)
 
+    async def get(self, url: str, **kwargs) -> aiohttp.ClientResponse:
+        """Make a get request."""
+        try:
+            resp = await self.request("get", url, **kwargs)
+        except ClientError as err:
+            raise ApiException(f"Error connecting to API: {err}") from err
+        return AbstractAuth.raise_for_status(resp)
+
+    async def post(self, url: str, **kwargs) -> aiohttp.ClientResponse:
+        """Make a post request."""
+        try:
+            resp = await self.request("post", url, **kwargs)
+        except ClientError as err:
+            raise ApiException(f"Error connecting to API: {err}") from err
+        return AbstractAuth.raise_for_status(resp)
+
     @staticmethod
     def raise_for_status(resp: aiohttp.ClientResponse) -> aiohttp.ClientResponse:
         """Raise exceptions on failure methods."""

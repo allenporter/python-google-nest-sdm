@@ -20,18 +20,14 @@ class Command:
 
     async def execute(self, data: dict) -> aiohttp.ClientResponse:
         """Run the command."""
-        resp = await self._auth.request(
-            "post", f"{self._device_id}:executeCommand", json=data
-        )
-        return AbstractAuth.raise_for_status(resp)
+        return await self._auth.post(f"{self._device_id}:executeCommand", json=data)
 
     async def fetch_image(self, url, basic_auth=None) -> bytes:
         """Fetch an image at the specified url."""
         headers = None
         if basic_auth:
             headers = {"Authorization": f"Basic {basic_auth}"}
-        resp = await self._auth.request("get", url, headers=headers)
-        AbstractAuth.raise_for_status(resp)
+        resp = await self._auth.get(url, headers=headers)
         return await resp.read()
 
 

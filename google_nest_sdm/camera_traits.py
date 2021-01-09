@@ -85,7 +85,6 @@ class RtspStream:
             "params": {"streamExtensionToken": self.stream_extension_token},
         }
         resp = await self._cmd.execute(data)
-        resp.raise_for_status()
         response_data = await resp.json()
         results = response_data[RESULTS]
         # Update the stream url with the new token
@@ -104,7 +103,6 @@ class RtspStream:
             "params": {"streamExtensionToken": self.stream_extension_token},
         }
         resp = await self._cmd.execute(data)
-        resp.raise_for_status()
 
 
 @TRAIT_MAP.register()
@@ -143,7 +141,6 @@ class CameraLiveStreamTrait:
             "params": {},
         }
         resp = await self._cmd.execute(data)
-        resp.raise_for_status()
         response_data = await resp.json()
         results = response_data[RESULTS]
         return RtspStream(results, self._cmd)
@@ -207,7 +204,6 @@ class CameraEventImageTrait:
             },
         }
         resp = await self._cmd.execute(data)
-        resp.raise_for_status()
         response_data = await resp.json()
         results = response_data[RESULTS]
         return EventImage(results, self._cmd)
