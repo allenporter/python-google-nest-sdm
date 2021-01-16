@@ -9,6 +9,8 @@ from typing import Awaitable, Callable, Optional
 
 from aiohttp.client_exceptions import ClientError
 from google.api_core.exceptions import GoogleAPIError, NotFound, Unauthenticated
+from google.auth.exceptions import RefreshError
+from google.auth.transport.requests import Request
 from google.cloud import pubsub_v1
 
 from .auth import AbstractAuth
@@ -67,6 +69,12 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
 
     def _new_subscriber(self, creds, subscription_name, callback_wrapper):
         """Issue a command to verify subscriber creds are correct."""
+
+        try:
+            creds.refresh(Request())
+        except RefreshError as err:
+            raise AuthException(f"Access token failure: {err}") from err
+
         subscriber = pubsub_v1.SubscriberClient(credentials=creds)
         subscription = subscriber.get_subscription(subscription=subscription_name)
         if subscription.topic:
