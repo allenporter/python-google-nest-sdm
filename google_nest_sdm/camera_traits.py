@@ -102,7 +102,7 @@ class RtspStream:
             "command": "sdm.devices.commands.CameraLiveStream.StopRtspStream",
             "params": {"streamExtensionToken": self.stream_extension_token},
         }
-        resp = await self._cmd.execute(data)
+        await self._cmd.execute(data)
 
 
 @TRAIT_MAP.register()
