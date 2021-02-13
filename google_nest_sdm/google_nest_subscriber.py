@@ -55,6 +55,8 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
         """Create a new subscriber with a blocking to async bridge."""
 
         def callback_wrapper(message: pubsub_v1.subscriber.message.Message):
+            if loop.is_closed():
+                return
             future = asyncio.run_coroutine_threadsafe(async_callback(message), loop)
             future.result()
 
