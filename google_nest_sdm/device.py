@@ -40,6 +40,7 @@ class Device:
         """Initialize a device."""
         self._raw_data = raw_data
         self._traits = traits
+        self._trait_event_ts = {}
         self._relations = {}
         for relation in self._raw_data.get(DEVICE_PARENT_RELATIONS, []):
             if PARENT not in relation or DISPLAYNAME not in relation:
@@ -137,7 +138,16 @@ class Device:
             _LOGGER.debug("Event Update %s", events.keys())
 
         for (trait_name, trait) in traits.items():
+            # Discard updates older than prior events
+            # Note: There is still a race where traits read from the API on
+            # startup are overwritten with old messages. We assume that the
+            # event messages will eventually correct that.
+            if trait_name in self._trait_event_ts:
+                ts = self._trait_event_ts[trait_name]
+                if ts > event_message.timestamp:
+                    continue
             self._traits[trait_name] = trait
+            self._trait_event_ts[trait_name] = event_message.timestamp
 
         for (event_name, event) in events.items():
             if event_name not in self._event_trait_map:

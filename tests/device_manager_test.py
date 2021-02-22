@@ -444,3 +444,55 @@ async def test_event_image_tracking():
         )
         == 1
     )
+
+async def test_update_trait_ordering():
+    mgr = DeviceManager()
+    mgr.add_device(
+        MakeDevice(
+            {
+                "name": "my/device/name1",
+                "type": "sdm.devices.types.SomeDeviceType",
+                "traits": {
+                    "sdm.devices.traits.Connectivity": {
+                        "status": "OFFLINE",
+                    },
+                },
+            }
+        )
+    )
+
+    def get_connectivity():
+        assert 1 == len(mgr.devices)
+        device = mgr.devices["my/device/name1"]
+        assert "sdm.devices.traits.Connectivity" in device.traits
+        return device.traits["sdm.devices.traits.Connectivity"]
+
+
+    def MakeEventWithTime(timestamp, status):
+        return MakeEvent(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": timestamp,
+                "resourceUpdate": {
+                    "name": "my/device/name1",
+                    "traits": {
+                        "sdm.devices.traits.Connectivity": {
+                            "status": status,
+                        }
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+
+    assert get_connectivity().status == "OFFLINE"
+    await mgr.async_handle_event(MakeEventWithTime("2019-01-01T00:00:03Z", "ONLINE"))
+    assert get_connectivity().status == "ONLINE"
+    await mgr.async_handle_event(MakeEventWithTime("2019-01-01T00:00:04Z", "OFFLINE"))
+    assert get_connectivity().status == "OFFLINE"
+    # Event in past is igored
+    await mgr.async_handle_event(MakeEventWithTime("2019-01-01T00:00:01Z", "ONLINE"))
+    assert get_connectivity().status == "OFFLINE"
+    # Event in future is applied
+    await mgr.async_handle_event(MakeEventWithTime("2019-01-01T00:00:05Z", "ONLINE"))
+    assert get_connectivity().status == "ONLINE"
