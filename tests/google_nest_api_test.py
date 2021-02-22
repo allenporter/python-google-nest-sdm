@@ -1,4 +1,5 @@
 import datetime
+import json
 from unittest.mock import patch
 
 import aiohttp
@@ -866,3 +867,55 @@ async def test_missing_structures(aiohttp_server) -> None:
         api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
         structure = await api.async_get_structure("abc")
         assert structure is None
+
+
+async def test_api_post_error_with_json_response(aiohttp_server) -> None:
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "enterprises/project-id1/devices/device-id1",
+                "traits": {
+                    "sdm.devices.traits.ThermostatTemperatureSetpoint": {
+                        "heatCelsius": 23.0,
+                        "coolCelsius": 24.0,
+                    },
+                },
+            }
+        ],
+    )
+
+    json_response = {
+        "error": {
+            "code": 400,
+            "message": "Some error message",
+            "status": "FAILED_PRECONDITION",
+        },
+    }
+
+    async def fail_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
+        return aiohttp.web.Response(
+            status=400, body=json.dumps(json_response), content_type="application/json"
+        )
+
+    app = aiohttp.web.Application()
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+    app.router.add_post(
+        "/enterprises/project-id1/devices/device-id1:executeCommand", fail_handler
+    )
+    server = await aiohttp_server(app)
+
+    async with aiohttp.test_utils.TestClient(server) as client:
+        api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
+        devices = await api.async_get_devices()
+        assert len(devices) == 1
+        device = devices[0]
+        assert "enterprises/project-id1/devices/device-id1" == device.name
+        trait = device.traits["sdm.devices.traits.ThermostatTemperatureSetpoint"]
+
+        with pytest.raises(
+            ApiException, match=r".*FAILED_PRECONDITION: Some error message.*"
+        ):
+            await trait.set_heat(25.0)

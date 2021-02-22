@@ -1,6 +1,7 @@
 """Authentication library, implemented by users of the API."""
 import logging
 from abc import ABC, abstractmethod
+from typing import List
 
 import aiohttp
 from aiohttp.client_exceptions import ClientError, ClientResponseError
@@ -9,8 +10,13 @@ from google.oauth2.credentials import Credentials as OAuthCredentials
 
 from .exceptions import ApiException, AuthException
 
+_LOGGER = logging.getLogger(__name__)
+
 HTTP_UNAUTHORIZED = 401
 AUTHORIZATION_HEADER = "Authorization"
+ERROR = "error"
+STATUS = "status"
+MESSAGE = "message"
 
 
 class AbstractAuth(ABC):
@@ -47,7 +53,7 @@ class AbstractAuth(ABC):
             headers[AUTHORIZATION_HEADER] = f"Bearer {access_token}"
         if not (url.startswith("http://") or url.startswith("https://")):
             url = f"{self._host}/{url}"
-        logging.debug("request[%s]=%s", method, url)
+        _LOGGER.debug("request[%s]=%s", method, url)
         return await self._websession.request(method, url, **kwargs, headers=headers)
 
     async def get(self, url: str, **kwargs) -> aiohttp.ClientResponse:
@@ -56,7 +62,7 @@ class AbstractAuth(ABC):
             resp = await self.request("get", url, **kwargs)
         except ClientError as err:
             raise ApiException(f"Error connecting to API: {err}") from err
-        return AbstractAuth.raise_for_status(resp)
+        return await AbstractAuth._raise_for_status(resp)
 
     async def post(self, url: str, **kwargs) -> aiohttp.ClientResponse:
         """Make a post request."""
@@ -64,17 +70,35 @@ class AbstractAuth(ABC):
             resp = await self.request("post", url, **kwargs)
         except ClientError as err:
             raise ApiException(f"Error connecting to API: {err}") from err
-        return AbstractAuth.raise_for_status(resp)
+        return await AbstractAuth._raise_for_status(resp)
 
     @staticmethod
-    def raise_for_status(resp: aiohttp.ClientResponse) -> aiohttp.ClientResponse:
+    async def _raise_for_status(resp: aiohttp.ClientResponse) -> aiohttp.ClientResponse:
         """Raise exceptions on failure methods."""
+        detail = await AbstractAuth._error_detail(resp)
         try:
             resp.raise_for_status()
         except ClientResponseError as err:
             if err.status == HTTP_UNAUTHORIZED:
                 raise AuthException(f"Unable to authenticate with API: {err}") from err
-            raise ApiException(f"Error from API: {err}") from err
+            detail.append(err.message)
+            raise ApiException(": ".join(detail)) from err
         except ClientError as err:
             raise ApiException(f"Error from API: {err}") from err
         return resp
+
+    async def _error_detail(resp: aiohttp.ClientResponse) -> List[str]:
+        """Resturns an error message string from the APi response."""
+        if resp.status < 400:
+            return []
+        try:
+            result = await resp.json()
+            error = result.get(ERROR, {})
+        except ClientError:
+            return []
+        message = ["Error from API", f"{resp.status}"]
+        if STATUS in error:
+            message.append(f"{error[STATUS]}")
+        if MESSAGE in error:
+            message.append(error[MESSAGE])
+        return message
