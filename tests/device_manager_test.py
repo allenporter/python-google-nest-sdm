@@ -445,6 +445,7 @@ async def test_event_image_tracking():
         == 1
     )
 
+
 async def test_update_trait_ordering():
     mgr = DeviceManager()
     mgr.add_device(
@@ -466,7 +467,6 @@ async def test_update_trait_ordering():
         device = mgr.devices["my/device/name1"]
         assert "sdm.devices.traits.Connectivity" in device.traits
         return device.traits["sdm.devices.traits.Connectivity"]
-
 
     def MakeEventWithTime(timestamp, status):
         return MakeEvent(
