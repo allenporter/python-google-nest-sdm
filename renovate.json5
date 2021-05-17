@@ -3,4 +3,8 @@
     "config:base"
   ],
   "rangeStrategy": "replace",
+  "timezone": "America/Los_Angeles",
+  "assignees": ["allenporter"],
+  "dependencyDashboard": true,
+  "dependencyDashboardTitle": "Renovate Dashboard",
 }
