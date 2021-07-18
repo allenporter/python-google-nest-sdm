@@ -87,6 +87,7 @@ class AbstractAuth(ABC):
             raise ApiException(f"Error from API: {err}") from err
         return resp
 
+    @staticmethod
     async def _error_detail(resp: aiohttp.ClientResponse) -> List[str]:
         """Resturns an error message string from the APi response."""
         if resp.status < 400:
