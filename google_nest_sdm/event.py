@@ -3,7 +3,7 @@
 import datetime
 import logging
 from abc import ABC
-from typing import Awaitable, Callable
+from typing import Awaitable, Callable, Optional
 
 from .auth import AbstractAuth
 from .registry import Registry
@@ -101,12 +101,12 @@ class EventTrait(ABC):
         self._last_event = None
 
     @property
-    def last_event(self) -> ImageEventBase:
+    def last_event(self) -> Optional[ImageEventBase]:
         """Last received event."""
         return self._last_event
 
     @property
-    def active_event(self) -> ImageEventBase:
+    def active_event(self) -> Optional[ImageEventBase]:
         """Any current active events."""
         if not self._last_event:
             return None
@@ -165,9 +165,9 @@ class EventMessage:
         self._auth = auth
 
     @property
-    def event_id(self) -> str:
+    def event_id(self) -> Optional[str]:
         """Event identifier."""
-        return self._raw_data.get(EVENT_ID, None)
+        return self._raw_data.get(EVENT_ID)
 
     @property
     def timestamp(self) -> datetime.datetime:
@@ -176,14 +176,14 @@ class EventMessage:
         return datetime.datetime.fromisoformat(event_timestamp.replace("Z", "+00:00"))
 
     @property
-    def resource_update_name(self) -> str:
+    def resource_update_name(self) -> Optional[str]:
         """Return the id of the device that was updated."""
         if RESOURCE_UPDATE not in self._raw_data:
             return None
         return self._raw_data[RESOURCE_UPDATE][NAME]
 
     @property
-    def resource_update_events(self) -> dict:
+    def resource_update_events(self) -> Optional[dict]:
         """Return the set of events that happened."""
         if RESOURCE_UPDATE not in self._raw_data:
             return None
@@ -191,25 +191,20 @@ class EventMessage:
         return BuildEvents(events, EVENT_MAP, self.timestamp)
 
     @property
-    def resource_update_traits(self) -> dict:
+    def resource_update_traits(self) -> Optional[dict]:
         """Return the set of traits that were updated."""
-        if RESOURCE_UPDATE not in self._raw_data:
+        if not self.resource_update_name:
             return None
         cmd = Command(self.resource_update_name, self._auth)
         events = self._raw_data[RESOURCE_UPDATE].get(TRAITS, {})
         return BuildTraits(events, cmd)
 
     @property
-    def relation_update(self) -> RelationUpdate:
+    def relation_update(self) -> Optional[RelationUpdate]:
         """Represent a relational update for a resource."""
         if RELATION_UPDATE not in self._raw_data:
             return None
         return RelationUpdate(self._raw_data[RELATION_UPDATE])
-
-    @property
-    def raw_data(self) -> str:
-        """Return the raw data string."""
-        return self._raw_data
 
 
 class EventTypeFilterCallback:
@@ -223,7 +218,7 @@ class EventTypeFilterCallback:
     async def async_handle_event(self, event_message: EventMessage):
         """Process an incoming EventMessage."""
         events = event_message.resource_update_events
-        if self._event_name in events:
+        if events and self._event_name in events:
             await self._delegate(event_message)
 
 
