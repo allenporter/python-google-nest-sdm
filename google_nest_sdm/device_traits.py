@@ -1,6 +1,7 @@
 """Library for traits about devices."""
 
 import datetime
+from typing import Optional
 
 from .traits import TRAIT_MAP, Command
 
@@ -23,7 +24,7 @@ class ConnectivityTrait:
         self._data = data
 
     @property
-    def status(self) -> str:
+    def status(self) -> Optional[str]:
         """Device connectivity status.
 
         Return:
@@ -44,7 +45,7 @@ class FanTrait:
         self._cmd = cmd
 
     @property
-    def timer_mode(self) -> str:
+    def timer_mode(self) -> Optional[str]:
         """Timer mode for the fan.
 
         Return:
@@ -53,7 +54,7 @@ class FanTrait:
         return self._data.get(TIMER_MODE)
 
     @property
-    def timer_timeout(self) -> datetime.datetime:
+    def timer_timeout(self) -> Optional[datetime.datetime]:
         """Timestamp at which timer mode will turn to OFF."""
         if TIMER_TIMEOUT not in self._data:
             return None

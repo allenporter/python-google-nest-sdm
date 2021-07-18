@@ -1,5 +1,7 @@
 """Traits belonging to doorbell devices."""
 
+from typing import Optional
+
 from .camera_traits import CameraEventImageTrait, EventImage
 from .event import DoorbellChimeEvent, EventTrait
 from .traits import TRAIT_MAP, Command
@@ -19,7 +21,7 @@ class DoorbellChimeTrait(EventTrait):
         self._cmd = cmd
         self._event_image = CameraEventImageTrait({}, cmd)
 
-    async def generate_active_event_image(self) -> EventImage:
+    async def generate_active_event_image(self) -> Optional[EventImage]:
         """Provide a URL to download a camera image from the active event."""
         event = self.active_event
         if not event:
