@@ -1,6 +1,7 @@
 """Traits belonging to camera devices."""
 
 import datetime
+from typing import Optional
 import urllib.parse as urlparse
 
 from .event import CameraMotionEvent, CameraPersonEvent, CameraSoundEvent, EventTrait
@@ -223,7 +224,7 @@ class CameraMotionTrait(EventTrait):
         self._cmd = cmd
         self._event_image = CameraEventImageTrait({}, cmd)
 
-    async def generate_active_event_image(self) -> EventImage:
+    async def generate_active_event_image(self) -> Optional[EventImage]:
         """Provide a URL to download a camera image from the active event."""
         event = self.active_event
         if not event:
@@ -245,7 +246,7 @@ class CameraPersonTrait(EventTrait):
         self._cmd = cmd
         self._event_image = CameraEventImageTrait({}, cmd)
 
-    async def generate_active_event_image(self) -> EventImage:
+    async def generate_active_event_image(self) -> Optional[EventImage]:
         """Provide a URL to download a camera image from the active event."""
         event = self.active_event
         if not event:
@@ -267,7 +268,7 @@ class CameraSoundTrait(EventTrait):
         self._cmd = cmd
         self._event_image = CameraEventImageTrait({}, cmd)
 
-    async def generate_active_event_image(self) -> EventImage:
+    async def generate_active_event_image(self) -> Optional[EventImage]:
         """Provide a URL to download a camera image from the active event."""
         event = self.active_event
         if not event:
