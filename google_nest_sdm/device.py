@@ -1,7 +1,10 @@
 """A device from the Smart Device Management API."""
 
+from __future__ import annotations
+
 import logging
-from typing import Awaitable, Callable
+import datetime
+from typing import Awaitable, Callable, Dict, List, Optional
 
 # Import traits for registration
 from . import camera_traits  # noqa: F401
@@ -40,19 +43,21 @@ class Device:
         """Initialize a device."""
         self._raw_data = raw_data
         self._traits = traits
-        self._trait_event_ts = {}
+        self._trait_event_ts: Dict[str, datetime.datetime] = {}
         self._relations = {}
         for relation in self._raw_data.get(DEVICE_PARENT_RELATIONS, []):
             if PARENT not in relation or DISPLAYNAME not in relation:
                 continue
             self._relations[relation[PARENT]] = relation[DISPLAYNAME]
-        self._callbacks = []
+        self._callbacks: List[Callable[[EventMessage], Awaitable[None]]] = []
         self._event_trait_map = _MakeEventTraitMap(self._traits)
 
     @staticmethod
-    def MakeDevice(raw_data: dict, auth: AbstractAuth):
+    def MakeDevice(raw_data: dict, auth: AbstractAuth) -> Device:
         """Create a device with the appropriate traits."""
         device_id = raw_data.get(DEVICE_NAME)
+        if not device_id:
+            raise ValueError(f"raw_data missing field '{DEVICE_NAME}'")
         cmd = Command(device_id, auth)
         traits = raw_data.get(DEVICE_TRAITS, {})
         traits_dict = BuildTraits(traits, cmd, raw_data.get(DEVICE_TYPE))
@@ -87,11 +92,6 @@ class Device:
     def parent_relations(self) -> dict:
         """Room or structure for the device."""
         return self._relations
-
-    @property
-    def raw_data(self) -> str:
-        """Return the raw data string."""
-        return self._raw_data
 
     def add_update_listener(self, target: Callable[[], None]) -> Callable[[], None]:
         """Register a simple event listener notified on updates.
@@ -130,13 +130,16 @@ class Device:
             raise EventProcessingError(
                 f"Mismatch {self.name} != {event_message.resource_update_name}"
             )
-        traits = event_message.resource_update_traits
-        if traits:
-            _LOGGER.debug("Trait update %s", traits.keys())
-        events = event_message.resource_update_events
-        if events:
-            _LOGGER.debug("Event Update %s", events.keys())
+        self._async_handle_traits(event_message)
+        self._async_handle_events(event_message)
+        for callback in self._callbacks:
+            await callback(event_message)
 
+    def _async_handle_traits(self, event_message: EventMessage) -> None:
+        traits = event_message.resource_update_traits
+        if not traits:
+            return
+        _LOGGER.debug("Trait update %s", traits.keys())
         for (trait_name, trait) in traits.items():
             # Discard updates older than prior events
             # Note: There is still a race where traits read from the API on
@@ -149,15 +152,17 @@ class Device:
             self._traits[trait_name] = trait
             self._trait_event_ts[trait_name] = event_message.timestamp
 
+    def _async_handle_events(self, event_message: EventMessage) -> None:
+        events = event_message.resource_update_events
+        if not events:
+            return
+        _LOGGER.debug("Event Update %s", events.keys())
         for (event_name, event) in events.items():
             if event_name not in self._event_trait_map:
                 continue
             self._event_trait_map[event_name].handle_event(event)
 
-        for callback in self._callbacks:
-            await callback(event_message)
-
-    def active_events(self, event_types: list) -> {}:
+    def active_events(self, event_types: list) -> dict:
         """Return any active events for the specified trait names."""
         active_events = {}
         for event_type in event_types:
@@ -168,7 +173,7 @@ class Device:
         return active_events
 
     @property
-    def active_event_trait(self) -> EventTrait:
+    def active_event_trait(self) -> Optional[EventTrait]:
         """Return trait with the most recently received active event."""
         trait_to_return = None
         for trait in self._event_trait_map.values():
