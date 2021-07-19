@@ -67,11 +67,11 @@ class Recorder:
     request = None
 
 
-def NewDeviceHandler(r: Recorder, devices: dict, token=FAKE_TOKEN):
+def NewDeviceHandler(r: Recorder, devices: list, token=FAKE_TOKEN):
     return NewHandler(r, [{"devices": devices}], token=token)
 
 
-def NewStructureHandler(r: Recorder, structures: dict, token=FAKE_TOKEN):
+def NewStructureHandler(r: Recorder, structures: list, token=FAKE_TOKEN):
     return NewHandler(r, [{"structures": structures}], token=token)
 
 

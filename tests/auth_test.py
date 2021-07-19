@@ -1,4 +1,5 @@
 import aiohttp
+from aiohttp.test_utils import TestClient
 
 from google_nest_sdm.device import AbstractAuth
 
@@ -27,7 +28,7 @@ async def test_request(aiohttp_server) -> None:
     app.router.add_get("/path-prefix/some-path", handler)
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         auth = FakeAuth(client)
         resp = await auth.request(
             "get",
@@ -58,7 +59,7 @@ async def test_auth_header(aiohttp_server) -> None:
     app.router.add_get("/path-prefix/some-path", handler)
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         auth = FakeAuth(client)
         resp = await auth.request(
             "get",
@@ -93,8 +94,8 @@ async def test_full_url(aiohttp_server) -> None:
         assert url == "https://example/path-prefix/some-path"
         return server.make_url("/path-prefix/some-path")
 
-    async with aiohttp.test_utils.TestClient(server) as client:
-        client.make_url = client_make_url
+    async with TestClient(server) as client:
+        client.make_url = client_make_url  # type: ignore
         auth = FakeAuth(client)
         resp = await auth.request(
             "get",
