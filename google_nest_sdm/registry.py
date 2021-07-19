@@ -13,7 +13,7 @@ class Registry(dict):
 
         def decorator(func: CALLABLE_T) -> CALLABLE_T:
             """Register decorated function."""
-            self[func.NAME] = func
+            self[func.NAME] = func  # type: ignore
             return func
 
         return decorator
