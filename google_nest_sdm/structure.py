@@ -1,10 +1,15 @@
 """Traits for structures / rooms."""
 
+from .registry import Registry
+
 STRUCTURE_NAME = "name"
 STRUCTURE_TRAITS = "traits"
 CUSTOM_NAME = "customName"
 
+STRUCTURE_TRAITS_MAP = Registry()
 
+
+@STRUCTURE_TRAITS_MAP.register()
 class InfoTrait:
     """This trait belongs to any structure for structure-related information."""
 
@@ -20,6 +25,7 @@ class InfoTrait:
         return self._data[CUSTOM_NAME]
 
 
+@STRUCTURE_TRAITS_MAP.register()
 class RoomInfoTrait:
     """This trait belongs to any structure for room-related information."""
 
@@ -33,13 +39,6 @@ class RoomInfoTrait:
     def custom_name(self) -> str:
         """Name of the room."""
         return self._data[CUSTOM_NAME]
-
-
-_ALL_TRAITS = [
-    InfoTrait,
-    RoomInfoTrait,
-]
-_ALL_TRAIT_MAP = {cls.NAME: cls for cls in _ALL_TRAITS}
 
 
 def _TraitsDict(traits: dict, trait_map: dict):
@@ -64,7 +63,7 @@ class Structure:
     def MakeStructure(raw_data: dict):
         """Create a structure with the appropriate traits."""
         traits = raw_data.get(STRUCTURE_TRAITS, {})
-        traits_dict = _TraitsDict(traits, _ALL_TRAIT_MAP)
+        traits_dict = _TraitsDict(traits, STRUCTURE_TRAITS_MAP)
         return Structure(raw_data, traits_dict)
 
     @property
@@ -81,8 +80,3 @@ class Structure:
         """Return the raw dictionary for the specified trait."""
         traits_dict = self._raw_data.get(STRUCTURE_TRAITS, {})
         return traits_dict.get(trait, {})
-
-    @property
-    def raw_data(self) -> str:
-        """Return the raw data string."""
-        return self._raw_data
