@@ -206,6 +206,11 @@ class EventMessage:
             return None
         return RelationUpdate(self._raw_data[RELATION_UPDATE])
 
+    @property
+    def raw_data(self) -> dict:
+        """Return raw data for the event."""
+        return self._raw_data
+
 
 class EventTypeFilterCallback:
     """Invoke a delegate only for events that match the trait type."""

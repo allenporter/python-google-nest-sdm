@@ -22,6 +22,7 @@ import json
 import logging
 import os
 import pickle
+from typing import Optional, List
 
 import yaml
 from aiohttp import ClientSession
@@ -30,6 +31,8 @@ from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 from .auth import AbstractAuth
+from .structure import Structure
+from .device import Device
 from .camera_traits import CameraLiveStreamTrait
 from .event import EventMessage
 from .google_nest_api import GoogleNestAPI
@@ -236,20 +239,23 @@ async def RunTool(args, user_creds: Credentials):
         api = GoogleNestAPI(auth, args.project_id)
 
         if args.command == "list_structures":
-            structures = await api.async_get_structures()
-            for structure in structures:
-                PrintStructure(structure, args.output_type)
+            structures: List[Structure] = await api.async_get_structures()
+            for s in structures:
+                PrintStructure(s, args.output_type)
             return
 
         if args.command == "get_structure":
-            structure = await api.async_get_structure(args.structure_id)
+            structure: Optional[Structure] = await api.async_get_structure(
+                args.structure_id
+            )
+            assert structure
             PrintStructure(structure, args.output_type)
             return
 
         if args.command == "list_devices":
             devices = await api.async_get_devices()
-            for device in devices:
-                PrintDevice(device, args.output_type)
+            for d in devices:
+                PrintDevice(d, args.output_type)
             return
 
         if args.command == "subscribe":
@@ -259,12 +265,12 @@ async def RunTool(args, user_creds: Credentials):
             )
             if args.device_id:
                 device_manager = await subscriber.async_get_device_manager()
-                device = device_manager.devices[args.device_id]
-                callback = DeviceWatcherCallback(device, args.output_type)
-                device.add_event_callback(callback.async_handle_event)
+                dev = device_manager.devices[args.device_id]
+                dev_callback = DeviceWatcherCallback(dev, args.output_type)
+                dev.add_event_callback(dev_callback.async_handle_event)
             else:
-                callback = SubscribeCallback(args.output_type)
-                subscriber.set_update_callback(callback.async_handle_event)
+                sub_callback = SubscribeCallback(args.output_type)
+                subscriber.set_update_callback(sub_callback.async_handle_event)
             await subscriber.start_async()
             try:
                 while True:
@@ -273,7 +279,8 @@ async def RunTool(args, user_creds: Credentials):
                 subscriber.stop_async()
 
         # All other commands require a device_id
-        device = await api.async_get_device(args.device_id)
+        device: Optional[Device] = await api.async_get_device(args.device_id)
+        assert device
 
         if args.command == "get_device":
             PrintDevice(device, args.output_type)
