@@ -66,4 +66,4 @@ typing-inspect==0.6.0
 unittest2pytest==0.4
 urllib3==1.25.11
 virtualenv==20.6.0
-yarl==1.6.2
+yarl==1.6.3
