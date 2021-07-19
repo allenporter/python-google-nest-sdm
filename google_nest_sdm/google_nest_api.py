@@ -1,5 +1,5 @@
 """Library to access the Smart Device Management API."""
-from typing import List
+from typing import List, Optional
 
 from .auth import AbstractAuth
 from .device import Device
@@ -33,7 +33,7 @@ class GoogleNestAPI:
             Structure.MakeStructure(structure_data) for structure_data in structures
         ]
 
-    async def async_get_structure(self, structure_id) -> Structure:
+    async def async_get_structure(self, structure_id) -> Optional[Structure]:
         """Return a structure device."""
         resp = await self._auth.get(f"{self._structures_url}/{structure_id}")
         data = await resp.json()
@@ -54,7 +54,7 @@ class GoogleNestAPI:
         devices = response_data[DEVICES]
         return [Device.MakeDevice(device_data, self._auth) for device_data in devices]
 
-    async def async_get_device(self, device_id) -> Device:
+    async def async_get_device(self, device_id) -> Optional[Device]:
         """Return a specific device."""
         resp = await self._auth.get(f"{self._devices_url}/{device_id}")
         data = await resp.json()
