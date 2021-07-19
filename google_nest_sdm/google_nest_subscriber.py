@@ -41,7 +41,7 @@ class AbstractSubscriberFactory(ABC):
 
     @abstractmethod
     async def async_new_subscriber(
-        self, creds, subscription_name, async_callback
+        self, creds, subscription_name, loop, async_callback
     ) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
         """Create a new event subscriber."""
 
@@ -113,18 +113,17 @@ class GoogleNestSubscriber:
         self._subscriber_id = subscriber_id
         self._api = GoogleNestAPI(auth, project_id)
         self._loop = loop or asyncio.get_event_loop()
-        self._device_manager_task = None
+        self._device_manager_task: Optional[asyncio.Task] = None
         self._subscriber_factory = subscriber_factory
         self._subscriber_future = None
-        self._callback = None
+        self._callback: Optional[Callable[[EventMessage], Awaitable[None]]] = None
         self._healthy = True
         self._watchdog_check_interval_seconds = watchdog_check_interval_seconds
         self._watchdog_restart_delay_min_seconds = watchdog_restart_delay_min_seconds
         self._watchdog_restart_delay_seconds = watchdog_restart_delay_min_seconds
+        self._watchdog_task: Optional[asyncio.Task] = None
         if self._watchdog_check_interval_seconds > 0:
             self._watchdog_task = asyncio.create_task(self._watchdog())
-        else:
-            self._watchdog_task = None
 
     def set_update_callback(self, target: Callable[[EventMessage], Awaitable[None]]):
         """Register a callback invoked when new messages are received."""
@@ -206,6 +205,7 @@ class GoogleNestSubscriber:
             self._device_manager_task = asyncio.create_task(
                 self._async_create_device_manager()
             )
+        assert self._device_manager_task
         return await self._device_manager_task
 
     async def _async_create_device_manager(self):
