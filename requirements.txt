@@ -28,7 +28,7 @@ identify==2.2.11
 idna==2.10
 iniconfig==1.1.1
 isort==5.6.4
-libcst==0.3.13
+libcst==0.3.19
 mccabe==0.6.1
 mock==4.0.2
 multidict==5.0.0
