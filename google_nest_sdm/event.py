@@ -98,7 +98,7 @@ class EventTrait(ABC):
 
     def __init__(self):
         """Initialize an EventTrait."""
-        self._last_event: ImageEventBase | None = None
+        self._last_event: Optional[ImageEventBase] = None
 
     @property
     def last_event(self) -> Optional[ImageEventBase]:

@@ -10,7 +10,7 @@ def MakeDevice(raw_data: dict) -> Device:
     return Device.MakeDevice(raw_data, auth=None)
 
 
-def MakeStructure(raw_data: dict) -> Device:
+def MakeStructure(raw_data: dict) -> Structure:
     return Structure.MakeStructure(raw_data)
 
 

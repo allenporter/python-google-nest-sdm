@@ -115,7 +115,9 @@ class GoogleNestSubscriber:
         self._loop = loop or asyncio.get_event_loop()
         self._device_manager_task: Optional[asyncio.Task] = None
         self._subscriber_factory = subscriber_factory
-        self._subscriber_future = None
+        self._subscriber_future: Optional[
+            pubsub_v1.subscriber.futures.StreamingPullFuture
+        ] = None
         self._callback: Optional[Callable[[EventMessage], Awaitable[None]]] = None
         self._healthy = True
         self._watchdog_check_interval_seconds = watchdog_check_interval_seconds
@@ -188,6 +190,7 @@ class GoogleNestSubscriber:
 
     def wait(self):
         """Block on the subscriber."""
+        assert self._subscriber_future
         self._subscriber_future.result()
 
     def stop_async(self):

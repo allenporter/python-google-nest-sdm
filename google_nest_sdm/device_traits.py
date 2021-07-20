@@ -1,7 +1,7 @@
 """Library for traits about devices."""
 
 import datetime
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from .traits import TRAIT_MAP, Command
 
@@ -63,7 +63,7 @@ class FanTrait:
 
     async def set_timer(self, timer_mode, duration=None):
         """Change the fan timer."""
-        data = {
+        data: Dict[str, Any] = {
             "command": "sdm.devices.commands.Fan.SetTimer",
             "params": {
                 "timerMode": timer_mode,
