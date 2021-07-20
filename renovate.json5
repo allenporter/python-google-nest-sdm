@@ -7,7 +7,7 @@
   "assignees": ["allenporter"],
   "dependencyDashboard": true,
   "dependencyDashboardTitle": "Renovate Dashboard",
-  "branchConcurrentLimit": 10,
+  "branchConcurrentLimit": 20,
   "packageRules": [
     {
       "description": "Minor updates are automatic",
@@ -15,6 +15,12 @@
       "automergeType": "branch",
       "additionalBranchPrefix": "dev-",
       "matchUpdateTypes": ["minor", "patch"],
+    },
+    {
+      "description": "Major packages updated weekly",
+      "extends": ["schedule:weekends"],
+      "additionalBranchPrefix": "dev-major",
+      "matchUpdateTypes": ["major"],
     },
   ],
 }
