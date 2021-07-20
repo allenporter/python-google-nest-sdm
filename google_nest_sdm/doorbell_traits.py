@@ -26,4 +26,5 @@ class DoorbellChimeTrait(EventTrait):
         event = self.active_event
         if not event:
             return None
+        assert event.event_id
         return await self._event_image.generate_image(event.event_id)

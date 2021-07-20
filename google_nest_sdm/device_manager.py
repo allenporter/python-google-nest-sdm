@@ -1,5 +1,7 @@
 """Device Manager keeps track of the current state of all devices."""
 
+from typing import Dict, Optional
+
 from .device import Device
 from .event import EventMessage, RelationUpdate
 from .structure import InfoTrait, RoomInfoTrait, Structure
@@ -10,26 +12,27 @@ class DeviceManager:
 
     def __init__(self):
         """Initialize DeviceManager."""
-        self._devices = {}
-        self._structures = {}
-        self._callback = None
+        self._devices: Dict[str, Device] = {}
+        self._structures: Dict[str, Structure] = {}
 
     @property
-    def devices(self) -> dict:
+    def devices(self) -> Dict[str, Device]:
         """Return current state of devices."""
         return self._devices
 
     @property
-    def structures(self) -> dict:
+    def structures(self) -> Dict[str, Structure]:
         """Return current state of structures."""
         return self._structures
 
     def add_device(self, device: Device) -> None:
         """Track the specified device."""
+        assert device.name
         self._devices[device.name] = device
 
     def add_structure(self, structure: Structure) -> None:
         """Track the specified device."""
+        assert structure.name
         self._structures[structure.name] = structure
 
     async def async_handle_event(self, event_message: EventMessage) -> None:
@@ -43,7 +46,7 @@ class DeviceManager:
                 device = self._devices[device_id]
                 await device.async_handle_event(event_message)
 
-    def _structure_name(self, relation_subject: str) -> str:
+    def _structure_name(self, relation_subject: str) -> Optional[str]:
         if relation_subject in self._structures:
             structure = self._structures[relation_subject]
             for trait_name in [InfoTrait.NAME, RoomInfoTrait.NAME]:
@@ -63,6 +66,7 @@ class DeviceManager:
 
         if relation.type == "UPDATED" or relation.type == "CREATED":
             # Device moved to a room
+            assert relation.subject
             device.parent_relations[relation.subject] = self._structure_name(
                 relation.subject
             )

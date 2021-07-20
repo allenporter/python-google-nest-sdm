@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import datetime
-from typing import Awaitable, Callable, Dict, List, Optional
+from typing import Awaitable, Callable, Dict, List, Optional, cast, Any
 
 # Import traits for registration
 from . import camera_traits  # noqa: F401
@@ -39,7 +39,7 @@ def _MakeEventTraitMap(traits: dict):
 class Device:
     """Class that represents a device object in the Google Nest SDM API."""
 
-    def __init__(self, raw_data: dict, traits: dict):
+    def __init__(self, raw_data: Dict[str, Any], traits: Dict[str, Any]):
         """Initialize a device."""
         self._raw_data = raw_data
         self._traits = traits
@@ -64,29 +64,29 @@ class Device:
         return Device(raw_data, traits_dict)
 
     @property
-    def name(self) -> str:
+    def name(self) -> Optional[str]:
         """Resource name of the device such as 'enterprises/XYZ/devices/123'."""
-        return self._raw_data[DEVICE_NAME]
+        return cast(Optional[str], self._raw_data[DEVICE_NAME])
 
     @property
-    def type(self) -> str:
+    def type(self) -> Optional[str]:
         """Type of device for display purposes.
 
         The device type should not be used to deduce or infer functionality of
         the actual device it is assigned to. Instead, use the returned traits for
         the device.
         """
-        return self._raw_data[DEVICE_TYPE]
+        return cast(Optional[str], self._raw_data[DEVICE_TYPE])
 
     @property
-    def traits(self) -> dict:
+    def traits(self) -> Dict[str, Any]:
         """Return a trait mixin or None."""
         return self._traits
 
-    def _traits_data(self, trait) -> dict:
+    def _traits_data(self, trait: str) -> Dict[str, Any]:
         """Return the raw dictionary for the specified trait."""
         traits_dict = self._raw_data.get(DEVICE_TRAITS, {})
-        return traits_dict.get(trait, {})
+        return cast(Dict[str, Any], traits_dict.get(trait, {}))
 
     @property
     def parent_relations(self) -> dict:
@@ -175,7 +175,7 @@ class Device:
     @property
     def active_event_trait(self) -> Optional[EventTrait]:
         """Return trait with the most recently received active event."""
-        trait_to_return = None
+        trait_to_return: EventTrait | None = None
         for trait in self._event_trait_map.values():
             if not trait.active_event:
                 continue
@@ -183,6 +183,8 @@ class Device:
                 trait_to_return = trait
             else:
                 event = trait.last_event
+                if not event or not trait_to_return.last_event:
+                    continue
                 if event.expires_at > trait_to_return.last_event.expires_at:
                     trait_to_return = trait
         return trait_to_return

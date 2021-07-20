@@ -1,7 +1,7 @@
 """Traits belonging to camera devices."""
 
 import datetime
-from typing import Optional
+from typing import Optional, Dict, Any, cast
 import urllib.parse as urlparse
 
 from .event import CameraMotionEvent, CameraPersonEvent, CameraSoundEvent, EventTrait
@@ -159,20 +159,20 @@ class EventImage:
     Authorization: Basic <token>
     """
 
-    def __init__(self, data: dict, cmd: Command):
+    def __init__(self, data: Dict[str, Any], cmd: Command):
         """Initialize the EventImage."""
         self._data = data
         self._cmd = cmd
 
     @property
-    def url(self) -> str:
+    def url(self) -> Optional[str]:
         """URL to download the camera image from."""
-        return self._data[URL]
+        return cast(Optional[str], self._data[URL])
 
     @property
-    def token(self) -> str:
+    def token(self) -> Optional[str]:
         """Token to use in the HTTP Authorization header when downloading."""
-        return self._data[TOKEN]
+        return cast(Optional[str], self._data[TOKEN])
 
     async def contents(self, width=None, height=None) -> bytes:
         """Download the image bytes."""
@@ -181,6 +181,7 @@ class EventImage:
         elif height:
             fetch_url = f"{self.url}?width={height}"
         else:
+            assert self.url
             fetch_url = self.url
         return await self._cmd.fetch_image(fetch_url, basic_auth=self.token)
 
@@ -229,6 +230,7 @@ class CameraMotionTrait(EventTrait):
         event = self.active_event
         if not event:
             return None
+        assert event.event_id
         return await self._event_image.generate_image(event.event_id)
 
 
@@ -251,6 +253,7 @@ class CameraPersonTrait(EventTrait):
         event = self.active_event
         if not event:
             return None
+        assert event.event_id
         return await self._event_image.generate_image(event.event_id)
 
 
@@ -273,4 +276,5 @@ class CameraSoundTrait(EventTrait):
         event = self.active_event
         if not event:
             return None
+        assert event.event_id
         return await self._event_image.generate_image(event.event_id)

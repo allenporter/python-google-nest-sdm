@@ -1,5 +1,7 @@
 """Traits for structures / rooms."""
 
+from abc import ABC, abstractmethod
+from typing import Optional, Dict, Any, cast
 from .registry import Registry
 
 STRUCTURE_NAME = "name"
@@ -9,40 +11,49 @@ CUSTOM_NAME = "customName"
 STRUCTURE_TRAITS_MAP = Registry()
 
 
+class StructureTrait(ABC):
+    """This trait belongs to any structure for structure-related information."""
+
+    @property
+    @abstractmethod
+    def custom_name(self) -> Optional[str]:
+        """Name of the structure."""
+
+
 @STRUCTURE_TRAITS_MAP.register()
-class InfoTrait:
+class InfoTrait(StructureTrait):
     """This trait belongs to any structure for structure-related information."""
 
     NAME = "sdm.structures.traits.Info"
 
-    def __init__(self, data: dict):
+    def __init__(self, data: Dict[str, Any]):
         """Initialize InfoTrait."""
         self._data = data
 
     @property
-    def custom_name(self) -> str:
+    def custom_name(self) -> Optional[str]:
         """Name of the structure."""
-        return self._data[CUSTOM_NAME]
+        return cast(Optional[str], self._data[CUSTOM_NAME])
 
 
 @STRUCTURE_TRAITS_MAP.register()
-class RoomInfoTrait:
+class RoomInfoTrait(StructureTrait):
     """This trait belongs to any structure for room-related information."""
 
     NAME = "sdm.structures.traits.RoomInfo"
 
-    def __init__(self, data: dict):
+    def __init__(self, data: Dict[str, Any]):
         """Initialize RoomInfoTrait."""
         self._data = data
 
     @property
-    def custom_name(self) -> str:
+    def custom_name(self) -> Optional[str]:
         """Name of the room."""
-        return self._data[CUSTOM_NAME]
+        return cast(str, self._data[CUSTOM_NAME])
 
 
-def _TraitsDict(traits: dict, trait_map: dict):
-    result = {}
+def _TraitsDict(traits: Dict[str, Any], trait_map: Dict[str, Any]):
+    result: Dict[str, Any] = {}
     for (trait, trait_data) in traits.items():
         if trait not in trait_map:
             continue
@@ -54,29 +65,29 @@ def _TraitsDict(traits: dict, trait_map: dict):
 class Structure:
     """Class that represents a structure object in the Google Nest SDM API."""
 
-    def __init__(self, raw_data: dict, traits: dict):
+    def __init__(self, raw_data: Dict[str, Any], traits: Dict[str, Any]):
         """Initialize a structure."""
         self._raw_data = raw_data
         self._traits = traits
 
     @staticmethod
-    def MakeStructure(raw_data: dict):
+    def MakeStructure(raw_data: Dict[str, Any]):
         """Create a structure with the appropriate traits."""
         traits = raw_data.get(STRUCTURE_TRAITS, {})
         traits_dict = _TraitsDict(traits, STRUCTURE_TRAITS_MAP)
         return Structure(raw_data, traits_dict)
 
     @property
-    def name(self) -> str:
+    def name(self) -> Optional[str]:
         """Resource name of the structure e.g. 'enterprises/XYZ/structures/123'."""
-        return self._raw_data[STRUCTURE_NAME]
+        return cast(Optional[str], self._raw_data[STRUCTURE_NAME])
 
     @property
-    def traits(self) -> dict:
+    def traits(self) -> Dict[str, StructureTrait]:
         """Return a trait mixin on None."""
         return self._traits
 
-    def _traits_data(self, trait) -> dict:
+    def _traits_data(self, trait) -> Dict[str, Any]:
         """Return the raw dictionary for the specified trait."""
         traits_dict = self._raw_data.get(STRUCTURE_TRAITS, {})
-        return traits_dict.get(trait, {})
+        return cast(Dict[str, Any], traits_dict.get(trait, {}))

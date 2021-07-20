@@ -3,7 +3,7 @@
 import datetime
 import logging
 from abc import ABC
-from typing import Awaitable, Callable, Optional
+from typing import Awaitable, Callable, Optional, Dict, Any, cast
 
 from .auth import AbstractAuth
 from .registry import Registry
@@ -36,23 +36,23 @@ class EventProcessingError(Exception):
 class ImageEventBase(ABC):
     """Base class for all image related event types."""
 
-    def __init__(self, data: dict, timestamp: datetime.datetime):
+    def __init__(self, data: Dict[str, Any], timestamp: datetime.datetime):
         """Initialize EventBase."""
         self._data = data
         self._timestamp = timestamp
 
     @property
-    def event_id(self) -> str:
+    def event_id(self) -> Optional[str]:
         """ID associated with the event.
 
         Can be used with CameraEventImageTrait to download the imaage.
         """
-        return self._data[EVENT_ID]
+        return cast(Optional[str], self._data[EVENT_ID])
 
     @property
-    def event_session_id(self) -> str:
+    def event_session_id(self) -> Optional[str]:
         """ID used to associate separate messages with a single event."""
-        return self._data[EVENT_SESSION_ID]
+        return cast(Optional[str], self._data[EVENT_SESSION_ID])
 
     @property
     def timestamp(self) -> datetime.datetime:
@@ -98,7 +98,7 @@ class EventTrait(ABC):
 
     def __init__(self):
         """Initialize an EventTrait."""
-        self._last_event = None
+        self._last_event: ImageEventBase | None = None
 
     @property
     def last_event(self) -> Optional[ImageEventBase]:
@@ -124,34 +124,38 @@ class EventTrait(ABC):
 class RelationUpdate:
     """Represents a relational update for a resource."""
 
-    def __init__(self, raw_data: dict):
+    def __init__(self, raw_data: Dict[str, Any]):
         """Initialize the RelationUpdate."""
         self._raw_data = raw_data
 
     @property
-    def type(self) -> str:
+    def type(self) -> Optional[str]:
         """Type of relation event 'CREATED', 'UPDATED', 'DELETED'."""
-        return self._raw_data[TYPE]
+        return cast(Optional[str], self._raw_data[TYPE])
 
     @property
-    def subject(self) -> str:
+    def subject(self) -> Optional[str]:
         """Resource that the object is now in relation with."""
-        return self._raw_data[SUBJECT]
+        return cast(Optional[str], self._raw_data[SUBJECT])
 
     @property
-    def object(self) -> str:
+    def object(self) -> Optional[str]:
         """Resource that triggered the event."""
-        return self._raw_data[OBJECT]
+        return cast(Optional[str], self._raw_data[OBJECT])
 
 
-def BuildEvents(events: dict, event_map: dict, timestamp: datetime.datetime) -> dict:
+def BuildEvents(
+    events: Dict[str, Any],
+    event_map: Dict[str, ImageEventBase],
+    timestamp: datetime.datetime,
+) -> Dict[str, Any]:
     """Build a trait map out of a response dict."""
     result = {}
     for (event, event_data) in events.items():
         if event not in event_map:
             continue
         cls = event_map[event]
-        result[event] = cls(event_data, timestamp)
+        result[event] = cls(event_data, timestamp)  # type: ignore
     return result
 
 
@@ -180,7 +184,7 @@ class EventMessage:
         """Return the id of the device that was updated."""
         if RESOURCE_UPDATE not in self._raw_data:
             return None
-        return self._raw_data[RESOURCE_UPDATE][NAME]
+        return cast(Optional[str], self._raw_data[RESOURCE_UPDATE][NAME])
 
     @property
     def resource_update_events(self) -> Optional[dict]:

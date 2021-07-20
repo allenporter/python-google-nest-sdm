@@ -1,6 +1,7 @@
 """Base library for all traits."""
 
 import aiohttp
+from typing import Dict, Any
 
 from .auth import AbstractAuth
 from .registry import Registry
@@ -18,11 +19,11 @@ class Command:
         self._device_id = device_id
         self._auth = auth
 
-    async def execute(self, data: dict) -> aiohttp.ClientResponse:
+    async def execute(self, data: Dict[str, Any]) -> aiohttp.ClientResponse:
         """Run the command."""
         return await self._auth.post(f"{self._device_id}:executeCommand", json=data)
 
-    async def fetch_image(self, url, basic_auth=None) -> bytes:
+    async def fetch_image(self, url: str, basic_auth=None) -> bytes:
         """Fetch an image at the specified url."""
         headers = None
         if basic_auth:
@@ -31,7 +32,9 @@ class Command:
         return await resp.read()
 
 
-def _TraitsDict(traits: dict, trait_map: dict, cmd: Command):
+def _TraitsDict(
+    traits: Dict[str, Any], trait_map: Dict[str, Any], cmd: Command
+) -> Dict[str, Any]:
     d = {}
     for (trait, trait_data) in traits.items():
         if trait not in trait_map:
@@ -41,7 +44,9 @@ def _TraitsDict(traits: dict, trait_map: dict, cmd: Command):
     return d
 
 
-def BuildTraits(traits: dict, cmd: Command, device_type=None) -> dict:
+def BuildTraits(
+    traits: Dict[str, Any], cmd: Command, device_type=None
+) -> Dict[str, Any]:
     """Build a trait map out of a response dict."""
     # There is a bug where doorbells do not return the DoorbellChime trait.  Simulate
     # that it was returned
