@@ -7,4 +7,13 @@
   "assignees": ["allenporter"],
   "dependencyDashboard": true,
   "dependencyDashboardTitle": "Renovate Dashboard",
+  "packageRules": [
+    {
+      "description": "Minor updates are automatic",
+      "automerge": true,
+      "automergeType": "branch",
+      "additionalBranchPrefix": "dev-",
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+    },
+  ],
 }
