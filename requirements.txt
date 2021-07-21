@@ -52,7 +52,7 @@ pyparsing==2.4.7
 pytest==6.2.4
 pytest-aiohttp==0.3.0
 pytest-asyncio==0.15.1
-pytz==2020.1
+pytz==2020.5
 PyYAML==5.4.1
 regex==2021.7.6
 requests==2.24.0
