@@ -10,16 +10,25 @@
   "branchConcurrentLimit": 20,
   "packageRules": [
     {
+      "groupName": "group:flake8",
+      "matchPackageNames": ["flake8"],
+      "matchPackagePatterns": ["flake"]
+    },
+    {
+      "groupName": "group:pytest",
+      "matchPackageNames": ["pytest"],
+      "matchPackagePatterns": ["^pytest-"]
+    },
+    {
       "description": "Minor updates are automatic",
       "automerge": true,
       "automergeType": "branch",
-      "additionalBranchPrefix": "dev-",
       "matchUpdateTypes": ["minor", "patch"],
     },
     {
       "description": "Major packages updated weekly",
       "extends": ["schedule:weekends"],
-      "additionalBranchPrefix": "dev-major",
+      "additionalBranchPrefix": "major",
       "matchUpdateTypes": ["major"],
     },
   ],
