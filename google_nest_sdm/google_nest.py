@@ -136,11 +136,11 @@ class Auth(AbstractAuth):
         super().__init__(websession, api_url)
         self._user_creds = user_creds
 
-    async def async_get_access_token(self):
+    async def async_get_access_token(self) -> str:
         """Return a valid access token."""
         return self._user_creds.token
 
-    async def async_get_creds(self):
+    async def async_get_creds(self) -> Credentials:
         """Return valid OAuth creds."""
         return self._user_creds
 
@@ -185,7 +185,7 @@ def CreateCreds(args: argparse.Namespace) -> Credentials:
     return creds
 
 
-def PrintStructure(structure, output_type):
+def PrintStructure(structure: Structure, output_type: str) -> None:
     """Print the structure."""
     if output_type == "json":
         print(json.dumps(structure.raw_data))
@@ -193,7 +193,7 @@ def PrintStructure(structure, output_type):
         print(yaml.dump(structure.raw_data))
 
 
-def PrintDevice(device, output_type):
+def PrintDevice(device: Device, output_type: str) -> None:
     """Print the device."""
     if output_type == "json":
         print(json.dumps(device.raw_data))
@@ -204,7 +204,7 @@ def PrintDevice(device, output_type):
 class SubscribeCallback:
     """Print the event message."""
 
-    def __init__(self, output_type=None):
+    def __init__(self, output_type: Optional[str] = None) -> None:
         """Initialize SubscribeCallback."""
         self._output_type = output_type
 
@@ -219,7 +219,7 @@ class SubscribeCallback:
 class DeviceWatcherCallback:
     """Print the event message."""
 
-    def __init__(self, device, output_type):
+    def __init__(self, device: Device, output_type: str) -> None:
         """Initialize DeviceWatcherCallback."""
         self._device = device
         self._output_type = output_type
@@ -316,7 +316,7 @@ async def RunTool(args: argparse.Namespace, user_creds: Credentials) -> None:
             print(f"Expires At: {stream.expires_at}")
 
 
-def main():
+def main() -> None:
     """Nest command line tool."""
     args: argparse.Namespace = parser.parse_args()
     if args.verbose:

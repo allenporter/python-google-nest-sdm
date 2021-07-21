@@ -93,3 +93,8 @@ class Structure:
         """Return the raw dictionary for the specified trait."""
         traits_dict = self._raw_data.get(STRUCTURE_TRAITS, {})
         return cast(Dict[str, Any], traits_dict.get(trait, {}))
+
+    @property
+    def raw_data(self) -> Dict[str, Any]:
+        """Return raw data for the structure."""
+        return self._raw_data

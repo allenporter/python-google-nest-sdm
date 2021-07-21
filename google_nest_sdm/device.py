@@ -188,3 +188,8 @@ class Device:
                 if event.expires_at > trait_to_return.last_event.expires_at:
                     trait_to_return = trait
         return trait_to_return
+
+    @property
+    def raw_data(self) -> Dict[str, Any]:
+        """Return raw data for the device."""
+        return self._raw_data
