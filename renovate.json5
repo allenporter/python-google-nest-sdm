@@ -12,12 +12,23 @@
     {
       "groupName": "group:flake8",
       "matchPackageNames": ["flake8"],
-      "matchPackagePatterns": ["flake"]
+      "matchPackagePatterns": [
+          "^flake8-",
+          "pyflakes",
+      ],
     },
     {
       "groupName": "group:pytest",
       "matchPackageNames": ["pytest"],
-      "matchPackagePatterns": ["^pytest-"]
+      "matchPackagePatterns": ["^pytest-"],
+    },
+    {
+      "groupName": "group:mypy",
+      "matchPackageNames": ["mypy"],
+      "matchPackagePatterns": [
+          "^mypy-",
+          "^typing-",
+      ],
     },
     {
       "description": "Minor updates are automatic",
