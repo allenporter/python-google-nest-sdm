@@ -14,7 +14,9 @@
       "matchPackageNames": ["flake8"],
       "matchPackagePatterns": [
           "^flake8-",
-          "pyflakes",
+          "^pyflakes",
+          "^mccabe",
+          "^pycodestyle",
       ],
     },
     {
