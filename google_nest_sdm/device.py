@@ -113,7 +113,7 @@ class Device:
         """
         self._callbacks.append(target)
 
-        def remove_callback():
+        def remove_callback() -> None:
             """Remove the event_callback."""
             self._callbacks.remove(target)
 

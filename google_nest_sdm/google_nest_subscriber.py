@@ -85,7 +85,12 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
                 callback_wrapper,
             )
 
-    def _new_subscriber(self, creds, subscription_name, callback_wrapper):
+    def _new_subscriber(
+        self,
+        creds: Credentials,
+        subscription_name: str,
+        callback_wrapper: Callable[[pubsub_v1.subscriber.message.Message], None],
+    ) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
         """Issue a command to verify subscriber creds are correct."""
 
         try:
@@ -211,7 +216,7 @@ class GoogleNestSubscriber:
         assert self._subscriber_future
         self._subscriber_future.result()
 
-    def stop_async(self):
+    def stop_async(self) -> None:
         """Tell the subscriber to start shutting down."""
         if self._device_manager_task:
             self._device_manager_task.cancel()
@@ -229,7 +234,7 @@ class GoogleNestSubscriber:
         assert self._device_manager_task
         return await self._device_manager_task
 
-    async def _async_create_device_manager(self):
+    async def _async_create_device_manager(self) -> DeviceManager:
         """Create a DeviceManager, populated with initial state."""
         device_manager = DeviceManager()
         structures = await self._api.async_get_structures()
@@ -241,7 +246,9 @@ class GoogleNestSubscriber:
             device_manager.add_device(device)
         return device_manager
 
-    def _done_callback(self, future):
+    def _done_callback(
+        self, future: pubsub_v1.subscriber.futures.StreamingPullFuture
+    ) -> None:
         """Teardown subscriber."""
         if future.exception():
             ex = future.exception()

@@ -10,7 +10,7 @@ from .structure import InfoTrait, RoomInfoTrait, Structure
 class DeviceManager:
     """DeviceManager holds current state of all devices."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize DeviceManager."""
         self._devices: Dict[str, Device] = {}
         self._structures: Dict[str, Structure] = {}
