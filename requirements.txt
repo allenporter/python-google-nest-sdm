@@ -61,8 +61,8 @@ rsa==4.7.2
 six==1.16.0
 toml==0.10.2
 typed-ast==1.4.3
-typing-extensions==3.7.4.3
-typing-inspect==0.6.0
+typing-extensions==3.10.0.0
+typing-inspect==0.7.1
 unittest2pytest==0.4
 urllib3==1.26.6
 virtualenv==20.6.0
