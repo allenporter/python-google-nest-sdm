@@ -1,7 +1,7 @@
 """Authentication library, implemented by users of the API."""
 import logging
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Dict, Any, Optional
 
 import aiohttp
 from aiohttp.client_exceptions import ClientError, ClientResponseError
@@ -36,7 +36,9 @@ class AbstractAuth(ABC):
         token = await self.async_get_access_token()
         return OAuthCredentials(token=token)
 
-    async def request(self, method: str, url: str, **kwargs) -> aiohttp.ClientResponse:
+    async def request(
+        self, method: str, url: str, **kwargs: Optional[Dict[str, Any]]
+    ) -> aiohttp.ClientResponse:
         """Make a request."""
         headers = kwargs.get("headers")
 
@@ -56,7 +58,7 @@ class AbstractAuth(ABC):
         _LOGGER.debug("request[%s]=%s", method, url)
         return await self._websession.request(method, url, **kwargs, headers=headers)
 
-    async def get(self, url: str, **kwargs) -> aiohttp.ClientResponse:
+    async def get(self, url: str, **kwargs: Dict[str, Any]) -> aiohttp.ClientResponse:
         """Make a get request."""
         try:
             resp = await self.request("get", url, **kwargs)
@@ -64,7 +66,7 @@ class AbstractAuth(ABC):
             raise ApiException(f"Error connecting to API: {err}") from err
         return await AbstractAuth._raise_for_status(resp)
 
-    async def post(self, url: str, **kwargs) -> aiohttp.ClientResponse:
+    async def post(self, url: str, **kwargs: Dict[str, Any]) -> aiohttp.ClientResponse:
         """Make a post request."""
         try:
             resp = await self.request("post", url, **kwargs)

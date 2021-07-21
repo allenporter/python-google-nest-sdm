@@ -11,6 +11,7 @@ from aiohttp.client_exceptions import ClientError
 from google.api_core.exceptions import GoogleAPIError, NotFound, Unauthenticated
 from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
 from google.cloud import pubsub_v1
 
 from .auth import AbstractAuth
@@ -41,7 +42,13 @@ class AbstractSubscriberFactory(ABC):
 
     @abstractmethod
     async def async_new_subscriber(
-        self, creds, subscription_name, loop, async_callback
+        self,
+        creds: Credentials,
+        subscription_name: str,
+        loop: asyncio.AbstractEventLoop,
+        async_callback: Callable[
+            [pubsub_v1.subscriber.message.Message], Awaitable[None]
+        ],
     ) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
         """Create a new event subscriber."""
 
@@ -50,14 +57,23 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
     """Default implementation that creates Google Pubsub subscriber."""
 
     async def async_new_subscriber(
-        self, creds, subscription_name, loop, async_callback
+        self,
+        creds: Credentials,
+        subscription_name: str,
+        loop: asyncio.AbstractEventLoop,
+        async_callback: Callable[
+            [pubsub_v1.subscriber.message.Message], Awaitable[None]
+        ],
     ) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
         """Create a new subscriber with a blocking to async bridge."""
 
-        def callback_wrapper(message: pubsub_v1.subscriber.message.Message):
+        def callback_wrapper(message: pubsub_v1.subscriber.message.Message) -> None:
             if loop.is_closed():
                 return
-            future = asyncio.run_coroutine_threadsafe(async_callback(message), loop)
+            assert async_callback
+            future: concurrent.futures.Future = asyncio.run_coroutine_threadsafe(
+                async_callback(message), loop
+            )
             future.result()
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
@@ -127,11 +143,13 @@ class GoogleNestSubscriber:
         if self._watchdog_check_interval_seconds > 0:
             self._watchdog_task = asyncio.create_task(self._watchdog())
 
-    def set_update_callback(self, target: Callable[[EventMessage], Awaitable[None]]):
+    def set_update_callback(
+        self, target: Callable[[EventMessage], Awaitable[None]]
+    ) -> None:
         """Register a callback invoked when new messages are received."""
         self._callback = target
 
-    async def start_async(self):
+    async def start_async(self) -> None:
         """Start the subscriber."""
         if not EXPECTED_SUBSCRIBER_REGEXP.match(self._subscriber_id):
             raise ConfigurationException(
@@ -170,7 +188,7 @@ class GoogleNestSubscriber:
         if self._subscriber_future:
             self._subscriber_future.add_done_callback(self._done_callback)
 
-    async def _watchdog(self):
+    async def _watchdog(self) -> None:
         """Background task that watches the subscriber and restarts it."""
         _LOGGER.debug("Starting background watchdog thread")
         while True:
@@ -188,7 +206,7 @@ class GoogleNestSubscriber:
                 await self.start_async()
             await asyncio.sleep(self._watchdog_check_interval_seconds)
 
-    def wait(self):
+    def wait(self) -> None:
         """Block on the subscriber."""
         assert self._subscriber_future
         self._subscriber_future.result()
@@ -233,7 +251,7 @@ class GoogleNestSubscriber:
 
     async def _async_message_callback(
         self, message: pubsub_v1.subscriber.message.Message
-    ):
+    ) -> None:
         """Handle a received message."""
         payload = json.loads(bytes.decode(message.data))
         event = EventMessage(payload, self._auth)

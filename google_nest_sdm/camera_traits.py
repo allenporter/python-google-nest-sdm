@@ -174,7 +174,9 @@ class EventImage:
         """Token to use in the HTTP Authorization header when downloading."""
         return cast(Optional[str], self._data[TOKEN])
 
-    async def contents(self, width=None, height=None) -> bytes:
+    async def contents(
+        self, width: Optional[int] = None, height: Optional[int] = None
+    ) -> bytes:
         """Download the image bytes."""
         if width:
             fetch_url = f"{self.url}?width={width}"

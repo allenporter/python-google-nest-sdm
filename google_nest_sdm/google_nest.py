@@ -145,7 +145,7 @@ class Auth(AbstractAuth):
         return self._user_creds
 
 
-def CreateCreds(args) -> Credentials:
+def CreateCreds(args: argparse.Namespace) -> Credentials:
     """Run an interactive flow to get OAuth creds."""
     creds = None
     token_cache = os.path.expanduser(args.token_cache)
@@ -208,7 +208,7 @@ class SubscribeCallback:
         """Initialize SubscribeCallback."""
         self._output_type = output_type
 
-    async def async_handle_event(self, event_message: EventMessage):
+    async def async_handle_event(self, event_message: EventMessage) -> None:
         """Handle an EventMessage."""
         if self._output_type == "json":
             print(json.dumps(event_message.raw_data))
@@ -224,7 +224,7 @@ class DeviceWatcherCallback:
         self._device = device
         self._output_type = output_type
 
-    async def async_handle_event(self, event_message: EventMessage):
+    async def async_handle_event(self, event_message: EventMessage) -> None:
         """Handle an EventMessage."""
         print(f"event_id: {event_message.event_id}")
         print("Current device state:")
@@ -232,7 +232,7 @@ class DeviceWatcherCallback:
         print("")
 
 
-async def RunTool(args, user_creds: Credentials):
+async def RunTool(args: argparse.Namespace, user_creds: Credentials) -> None:
     """Run the command."""
     async with ClientSession() as client:
         auth = Auth(client, user_creds, API_URL)
@@ -318,7 +318,7 @@ async def RunTool(args, user_creds: Credentials):
 
 def main():
     """Nest command line tool."""
-    args = parser.parse_args()
+    args: argparse.Namespace = parser.parse_args()
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
     user_creds = CreateCreds(args)

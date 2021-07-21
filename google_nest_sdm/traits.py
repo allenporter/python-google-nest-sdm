@@ -1,7 +1,7 @@
 """Base library for all traits."""
 
 import aiohttp
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from .auth import AbstractAuth
 from .registry import Registry
@@ -23,11 +23,12 @@ class Command:
         """Run the command."""
         return await self._auth.post(f"{self._device_id}:executeCommand", json=data)
 
-    async def fetch_image(self, url: str, basic_auth=None) -> bytes:
+    async def fetch_image(self, url: str, basic_auth: Optional[str] = None) -> bytes:
         """Fetch an image at the specified url."""
-        headers = None
+        headers: Optional[Dict[str, Any]] = None
         if basic_auth:
             headers = {"Authorization": f"Basic {basic_auth}"}
+        assert headers
         resp = await self._auth.get(url, headers=headers)
         return await resp.read()
 
@@ -45,7 +46,7 @@ def _TraitsDict(
 
 
 def BuildTraits(
-    traits: Dict[str, Any], cmd: Command, device_type=None
+    traits: Dict[str, Any], cmd: Command, device_type: Optional[str] = None
 ) -> Dict[str, Any]:
     """Build a trait map out of a response dict."""
     # There is a bug where doorbells do not return the DoorbellChime trait.  Simulate

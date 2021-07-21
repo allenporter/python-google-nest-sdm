@@ -36,7 +36,7 @@ class EventProcessingError(Exception):
 class ImageEventBase(ABC):
     """Base class for all image related event types."""
 
-    def __init__(self, data: Dict[str, Any], timestamp: datetime.datetime):
+    def __init__(self, data: Dict[str, Any], timestamp: datetime.datetime) -> None:
         """Initialize EventBase."""
         self._data = data
         self._timestamp = timestamp
@@ -116,7 +116,7 @@ class EventTrait(ABC):
             return None
         return self._last_event
 
-    def handle_event(self, event: ImageEventBase):
+    def handle_event(self, event: ImageEventBase) -> None:
         """Recieve an event message."""
         self._last_event = event
 
@@ -219,12 +219,14 @@ class EventMessage:
 class EventTypeFilterCallback:
     """Invoke a delegate only for events that match the trait type."""
 
-    def __init__(self, event_name, delegate: Callable[[EventMessage], Awaitable[None]]):
+    def __init__(
+        self, event_name: str, delegate: Callable[[EventMessage], Awaitable[None]]
+    ) -> None:
         """Initialize EventTypeFilterCallback."""
         self._event_name = event_name
         self._delegate = delegate
 
-    async def async_handle_event(self, event_message: EventMessage):
+    async def async_handle_event(self, event_message: EventMessage) -> None:
         """Process an incoming EventMessage."""
         events = event_message.resource_update_events
         if events and self._event_name in events:
@@ -243,7 +245,7 @@ class RecentEventFilterCallback:
         self._cutoff_timedelta = cutoff_timedelta
         self._delegate = delegate
 
-    async def async_handle_event(self, event_message: EventMessage):
+    async def async_handle_event(self, event_message: EventMessage) -> None:
         """Process an incoming EventMessage."""
         if not event_message.timestamp:
             return

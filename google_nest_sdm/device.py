@@ -25,10 +25,10 @@ PARENT = "parent"
 DISPLAYNAME = "displayName"
 
 
-def _MakeEventTraitMap(traits: dict):
+def _MakeEventTraitMap(traits: Dict[str, Any]) -> Dict[str, Any]:
     if camera_traits.CameraEventImageTrait.NAME not in traits:
         return {}
-    event_trait_map = {}
+    event_trait_map: Dict[str, Any] = {}
     for (trait_name, trait) in traits.items():
         if not hasattr(trait, "EVENT_NAME"):
             continue
@@ -99,7 +99,7 @@ class Device:
         The return value is a callable that will unregister the callback.
         """
 
-        async def handle_event(event_message: EventMessage):
+        async def handle_event(event_message: EventMessage) -> None:
             target()
 
         return self.add_event_callback(handle_event)

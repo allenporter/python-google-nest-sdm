@@ -33,7 +33,7 @@ class GoogleNestAPI:
             Structure.MakeStructure(structure_data) for structure_data in structures
         ]
 
-    async def async_get_structure(self, structure_id) -> Optional[Structure]:
+    async def async_get_structure(self, structure_id: str) -> Optional[Structure]:
         """Return a structure device."""
         resp = await self._auth.get(f"{self._structures_url}/{structure_id}")
         data = await resp.json()
@@ -54,7 +54,7 @@ class GoogleNestAPI:
         devices = response_data[DEVICES]
         return [Device.MakeDevice(device_data, self._auth) for device_data in devices]
 
-    async def async_get_device(self, device_id) -> Optional[Device]:
+    async def async_get_device(self, device_id: str) -> Optional[Device]:
         """Return a specific device."""
         resp = await self._auth.get(f"{self._devices_url}/{device_id}")
         data = await resp.json()

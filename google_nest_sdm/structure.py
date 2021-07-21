@@ -1,5 +1,7 @@
 """Traits for structures / rooms."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any, cast
 from .registry import Registry
@@ -42,7 +44,7 @@ class RoomInfoTrait(StructureTrait):
 
     NAME = "sdm.structures.traits.RoomInfo"
 
-    def __init__(self, data: Dict[str, Any]):
+    def __init__(self, data: Dict[str, Any]) -> None:
         """Initialize RoomInfoTrait."""
         self._data = data
 
@@ -52,7 +54,7 @@ class RoomInfoTrait(StructureTrait):
         return cast(str, self._data[CUSTOM_NAME])
 
 
-def _TraitsDict(traits: Dict[str, Any], trait_map: Dict[str, Any]):
+def _TraitsDict(traits: Dict[str, Any], trait_map: Dict[str, Any]) -> Dict[str, Any]:
     result: Dict[str, Any] = {}
     for (trait, trait_data) in traits.items():
         if trait not in trait_map:
@@ -65,13 +67,13 @@ def _TraitsDict(traits: Dict[str, Any], trait_map: Dict[str, Any]):
 class Structure:
     """Class that represents a structure object in the Google Nest SDM API."""
 
-    def __init__(self, raw_data: Dict[str, Any], traits: Dict[str, Any]):
+    def __init__(self, raw_data: Dict[str, Any], traits: Dict[str, Any]) -> None:
         """Initialize a structure."""
         self._raw_data = raw_data
         self._traits = traits
 
     @staticmethod
-    def MakeStructure(raw_data: Dict[str, Any]):
+    def MakeStructure(raw_data: Dict[str, Any]) -> Structure:
         """Create a structure with the appropriate traits."""
         traits = raw_data.get(STRUCTURE_TRAITS, {})
         traits_dict = _TraitsDict(traits, STRUCTURE_TRAITS_MAP)
@@ -87,7 +89,7 @@ class Structure:
         """Return a trait mixin on None."""
         return self._traits
 
-    def _traits_data(self, trait) -> Dict[str, Any]:
+    def _traits_data(self, trait: Dict[str, Any]) -> Dict[str, Any]:
         """Return the raw dictionary for the specified trait."""
         traits_dict = self._raw_data.get(STRUCTURE_TRAITS, {})
         return cast(Dict[str, Any], traits_dict.get(trait, {}))

@@ -1,4 +1,7 @@
 """Traits for thermostats."""
+
+import aiohttp
+
 from .traits import TRAIT_MAP, Command
 
 STATUS = "status"
@@ -29,7 +32,7 @@ class ThermostatEcoTrait:
         """Eco mode of the thermostat."""
         return self._data[MODE]
 
-    async def set_mode(self, mode):
+    async def set_mode(self, mode: str) -> aiohttp.ClientResponse:
         """Change the thermostat Eco mode."""
         data = {
             "command": "sdm.devices.commands.ThermostatEco.SetMode",
@@ -85,7 +88,7 @@ class ThermostatModeTrait:
         """Mode of the thermostat."""
         return self._data[MODE]
 
-    async def set_mode(self, mode):
+    async def set_mode(self, mode: str) -> aiohttp.ClientResponse:
         """Change the thermostat Eco mode."""
         data = {
             "command": "sdm.devices.commands.ThermostatMode.SetMode",
@@ -115,7 +118,7 @@ class ThermostatTemperatureSetpointTrait:
         """Highest cooling temperature where Eco mode begins cooling."""
         return self._data[COOL_CELSIUS]
 
-    async def set_heat(self, heat: float):
+    async def set_heat(self, heat: float) -> aiohttp.ClientResponse:
         """Change the thermostat Eco mode."""
         data = {
             "command": "sdm.devices.commands.ThermostatTemperatureSetpoint.SetHeat",
@@ -123,7 +126,7 @@ class ThermostatTemperatureSetpointTrait:
         }
         return await self._cmd.execute(data)
 
-    async def set_cool(self, cool: float):
+    async def set_cool(self, cool: float) -> aiohttp.ClientResponse:
         """Change the thermostat Eco mode."""
         data = {
             "command": "sdm.devices.commands.ThermostatTemperatureSetpoint.SetCool",
@@ -131,7 +134,7 @@ class ThermostatTemperatureSetpointTrait:
         }
         return await self._cmd.execute(data)
 
-    async def set_range(self, heat: float, cool: float):
+    async def set_range(self, heat: float, cool: float) -> aiohttp.ClientResponse:
         """Change the thermostat Eco mode."""
         data = {
             "command": "sdm.devices.commands.ThermostatTemperatureSetpoint.SetRange",
