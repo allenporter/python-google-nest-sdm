@@ -1,5 +1,7 @@
 """Traits belonging to camera devices."""
 
+from __future__ import annotations
+
 import datetime
 from typing import Optional, Dict, Any, cast
 import urllib.parse as urlparse
@@ -79,7 +81,7 @@ class RtspStream:
         expires_at = self._data[EXPIRES_AT]
         return datetime.datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
 
-    async def extend_rtsp_stream(self):
+    async def extend_rtsp_stream(self) -> RtspStream:
         """Request a new RTSP live stream URL access token."""
         data = {
             "command": "sdm.devices.commands.CameraLiveStream.ExtendRtspStream",
@@ -97,7 +99,7 @@ class RtspStream:
         results[STREAM_URLS][RTSP_URL] = url
         return RtspStream(results, self._cmd)
 
-    async def stop_rtsp_stream(self):
+    async def stop_rtsp_stream(self) -> None:
         """Invalidates a valid RTSP access token and stops the RTSP live stream."""
         data = {
             "command": "sdm.devices.commands.CameraLiveStream.StopRtspStream",
