@@ -96,7 +96,7 @@ class DoorbellChimeEvent(ImageEventBase):
 class EventTrait(ABC):
     """Parent class for traits related to handling events."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize an EventTrait."""
         self._last_event: Optional[ImageEventBase] = None
 

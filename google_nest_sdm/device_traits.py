@@ -1,5 +1,6 @@
 """Library for traits about devices."""
 
+import aiohttp
 import datetime
 from typing import Optional, Dict, Any
 
@@ -61,7 +62,9 @@ class FanTrait:
         timestamp = self._data[TIMER_TIMEOUT]
         return datetime.datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
 
-    async def set_timer(self, timer_mode, duration=None):
+    async def set_timer(
+        self, timer_mode: str, duration: Optional[int] = None
+    ) -> aiohttp.ClientResponse:
         """Change the fan timer."""
         data: Dict[str, Any] = {
             "command": "sdm.devices.commands.Fan.SetTimer",
