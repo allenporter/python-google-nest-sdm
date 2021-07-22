@@ -22,7 +22,7 @@ google-cloud-pubsub==2.6.1
 google-cloud-resource-manager==0.30.3
 googleapis-common-protos==1.53.0
 grpc-google-iam-v1==0.12.3
-grpcio==1.38.1
+grpcio==1.39.0
 httplib2==0.19.1
 identify==2.2.11
 idna==2.10
