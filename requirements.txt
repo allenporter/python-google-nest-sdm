@@ -54,7 +54,7 @@ pyparsing==2.4.7
 pytest==6.2.4
 pytest-aiohttp==0.3.0
 pytest-asyncio==0.15.1
-pytest-mock==3.3.1
+pytest-mock==3.6.1
 pytz==2021.1
 PyYAML==5.4.1
 regex==2021.7.6
