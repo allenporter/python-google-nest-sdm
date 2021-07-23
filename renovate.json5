@@ -29,6 +29,7 @@
       "matchPackageNames": ["mypy"],
       "matchPackagePatterns": [
           "^mypy-",
+          "^types-",
           "^typing-",
       ],
     },
