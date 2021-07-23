@@ -22,7 +22,6 @@ google-auth-oauthlib==0.4.4
 google-cloud-core==1.7.1
 google-cloud-pubsub==2.6.1
 google-cloud-resource-manager==1.0.1
--e git+git@github.com:allenporter/python-google-nest-sdm.git@047e6fbae7507f8f8462310cd18ea7f705b845e7#egg=google_nest_sdm
 googleapis-common-protos==1.53.0
 grpc-google-iam-v1==0.12.3
 grpcio==1.39.0
