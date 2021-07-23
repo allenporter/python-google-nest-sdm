@@ -9,6 +9,7 @@ cachetools==4.2.2
 certifi==2021.5.30
 cfgv==3.3.0
 chardet==4.0.0
+charset-normalizer==2.0.3
 click==8.0.1
 distlib==0.3.2
 filelock==3.0.12
@@ -16,10 +17,12 @@ flake8==3.9.2
 flake8-black==0.2.3
 frozenlist==1.1.1
 google-api-core==1.31.0
+google-auth==1.33.1
 google-auth-oauthlib==0.4.4
 google-cloud-core==1.7.1
 google-cloud-pubsub==2.6.1
 google-cloud-resource-manager==1.0.1
+-e git+git@github.com:allenporter/python-google-nest-sdm.git@047e6fbae7507f8f8462310cd18ea7f705b845e7#egg=google_nest_sdm
 googleapis-common-protos==1.53.0
 grpc-google-iam-v1==0.12.3
 grpcio==1.39.0
@@ -52,6 +55,7 @@ pyparsing==2.4.7
 pytest==6.2.4
 pytest-aiohttp==0.3.0
 pytest-asyncio==0.15.1
+pytest-mock==3.3.1
 pytz==2021.1
 PyYAML==5.4.1
 regex==2021.7.6
@@ -61,6 +65,7 @@ rsa==4.7.2
 six==1.16.0
 toml==0.10.2
 typed-ast==1.4.3
+types-PyYAML==5.4.3
 typing-extensions==3.10.0.0
 typing-inspect==0.7.1
 unittest2pytest==0.4
