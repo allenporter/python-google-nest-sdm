@@ -1,14 +1,19 @@
 """Traits for thermostats."""
 
+from __future__ import annotations
+
 import aiohttp
+
+from typing import Any, List, Final, Dict, cast
 
 from .traits import TRAIT_MAP, Command
 
-STATUS = "status"
-AVAILABLE_MODES = "availableModes"
-MODE = "mode"
-HEAT_CELSIUS = "heatCelsius"
-COOL_CELSIUS = "coolCelsius"
+
+STATUS: Final = "status"
+AVAILABLE_MODES: Final = "availableModes"
+MODE: Final = "mode"
+HEAT_CELSIUS: Final = "heatCelsius"
+COOL_CELSIUS: Final = "coolCelsius"
 
 
 @TRAIT_MAP.register()
@@ -17,20 +22,20 @@ class ThermostatEcoTrait:
 
     NAME = "sdm.devices.traits.ThermostatEco"
 
-    def __init__(self, data: dict, cmd: Command):
+    def __init__(self, data: Dict[str, Any], cmd: Command):
         """Initialize ThermostatEcoTrait."""
         self._data = data
         self._cmd = cmd
 
     @property
-    def available_modes(self) -> list:
+    def available_modes(self) -> List[str]:
         """List of supported Eco modes."""
-        return self._data[AVAILABLE_MODES]
+        return cast(List[str], self._data[AVAILABLE_MODES])
 
     @property
     def mode(self) -> str:
         """Eco mode of the thermostat."""
-        return self._data[MODE]
+        return cast(str, self._data[MODE])
 
     async def set_mode(self, mode: str) -> aiohttp.ClientResponse:
         """Change the thermostat Eco mode."""
@@ -43,12 +48,12 @@ class ThermostatEcoTrait:
     @property
     def heat_celsius(self) -> float:
         """Lowest temperature where Eco mode begins heating."""
-        return self._data[HEAT_CELSIUS]
+        return cast(float, self._data[HEAT_CELSIUS])
 
     @property
     def cool_celsius(self) -> float:
         """Highest cooling temperature where Eco mode begins cooling."""
-        return self._data[COOL_CELSIUS]
+        return cast(float, self._data[COOL_CELSIUS])
 
 
 @TRAIT_MAP.register()
@@ -62,9 +67,9 @@ class ThermostatHvacTrait:
         self._data = data
 
     @property
-    def status(self) -> list:
+    def status(self) -> List[str]:
         """HVAC status of the thermostat."""
-        return self._data[STATUS]
+        return cast(List[str], self._data[STATUS])
 
 
 @TRAIT_MAP.register()
@@ -79,14 +84,14 @@ class ThermostatModeTrait:
         self._cmd = cmd
 
     @property
-    def available_modes(self) -> list:
+    def available_modes(self) -> List[str]:
         """List of supported thermostat modes."""
-        return self._data[AVAILABLE_MODES]
+        return cast(List[str], self._data[AVAILABLE_MODES])
 
     @property
     def mode(self) -> str:
         """Mode of the thermostat."""
-        return self._data[MODE]
+        return cast(str, self._data[MODE])
 
     async def set_mode(self, mode: str) -> aiohttp.ClientResponse:
         """Change the thermostat Eco mode."""
@@ -111,12 +116,12 @@ class ThermostatTemperatureSetpointTrait:
     @property
     def heat_celsius(self) -> float:
         """Lowest temperature where Eco mode begins heating."""
-        return self._data[HEAT_CELSIUS]
+        return cast(float, self._data[HEAT_CELSIUS])
 
     @property
-    def cool_celsius(self) -> list:
+    def cool_celsius(self) -> float:
         """Highest cooling temperature where Eco mode begins cooling."""
-        return self._data[COOL_CELSIUS]
+        return cast(float, self._data[COOL_CELSIUS])
 
     async def set_heat(self, heat: float) -> aiohttp.ClientResponse:
         """Change the thermostat Eco mode."""

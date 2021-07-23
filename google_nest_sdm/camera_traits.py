@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import datetime
-from typing import Optional, Dict, Any, cast
+from typing import Optional, Dict, Any, cast, List
 import urllib.parse as urlparse
 
 from .event import CameraMotionEvent, CameraPersonEvent, CameraSoundEvent, EventTrait
@@ -38,7 +38,7 @@ class CameraImageTrait:
 
     NAME = "sdm.devices.traits.CameraImage"
 
-    def __init__(self, data: dict, cmd: Command):
+    def __init__(self, data: Dict[str, Any], cmd: Command):
         """Initialize CameraImageTrait."""
         self._data = data
         self._cmd = cmd
@@ -55,7 +55,7 @@ class CameraImageTrait:
 class RtspStream:
     """Provides access an RTSP live stream URL."""
 
-    def __init__(self, data: dict, cmd: Command):
+    def __init__(self, data: Dict[str, Any], cmd: Command):
         """Initialize RstpStream."""
         self._data = data
         self._cmd = cmd
@@ -63,17 +63,17 @@ class RtspStream:
     @property
     def rtsp_stream_url(self) -> str:
         """RTSP live stream URL."""
-        return self._data[STREAM_URLS][RTSP_URL]
+        return cast(str, self._data[STREAM_URLS][RTSP_URL])
 
     @property
     def stream_token(self) -> str:
         """Token to use to access an RTSP live stream."""
-        return self._data[STREAM_TOKEN]
+        return cast(str, self._data[STREAM_TOKEN])
 
     @property
     def stream_extension_token(self) -> str:
         """Token to use to access an RTSP live stream."""
-        return self._data[STREAM_EXTENSION_TOKEN]
+        return cast(str, self._data[STREAM_EXTENSION_TOKEN])
 
     @property
     def expires_at(self) -> datetime.datetime:
@@ -114,7 +114,7 @@ class CameraLiveStreamTrait:
 
     NAME = "sdm.devices.traits.CameraLiveStream"
 
-    def __init__(self, data: dict, cmd: Command):
+    def __init__(self, data: Dict[str, Any], cmd: Command):
         """Initialize CameraLiveStreamTrait."""
         self._data = data
         self._cmd = cmd
@@ -128,14 +128,14 @@ class CameraLiveStreamTrait:
         return res
 
     @property
-    def video_codecs(self) -> list:
+    def video_codecs(self) -> List[str]:
         """Video codecs supported for the live stream."""
-        return self._data[VIDEO_CODECS]
+        return cast(List[str], self._data[VIDEO_CODECS])
 
     @property
-    def audio_codecs(self) -> list:
+    def audio_codecs(self) -> List[str]:
         """Audio codecs supported for the live stream."""
-        return self._data[AUDIO_CODECS]
+        return cast(List[str], self._data[AUDIO_CODECS])
 
     async def generate_rtsp_stream(self) -> RtspStream:
         """Request a token to access an RTSP live stream URL."""

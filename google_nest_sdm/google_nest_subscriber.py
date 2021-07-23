@@ -134,7 +134,7 @@ class GoogleNestSubscriber:
         self._subscriber_id = subscriber_id
         self._api = GoogleNestAPI(auth, project_id)
         self._loop = loop or asyncio.get_event_loop()
-        self._device_manager_task: Optional[asyncio.Task] = None
+        self._device_manager_task: Optional[asyncio.Task[DeviceManager]] = None
         self._subscriber_factory = subscriber_factory
         self._subscriber_future: Optional[
             pubsub_v1.subscriber.futures.StreamingPullFuture

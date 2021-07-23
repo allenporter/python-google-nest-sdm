@@ -22,7 +22,7 @@ import json
 import logging
 import os
 import pickle
-from typing import Optional, List
+from typing import Optional, List, cast
 
 import yaml
 from aiohttp import ClientSession
@@ -138,7 +138,7 @@ class Auth(AbstractAuth):
 
     async def async_get_access_token(self) -> str:
         """Return a valid access token."""
-        return self._user_creds.token
+        return cast(str, self._user_creds.token)
 
     async def async_get_creds(self) -> Credentials:
         """Return valid OAuth creds."""

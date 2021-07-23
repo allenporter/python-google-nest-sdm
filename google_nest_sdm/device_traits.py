@@ -2,7 +2,7 @@
 
 import aiohttp
 import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, cast
 
 from .traits import TRAIT_MAP, Command
 
@@ -20,7 +20,7 @@ class ConnectivityTrait:
 
     NAME = "sdm.devices.traits.Connectivity"
 
-    def __init__(self, data: dict, cmd: Command):
+    def __init__(self, data: Dict[str, Any], cmd: Command):
         """Initialize ConnectivityTrait."""
         self._data = data
 
@@ -31,7 +31,7 @@ class ConnectivityTrait:
         Return:
           "OFFLINE", "ONLINE"
         """
-        return self._data[STATUS]
+        return cast(Optional[str], self._data[STATUS])
 
 
 @TRAIT_MAP.register()
@@ -40,7 +40,7 @@ class FanTrait:
 
     NAME = "sdm.devices.traits.Fan"
 
-    def __init__(self, data: dict, cmd: Command):
+    def __init__(self, data: Dict[str, Any], cmd: Command):
         """Initialize FanTrait."""
         self._data = data
         self._cmd = cmd
@@ -52,7 +52,7 @@ class FanTrait:
         Return:
           "ON", "OFF"
         """
-        return self._data.get(TIMER_MODE)
+        return cast(Optional[str], self._data.get(TIMER_MODE))
 
     @property
     def timer_timeout(self) -> Optional[datetime.datetime]:
@@ -83,14 +83,14 @@ class InfoTrait:
 
     NAME = "sdm.devices.traits.Info"
 
-    def __init__(self, data: dict, cmd: Command):
+    def __init__(self, data: Dict[str, Any], cmd: Command):
         """Initialize InfoTrait."""
         self._data = data
 
     @property
     def custom_name(self) -> str:
         """Name of the device."""
-        return self._data[CUSTOM_NAME]
+        return cast(str, self._data[CUSTOM_NAME])
 
 
 @TRAIT_MAP.register()
@@ -99,14 +99,14 @@ class HumidityTrait:
 
     NAME = "sdm.devices.traits.Humidity"
 
-    def __init__(self, data: dict, cmd: Command):
+    def __init__(self, data: Dict[str, Any], cmd: Command):
         """Initialize HumidityTrait."""
         self._data = data
 
     @property
     def ambient_humidity_percent(self) -> float:
         """Percent humidity, measured at the device."""
-        return self._data[AMBIENT_HUMIDITY_PERCENT]
+        return cast(float, self._data[AMBIENT_HUMIDITY_PERCENT])
 
 
 @TRAIT_MAP.register()
@@ -115,11 +115,11 @@ class TemperatureTrait:
 
     NAME = "sdm.devices.traits.Temperature"
 
-    def __init__(self, data: dict, cmd: Command):
+    def __init__(self, data: Dict[str, Any], cmd: Command):
         """Initialize TemperatureTrait."""
         self._data = data
 
     @property
     def ambient_temperature_celsius(self) -> float:
         """Percent humidity, measured at the device."""
-        return self._data[AMBIENT_TEMPERATURE_CELSIUS]
+        return cast(float, self._data[AMBIENT_TEMPERATURE_CELSIUS])
