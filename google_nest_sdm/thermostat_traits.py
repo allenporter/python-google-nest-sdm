@@ -7,6 +7,7 @@ import aiohttp
 from typing import Any, List, Final, Dict, cast
 
 from .traits import TRAIT_MAP, Command
+from .typing import cast_assert
 
 
 STATUS: Final = "status"
@@ -35,7 +36,7 @@ class ThermostatEcoTrait:
     @property
     def mode(self) -> str:
         """Eco mode of the thermostat."""
-        return cast(str, self._data[MODE])
+        return cast_assert(str, self._data[MODE])
 
     async def set_mode(self, mode: str) -> aiohttp.ClientResponse:
         """Change the thermostat Eco mode."""
@@ -48,12 +49,12 @@ class ThermostatEcoTrait:
     @property
     def heat_celsius(self) -> float:
         """Lowest temperature where Eco mode begins heating."""
-        return cast(float, self._data[HEAT_CELSIUS])
+        return cast_assert(float, self._data[HEAT_CELSIUS])
 
     @property
     def cool_celsius(self) -> float:
         """Highest cooling temperature where Eco mode begins cooling."""
-        return cast(float, self._data[COOL_CELSIUS])
+        return cast_assert(float, self._data[COOL_CELSIUS])
 
 
 @TRAIT_MAP.register()
@@ -91,7 +92,7 @@ class ThermostatModeTrait:
     @property
     def mode(self) -> str:
         """Mode of the thermostat."""
-        return cast(str, self._data[MODE])
+        return cast_assert(str, self._data[MODE])
 
     async def set_mode(self, mode: str) -> aiohttp.ClientResponse:
         """Change the thermostat Eco mode."""
@@ -116,12 +117,12 @@ class ThermostatTemperatureSetpointTrait:
     @property
     def heat_celsius(self) -> float:
         """Lowest temperature where Eco mode begins heating."""
-        return cast(float, self._data[HEAT_CELSIUS])
+        return cast_assert(float, self._data[HEAT_CELSIUS])
 
     @property
     def cool_celsius(self) -> float:
         """Highest cooling temperature where Eco mode begins cooling."""
-        return cast(float, self._data[COOL_CELSIUS])
+        return cast_assert(float, self._data[COOL_CELSIUS])
 
     async def set_heat(self, heat: float) -> aiohttp.ClientResponse:
         """Change the thermostat Eco mode."""
