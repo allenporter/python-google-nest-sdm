@@ -8,6 +8,7 @@ import urllib.parse as urlparse
 
 from .event import CameraMotionEvent, CameraPersonEvent, CameraSoundEvent, EventTrait
 from .traits import TRAIT_MAP, Command
+from .typing import cast_assert, cast_optional
 
 MAX_IMAGE_RESOLUTION = "maxImageResolution"
 MAX_VIDEO_RESOLUTION = "maxVideoResolution"
@@ -28,8 +29,8 @@ EXPIRES_AT = "expiresAt"
 class Resolution:
     """Maximum Resolution of an image or stream."""
 
-    width = None
-    height = None
+    width: Optional[int] = None
+    height: Optional[int] = None
 
 
 @TRAIT_MAP.register()
@@ -63,17 +64,21 @@ class RtspStream:
     @property
     def rtsp_stream_url(self) -> str:
         """RTSP live stream URL."""
-        return cast(str, self._data[STREAM_URLS][RTSP_URL])
+        rtsp_stream_url = self._data[STREAM_URLS][RTSP_URL]
+        assert isinstance(rtsp_stream_url, str)
+        return rtsp_stream_url
 
     @property
     def stream_token(self) -> str:
         """Token to use to access an RTSP live stream."""
-        return cast(str, self._data[STREAM_TOKEN])
+        stream_token = self._data[STREAM_TOKEN]
+        assert isinstance(stream_token, str)
+        return stream_token
 
     @property
     def stream_extension_token(self) -> str:
         """Token to use to access an RTSP live stream."""
-        return cast(str, self._data[STREAM_EXTENSION_TOKEN])
+        return cast_assert(str, self._data[STREAM_EXTENSION_TOKEN])
 
     @property
     def expires_at(self) -> datetime.datetime:
@@ -130,6 +135,7 @@ class CameraLiveStreamTrait:
     @property
     def video_codecs(self) -> List[str]:
         """Video codecs supported for the live stream."""
+        assert isinstance(self._data[VIDEO_CODECS], list)
         return cast(List[str], self._data[VIDEO_CODECS])
 
     @property
@@ -169,12 +175,12 @@ class EventImage:
     @property
     def url(self) -> Optional[str]:
         """URL to download the camera image from."""
-        return cast(Optional[str], self._data[URL])
+        return cast_optional(str, self._data.get(URL))
 
     @property
     def token(self) -> Optional[str]:
         """Token to use in the HTTP Authorization header when downloading."""
-        return cast(Optional[str], self._data[TOKEN])
+        return cast_optional(str, self._data.get(TOKEN))
 
     async def contents(
         self, width: Optional[int] = None, height: Optional[int] = None
