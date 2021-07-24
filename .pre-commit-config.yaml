@@ -18,4 +18,4 @@ repos:
   rev: v0.910
   hooks:
   - id: mypy
-    additional_dependencies: [types-PyYAML]
+    additional_dependencies: [types-PyYAML,pytest-aiohttp]

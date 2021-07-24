@@ -3,6 +3,7 @@ import json
 from unittest.mock import patch
 
 import aiohttp
+from aiohttp.test_utils import TestClient
 import pytest
 
 from google_nest_sdm import google_nest_api
@@ -30,6 +31,7 @@ class RefreshingAuth(AbstractAuth):
         resp = await self._websession.request("get", "/refresh-auth")
         resp.raise_for_status()
         json = await resp.json()
+        assert isinstance(json["token"], str)
         return json["token"]
 
 
@@ -87,7 +89,7 @@ async def test_get_devices(aiohttp_server) -> None:
     app.router.add_get("/enterprises/project-id1/devices", handler)
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
         devices = await api.async_get_devices()
         assert len(devices) == 2
@@ -121,7 +123,7 @@ async def test_fan_set_timer(aiohttp_server) -> None:
     )
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
         devices = await api.async_get_devices()
         assert len(devices) == 1
@@ -167,7 +169,7 @@ async def test_thermostat_eco_set_mode(aiohttp_server) -> None:
     )
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
         devices = await api.async_get_devices()
         assert len(devices) == 1
@@ -208,7 +210,7 @@ async def test_thermostat_mode_set_mode(aiohttp_server) -> None:
     )
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
         devices = await api.async_get_devices()
         assert len(devices) == 1
@@ -249,7 +251,7 @@ async def test_thermostat_temperature_set_point(aiohttp_server) -> None:
     )
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
         devices = await api.async_get_devices()
         assert len(devices) == 1
@@ -334,7 +336,7 @@ async def test_camera_live_stream(aiohttp_server) -> None:
     )
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
         devices = await api.async_get_devices()
         assert len(devices) == 1
@@ -435,7 +437,7 @@ async def test_camera_event_image(aiohttp_server) -> None:
     )
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
         devices = await api.async_get_devices()
         assert len(devices) == 1
@@ -486,7 +488,7 @@ async def test_camera_active_event_image(aiohttp_server) -> None:
     )
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         auth = FakeAuth(client)
         api = google_nest_api.GoogleNestAPI(auth, PROJECT_ID)
         devices = await api.async_get_devices()
@@ -562,7 +564,7 @@ async def test_camera_last_active_event_image(aiohttp_server) -> None:
     )
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         auth = FakeAuth(client)
         api = google_nest_api.GoogleNestAPI(auth, PROJECT_ID)
         devices = await api.async_get_devices()
@@ -656,7 +658,7 @@ async def test_camera_event_image_bytes(aiohttp_server) -> None:
     app.router.add_get("/image-url", image_handler)
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
         devices = await api.async_get_devices()
         assert len(devices) == 1
@@ -696,7 +698,7 @@ async def test_get_structures(aiohttp_server) -> None:
     app.router.add_get("/enterprises/project-id1/structures", handler)
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
         structures = await api.async_get_structures()
         assert len(structures) == 2
@@ -711,7 +713,7 @@ async def test_client_error(aiohttp_server) -> None:
     app = aiohttp.web.Application()
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
         with patch(
             "google_nest_sdm.google_nest_api.AbstractAuth.request",
@@ -725,7 +727,7 @@ async def test_api_get_error(aiohttp_server) -> None:
     app = aiohttp.web.Application()
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
         with pytest.raises(ApiException):
             await api.async_get_structures()
@@ -759,7 +761,7 @@ async def test_api_post_error(aiohttp_server) -> None:
     )
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
         devices = await api.async_get_devices()
         assert len(devices) == 1
@@ -796,7 +798,7 @@ async def test_auth_refresh(aiohttp_server) -> None:
     app.router.add_get("/refresh-auth", auth_handler)
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         api = google_nest_api.GoogleNestAPI(RefreshingAuth(client), PROJECT_ID)
         devices = await api.async_get_devices()
         assert len(devices) == 1
@@ -815,7 +817,7 @@ async def test_auth_refresh_error(aiohttp_server) -> None:
     app.router.add_get("/refresh-auth", auth_handler)
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         api = google_nest_api.GoogleNestAPI(RefreshingAuth(client), PROJECT_ID)
         with pytest.raises(AuthException):
             await api.async_get_devices()
@@ -827,7 +829,7 @@ async def test_no_devices(aiohttp_server) -> None:
     app.router.add_get("/enterprises/project-id1/devices", NewHandler(r, [{}]))
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
         devices = await api.async_get_devices()
         assert len(devices) == 0
@@ -839,7 +841,7 @@ async def test_missing_device(aiohttp_server) -> None:
     app.router.add_get("/enterprises/project-id1/devices/abc", NewHandler(r, [{}]))
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
         device = await api.async_get_device("abc")
         assert device is None
@@ -851,7 +853,7 @@ async def test_no_structures(aiohttp_server) -> None:
     app.router.add_get("/enterprises/project-id1/structures", NewHandler(r, [{}]))
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
         structures = await api.async_get_structures()
         assert len(structures) == 0
@@ -863,7 +865,7 @@ async def test_missing_structures(aiohttp_server) -> None:
     app.router.add_get("/enterprises/project-id1/structures/abc", NewHandler(r, [{}]))
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
         structure = await api.async_get_structure("abc")
         assert structure is None
@@ -907,7 +909,7 @@ async def test_api_post_error_with_json_response(aiohttp_server) -> None:
     )
     server = await aiohttp_server(app)
 
-    async with aiohttp.test_utils.TestClient(server) as client:
+    async with TestClient(server) as client:
         api = google_nest_api.GoogleNestAPI(FakeAuth(client), PROJECT_ID)
         devices = await api.async_get_devices()
         assert len(devices) == 1

@@ -1,5 +1,6 @@
 import asyncio
 import json
+from typing import Optional
 from unittest.mock import create_autospec
 
 import aiohttp
@@ -34,7 +35,7 @@ class FakeAuth(AbstractAuth):
 class RefreshingAuth(FakeAuth):
     def __init__(self, websession):
         super().__init__(websession)
-        self._updated_token = None
+        self._updated_token: Optional[str] = None
 
     async def async_get_access_token(self) -> str:
         if not self._updated_token:
@@ -42,6 +43,7 @@ class RefreshingAuth(FakeAuth):
             resp.raise_for_status()
             json = await resp.json()
             self._updated_token = json["token"]
+        assert isinstance(self._updated_token, str)
         return self._updated_token
 
 
