@@ -3,11 +3,12 @@
 import datetime
 import logging
 from abc import ABC
-from typing import Awaitable, Callable, Optional, Dict, Any, cast
+from typing import Awaitable, Callable, Optional, Dict, Any
 
 from .auth import AbstractAuth
 from .registry import Registry
 from .traits import BuildTraits, Command
+from .typing import cast_assert, cast_optional
 
 EVENT_ID = "eventId"
 EVENT_SESSION_ID = "eventSessionId"
@@ -42,17 +43,17 @@ class ImageEventBase(ABC):
         self._timestamp = timestamp
 
     @property
-    def event_id(self) -> Optional[str]:
+    def event_id(self) -> str:
         """ID associated with the event.
 
         Can be used with CameraEventImageTrait to download the imaage.
         """
-        return cast(Optional[str], self._data[EVENT_ID])
+        return cast_assert(str, self._data[EVENT_ID])
 
     @property
-    def event_session_id(self) -> Optional[str]:
+    def event_session_id(self) -> str:
         """ID used to associate separate messages with a single event."""
-        return cast(Optional[str], self._data[EVENT_SESSION_ID])
+        return cast_assert(str, self._data[EVENT_SESSION_ID])
 
     @property
     def timestamp(self) -> datetime.datetime:
@@ -129,19 +130,19 @@ class RelationUpdate:
         self._raw_data = raw_data
 
     @property
-    def type(self) -> Optional[str]:
+    def type(self) -> str:
         """Type of relation event 'CREATED', 'UPDATED', 'DELETED'."""
-        return cast(Optional[str], self._raw_data[TYPE])
+        return cast_assert(str, self._raw_data[TYPE])
 
     @property
-    def subject(self) -> Optional[str]:
+    def subject(self) -> str:
         """Resource that the object is now in relation with."""
-        return cast(Optional[str], self._raw_data[SUBJECT])
+        return cast_assert(str, self._raw_data.get(SUBJECT))
 
     @property
-    def object(self) -> Optional[str]:
+    def object(self) -> str:
         """Resource that triggered the event."""
-        return cast(Optional[str], self._raw_data[OBJECT])
+        return cast_assert(str, self._raw_data[OBJECT])
 
 
 def BuildEvents(
@@ -184,7 +185,7 @@ class EventMessage:
         """Return the id of the device that was updated."""
         if RESOURCE_UPDATE not in self._raw_data:
             return None
-        return cast(Optional[str], self._raw_data[RESOURCE_UPDATE][NAME])
+        return cast_optional(str, self._raw_data[RESOURCE_UPDATE].get(NAME))
 
     @property
     def resource_update_events(self) -> Optional[dict]:
@@ -192,6 +193,7 @@ class EventMessage:
         if RESOURCE_UPDATE not in self._raw_data:
             return None
         events = self._raw_data[RESOURCE_UPDATE].get(EVENTS, {})
+        assert isinstance(events, dict)
         return BuildEvents(events, EVENT_MAP, self.timestamp)
 
     @property

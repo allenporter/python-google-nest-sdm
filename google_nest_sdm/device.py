@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import datetime
-from typing import Awaitable, Callable, Dict, List, Optional, cast, Any
+from typing import Awaitable, Callable, Dict, List, Optional, Any, cast
 
 # Import traits for registration
 from . import camera_traits  # noqa: F401
@@ -14,6 +14,7 @@ from . import thermostat_traits  # noqa: F401
 from .auth import AbstractAuth
 from .event import EventMessage, EventProcessingError, EventTrait
 from .traits import BuildTraits, Command
+from .typing import cast_assert
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -64,9 +65,9 @@ class Device:
         return Device(raw_data, traits_dict)
 
     @property
-    def name(self) -> Optional[str]:
+    def name(self) -> str:
         """Resource name of the device such as 'enterprises/XYZ/devices/123'."""
-        return cast(Optional[str], self._raw_data[DEVICE_NAME])
+        return cast_assert(str, self._raw_data[DEVICE_NAME])
 
     @property
     def type(self) -> Optional[str]:
@@ -76,7 +77,7 @@ class Device:
         the actual device it is assigned to. Instead, use the returned traits for
         the device.
         """
-        return cast(Optional[str], self._raw_data[DEVICE_TYPE])
+        return cast_assert(str, self._raw_data[DEVICE_TYPE])
 
     @property
     def traits(self) -> Dict[str, Any]:

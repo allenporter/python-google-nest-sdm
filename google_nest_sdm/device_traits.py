@@ -2,9 +2,10 @@
 
 import aiohttp
 import datetime
-from typing import Optional, Dict, Any, cast
+from typing import Optional, Dict, Any
 
 from .traits import TRAIT_MAP, Command
+from .typing import cast_assert, cast_optional
 
 STATUS = "status"
 TIMER_MODE = "timerMode"
@@ -25,13 +26,13 @@ class ConnectivityTrait:
         self._data = data
 
     @property
-    def status(self) -> Optional[str]:
+    def status(self) -> str:
         """Device connectivity status.
 
         Return:
           "OFFLINE", "ONLINE"
         """
-        return cast(Optional[str], self._data[STATUS])
+        return cast_assert(str, self._data[STATUS])
 
 
 @TRAIT_MAP.register()
@@ -52,7 +53,7 @@ class FanTrait:
         Return:
           "ON", "OFF"
         """
-        return cast(Optional[str], self._data.get(TIMER_MODE))
+        return cast_optional(str, self._data.get(TIMER_MODE))
 
     @property
     def timer_timeout(self) -> Optional[datetime.datetime]:
@@ -88,9 +89,9 @@ class InfoTrait:
         self._data = data
 
     @property
-    def custom_name(self) -> str:
+    def custom_name(self) -> Optional[str]:
         """Name of the device."""
-        return cast(str, self._data[CUSTOM_NAME])
+        return cast_optional(str, self._data.get(CUSTOM_NAME))
 
 
 @TRAIT_MAP.register()
@@ -106,7 +107,7 @@ class HumidityTrait:
     @property
     def ambient_humidity_percent(self) -> float:
         """Percent humidity, measured at the device."""
-        return cast(float, self._data[AMBIENT_HUMIDITY_PERCENT])
+        return cast_assert(float, self._data[AMBIENT_HUMIDITY_PERCENT])
 
 
 @TRAIT_MAP.register()
@@ -122,4 +123,4 @@ class TemperatureTrait:
     @property
     def ambient_temperature_celsius(self) -> float:
         """Percent humidity, measured at the device."""
-        return cast(float, self._data[AMBIENT_TEMPERATURE_CELSIUS])
+        return cast_assert(float, self._data[AMBIENT_TEMPERATURE_CELSIUS])

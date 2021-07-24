@@ -5,6 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any, cast
 from .registry import Registry
+from .typing import cast_optional
 
 STRUCTURE_NAME = "name"
 STRUCTURE_TRAITS = "traits"
@@ -35,7 +36,7 @@ class InfoTrait(StructureTrait):
     @property
     def custom_name(self) -> Optional[str]:
         """Name of the structure."""
-        return cast(Optional[str], self._data[CUSTOM_NAME])
+        return cast_optional(str, self._data[CUSTOM_NAME])
 
 
 @STRUCTURE_TRAITS_MAP.register()
@@ -51,7 +52,7 @@ class RoomInfoTrait(StructureTrait):
     @property
     def custom_name(self) -> Optional[str]:
         """Name of the room."""
-        return cast(str, self._data[CUSTOM_NAME])
+        return cast_optional(str, self._data[CUSTOM_NAME])
 
 
 def _TraitsDict(traits: Dict[str, Any], trait_map: Dict[str, Any]) -> Dict[str, Any]:
@@ -82,7 +83,7 @@ class Structure:
     @property
     def name(self) -> Optional[str]:
         """Resource name of the structure e.g. 'enterprises/XYZ/structures/123'."""
-        return cast(Optional[str], self._raw_data[STRUCTURE_NAME])
+        return cast_optional(str, self._raw_data[STRUCTURE_NAME])
 
     @property
     def traits(self) -> Dict[str, StructureTrait]:
