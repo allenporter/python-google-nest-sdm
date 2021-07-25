@@ -1,7 +1,7 @@
-from google_nest_sdm.device import Device
+"""Test for camera traits."""
 
 
-def test_camera_image_traits():
+def test_camera_image_traits(fake_device):
     raw = {
         "name": "my/device/name",
         "traits": {
@@ -13,14 +13,14 @@ def test_camera_image_traits():
             },
         },
     }
-    device = Device.MakeDevice(raw, auth=None)
+    device = fake_device(raw)
     assert "sdm.devices.traits.CameraImage" in device.traits
     trait = device.traits["sdm.devices.traits.CameraImage"]
     assert 500 == trait.max_image_resolution.width
     assert 300 == trait.max_image_resolution.height
 
 
-def test_camera_live_stream_traits():
+def test_camera_live_stream_traits(fake_device):
     raw = {
         "name": "my/device/name",
         "traits": {
@@ -34,7 +34,7 @@ def test_camera_live_stream_traits():
             },
         },
     }
-    device = Device.MakeDevice(raw, auth=None)
+    device = fake_device(raw)
     assert "sdm.devices.traits.CameraLiveStream" in device.traits
     trait = device.traits["sdm.devices.traits.CameraLiveStream"]
     assert 500 == trait.max_video_resolution.width
@@ -43,45 +43,45 @@ def test_camera_live_stream_traits():
     assert ["AAC"] == trait.audio_codecs
 
 
-def test_camera_event_image_traits():
+def test_camera_event_image_traits(fake_device):
     raw = {
         "name": "my/device/name",
         "traits": {
             "sdm.devices.traits.CameraEventImage": {},
         },
     }
-    device = Device.MakeDevice(raw, auth=None)
+    device = fake_device(raw)
     assert "sdm.devices.traits.CameraEventImage" in device.traits
 
 
-def test_camera_motion_traits():
+def test_camera_motion_traits(fake_device):
     raw = {
         "name": "my/device/name",
         "traits": {
             "sdm.devices.traits.CameraMotion": {},
         },
     }
-    device = Device.MakeDevice(raw, auth=None)
+    device = fake_device(raw)
     assert "sdm.devices.traits.CameraMotion" in device.traits
 
 
-def test_camera_person_traits():
+def test_camera_person_traits(fake_device):
     raw = {
         "name": "my/device/name",
         "traits": {
             "sdm.devices.traits.CameraPerson": {},
         },
     }
-    device = Device.MakeDevice(raw, auth=None)
+    device = fake_device(raw)
     assert "sdm.devices.traits.CameraPerson" in device.traits
 
 
-def test_camera_sound_traits():
+def test_camera_sound_traits(fake_device):
     raw = {
         "name": "my/device/name",
         "traits": {
             "sdm.devices.traits.CameraSound": {},
         },
     }
-    device = Device.MakeDevice(raw, auth=None)
+    device = fake_device(raw)
     assert "sdm.devices.traits.CameraSound" in device.traits
