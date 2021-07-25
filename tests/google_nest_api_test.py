@@ -9,38 +9,16 @@ import pytest
 from google_nest_sdm import google_nest_api
 from google_nest_sdm.exceptions import ApiException, AuthException
 
+from .conftest import (
+    NewDeviceHandler,
+    NewHandler,
+    NewImageHandler,
+    NewStructureHandler,
+    Recorder,
+)
+
 PROJECT_ID = "project-id1"
 FAKE_TOKEN = "some-token"
-
-
-class Recorder:
-    request = None
-
-
-def NewDeviceHandler(r: Recorder, devices: list, token=FAKE_TOKEN):
-    return NewHandler(r, [{"devices": devices}], token=token)
-
-
-def NewStructureHandler(r: Recorder, structures: list, token=FAKE_TOKEN):
-    return NewHandler(r, [{"structures": structures}], token=token)
-
-
-def NewHandler(r: Recorder, response: list, token=FAKE_TOKEN):
-    async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
-        assert request.headers["Authorization"] == "Bearer %s" % token
-        s = await request.text()
-        r.request = await request.json() if s else {}
-        return aiohttp.web.json_response(response.pop(0))
-
-    return handler
-
-
-def NewImageHandler(response: list, token=FAKE_TOKEN):
-    async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
-        assert request.headers["Authorization"] == "Basic %s" % token
-        return aiohttp.web.Response(body=response.pop(0))
-
-    return handler
 
 
 @pytest.fixture

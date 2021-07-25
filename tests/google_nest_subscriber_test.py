@@ -20,6 +20,8 @@ from google_nest_sdm.google_nest_subscriber import (
     GoogleNestSubscriber,
 )
 
+from .conftest import NewDeviceHandler, NewStructureHandler, Recorder
+
 PROJECT_ID = "project-id1"
 SUBSCRIBER_ID = "projects/some-project-id/subscriptions/subscriber-id1"
 FAKE_TOKEN = "some-token"
@@ -47,34 +49,6 @@ class FakeSubscriberFactory(AbstractSubscriberFactory):
         message = create_autospec(pubsub_v1.subscriber.message.Message, instance=True)
         message.data = json.dumps(event).encode()
         return await self._async_callback(message)
-
-
-class Recorder:
-    request = None
-
-
-def NewDeviceHandler(
-    r: Recorder, devices: list, token: str = FAKE_TOKEN
-) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
-    return NewHandler(r, [{"devices": devices}], token=token)
-
-
-def NewStructureHandler(
-    r: Recorder, structures: list, token: str = FAKE_TOKEN
-) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
-    return NewHandler(r, [{"structures": structures}], token=token)
-
-
-def NewHandler(
-    r: Recorder, response: list, token: str = FAKE_TOKEN
-) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
-    async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
-        assert request.headers["Authorization"] == "Bearer %s" % token
-        s = await request.text()
-        r.request = await request.json() if s else {}
-        return aiohttp.web.json_response(response.pop(0))
-
-    return handler
 
 
 @pytest.fixture

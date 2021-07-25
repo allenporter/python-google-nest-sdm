@@ -1,6 +1,6 @@
 """Fixtures and libraries shared by tests."""
 
-from typing import Any, AsyncGenerator, Awaitable, Callable, Dict, Optional, cast
+from typing import Any, AsyncGenerator, Awaitable, Callable, Dict, List, Optional, cast
 
 import aiohttp
 import pytest
@@ -116,3 +116,41 @@ def fake_device() -> Callable[[Dict[str, Any]], Device]:
         return Device.MakeDevice(raw_data, cast(AbstractAuth, None))
 
     return _make_device
+
+
+class Recorder:
+    request: Optional[Dict[str, Any]] = None
+
+
+def NewDeviceHandler(
+    r: Recorder, devices: List[Dict[str, Any]], token: str = FAKE_TOKEN
+) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
+    return NewHandler(r, [{"devices": devices}], token=token)
+
+
+def NewStructureHandler(
+    r: Recorder, structures: List[Dict[str, Any]], token: str = FAKE_TOKEN
+) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
+    return NewHandler(r, [{"structures": structures}], token=token)
+
+
+def NewHandler(
+    r: Recorder, responses: List[Dict[str, Any]], token: str = FAKE_TOKEN
+) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
+    async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        assert request.headers["Authorization"] == "Bearer %s" % token
+        s = await request.text()
+        r.request = await request.json() if s else {}
+        return aiohttp.web.json_response(responses.pop(0))
+
+    return handler
+
+
+def NewImageHandler(
+    response: List[bytes], token: str = FAKE_TOKEN
+) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
+    async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        assert request.headers["Authorization"] == "Basic %s" % token
+        return aiohttp.web.Response(body=response.pop(0))
+
+    return handler
