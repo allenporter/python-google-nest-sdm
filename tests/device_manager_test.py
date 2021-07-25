@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict
 import pytest
 
 from google_nest_sdm.device_manager import DeviceManager
+from google_nest_sdm.device_traits import ConnectivityTrait
 from google_nest_sdm.event import EventMessage
 from google_nest_sdm.structure import Structure
 
@@ -210,7 +211,7 @@ async def test_device_event_callback(fake_device, fake_event_message):
     assert "OFFLINE" == trait.status
 
     class MyCallback:
-        def __init__(self):
+        def __init__(self) -> None:
             self.invoked = False
 
         async def async_handle_event(self, event_message: EventMessage):
@@ -312,7 +313,7 @@ async def test_device_update_listener(fake_device, fake_event_message):
     assert "OFFLINE" == trait.status
 
     class MyCallback:
-        def __init__(self):
+        def __init__(self) -> None:
             self.invoked = False
 
         def async_handle_event(self):
@@ -476,11 +477,13 @@ async def test_update_trait_ordering(fake_device, event_message_with_time):
         )
     )
 
-    def get_connectivity():
+    def get_connectivity() -> ConnectivityTrait:
         assert 1 == len(mgr.devices)
         device = mgr.devices["my/device/name1"]
         assert "sdm.devices.traits.Connectivity" in device.traits
-        return device.traits["sdm.devices.traits.Connectivity"]
+        trait = device.traits["sdm.devices.traits.Connectivity"]
+        assert isinstance(trait, ConnectivityTrait)
+        return trait
 
     assert get_connectivity().status == "OFFLINE"
     await mgr.async_handle_event(

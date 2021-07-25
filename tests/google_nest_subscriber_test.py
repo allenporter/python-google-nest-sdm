@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, Optional
 from unittest.mock import create_autospec
 
 import aiohttp
@@ -24,8 +24,8 @@ FAKE_TOKEN = "some-token"
 
 
 class FakeSubscriberFactory(AbstractSubscriberFactory):
-    def __init__(self):
-        self.tasks = None
+    def __init__(self) -> None:
+        self.tasks: Optional[Any] = None
 
     async def async_new_subscriber(
         self, creds, subscription_name, loop, async_callback

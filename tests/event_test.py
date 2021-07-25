@@ -162,10 +162,10 @@ def test_relation(fake_event_message):
 
 
 class MyCallback:
-    def __init__(self):
+    def __init__(self) -> None:
         self.invoked = False
 
-    async def async_handle_event(self, event_message: EventMessage):
+    async def async_handle_event(self, event_message: EventMessage) -> None:
         self.invoked = True
 
 

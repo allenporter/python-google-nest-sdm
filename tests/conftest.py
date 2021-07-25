@@ -66,7 +66,7 @@ async def auth_client(app, client) -> Callable[[str], Awaitable[AbstractAuth]]:
 
 
 class RefreshingAuth(AbstractAuth):
-    def __init__(self, websession):
+    def __init__(self, websession) -> None:
         super().__init__(websession, "")
 
     async def async_get_access_token(self) -> str:
