@@ -17,6 +17,7 @@ setup(
     author="Allen Porter",
     author_email="allen@thebends.org",
     url="https://github.com/allenporter/python-google-nest-sdm",
+    package_data={"google_nest_sdm": ["py.typed"]},
     packages=["google_nest_sdm"],
     include_package_data=True,
     install_requires=[
@@ -31,4 +32,5 @@ setup(
             "google_nest=google_nest_sdm.google_nest:main",
         ],
     },
+    zip_safe=False,
 )
