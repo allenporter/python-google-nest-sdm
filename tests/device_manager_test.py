@@ -3,18 +3,9 @@ from typing import Any, Callable, Dict
 
 import pytest
 
-from google_nest_sdm.device import Device
 from google_nest_sdm.device_manager import DeviceManager
 from google_nest_sdm.event import EventMessage
 from google_nest_sdm.structure import Structure
-
-
-def MakeDevice(raw_data: dict) -> Device:
-    return Device.MakeDevice(raw_data, auth=None)
-
-
-def MakeStructure(raw_data: dict) -> Structure:
-    return Structure.MakeStructure(raw_data)
 
 
 @pytest.fixture
@@ -41,10 +32,10 @@ def event_message_with_time(
     return make_event
 
 
-def test_add_device():
+def test_add_device(fake_device):
     mgr = DeviceManager()
     mgr.add_device(
-        MakeDevice(
+        fake_device(
             {
                 "name": "my/device/name1",
                 "type": "sdm.devices.types.SomeDeviceType",
@@ -53,7 +44,7 @@ def test_add_device():
     )
     assert 1 == len(mgr.devices)
     mgr.add_device(
-        MakeDevice(
+        fake_device(
             {
                 "name": "my/device/name2",
                 "type": "sdm.devices.types.SomeDeviceType",
@@ -63,10 +54,10 @@ def test_add_device():
     assert 2 == len(mgr.devices)
 
 
-def test_duplicate_device():
+def test_duplicate_device(fake_device):
     mgr = DeviceManager()
     mgr.add_device(
-        MakeDevice(
+        fake_device(
             {
                 "name": "my/device/name1",
                 "type": "sdm.devices.types.SomeDeviceType",
@@ -75,7 +66,7 @@ def test_duplicate_device():
     )
     assert 1 == len(mgr.devices)
     mgr.add_device(
-        MakeDevice(
+        fake_device(
             {
                 "name": "my/device/name1",
                 "type": "sdm.devices.types.SomeDeviceType",
@@ -85,10 +76,10 @@ def test_duplicate_device():
     assert 1 == len(mgr.devices)
 
 
-async def test_update_traits(fake_event_message):
+async def test_update_traits(fake_device, fake_event_message):
     mgr = DeviceManager()
     mgr.add_device(
-        MakeDevice(
+        fake_device(
             {
                 "name": "my/device/name1",
                 "type": "sdm.devices.types.SomeDeviceType",
@@ -128,10 +119,10 @@ async def test_update_traits(fake_event_message):
     assert "ONLINE" == trait.status
 
 
-async def test_device_created_in_structure(fake_event_message):
+async def test_device_created_in_structure(fake_device, fake_event_message):
     mgr = DeviceManager()
     mgr.add_device(
-        MakeDevice(
+        fake_device(
             {
                 "name": "enterprises/project-id/devices/device-id",
                 "type": "sdm.devices.types.SomeDeviceType",
@@ -144,7 +135,7 @@ async def test_device_created_in_structure(fake_event_message):
     assert 0 == len(device.parent_relations)
 
     mgr.add_structure(
-        MakeStructure(
+        Structure.MakeStructure(
             {
                 "name": "enterprises/project-id/structures/structure-id",
                 "traits": {
@@ -198,8 +189,8 @@ async def test_device_created_in_structure(fake_event_message):
     assert 0 == len(device.parent_relations)
 
 
-async def test_device_event_callback(fake_event_message):
-    device = MakeDevice(
+async def test_device_event_callback(fake_device, fake_event_message):
+    device = fake_device(
         {
             "name": "my/device/name1",
             "type": "sdm.devices.types.SomeDeviceType",
@@ -300,8 +291,8 @@ async def test_device_event_callback(fake_event_message):
     assert not callback.invoked
 
 
-async def test_device_update_listener(fake_event_message):
-    device = MakeDevice(
+async def test_device_update_listener(fake_device, fake_event_message):
+    device = fake_device(
         {
             "name": "my/device/name1",
             "type": "sdm.devices.types.SomeDeviceType",
@@ -403,9 +394,9 @@ async def test_device_update_listener(fake_event_message):
     assert not callback.invoked
 
 
-async def test_event_image_tracking(fake_event_message):
+async def test_event_image_tracking(fake_device, fake_event_message):
     """Hold on to the last receieved event image."""
-    device = MakeDevice(
+    device = fake_device(
         {
             "name": "my/device/name1",
             "type": "sdm.devices.types.SomeDeviceType",
@@ -469,10 +460,10 @@ async def test_event_image_tracking(fake_event_message):
     )
 
 
-async def test_update_trait_ordering(event_message_with_time):
+async def test_update_trait_ordering(fake_device, event_message_with_time):
     mgr = DeviceManager()
     mgr.add_device(
-        MakeDevice(
+        fake_device(
             {
                 "name": "my/device/name1",
                 "type": "sdm.devices.types.SomeDeviceType",

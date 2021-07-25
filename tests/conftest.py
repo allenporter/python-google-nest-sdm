@@ -7,6 +7,7 @@ import pytest
 from aiohttp.test_utils import TestServer
 
 from google_nest_sdm.auth import AbstractAuth
+from google_nest_sdm.device import Device
 from google_nest_sdm.event import EventMessage
 
 FAKE_TOKEN = "some-token"
@@ -100,3 +101,11 @@ def fake_event_message() -> Callable[[Dict[str, Any]], EventMessage]:
         return EventMessage(raw_data, cast(AbstractAuth, None))
 
     return _make_event
+
+
+@pytest.fixture
+def fake_device() -> Callable[[Dict[str, Any]], Device]:
+    def _make_device(raw_data: Dict[str, Any]) -> Device:
+        return Device.MakeDevice(raw_data, cast(AbstractAuth, None))
+
+    return _make_device
