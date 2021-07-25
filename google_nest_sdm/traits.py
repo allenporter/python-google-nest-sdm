@@ -1,7 +1,8 @@
 """Base library for all traits."""
 
+from typing import Any, Dict, Mapping, Optional
+
 import aiohttp
-from typing import Dict, Any, Optional
 
 from .auth import AbstractAuth
 from .registry import Registry
@@ -19,7 +20,7 @@ class Command:
         self._device_id = device_id
         self._auth = auth
 
-    async def execute(self, data: Dict[str, Any]) -> aiohttp.ClientResponse:
+    async def execute(self, data: Mapping[str, Any]) -> aiohttp.ClientResponse:
         """Run the command."""
         return await self._auth.post(f"{self._device_id}:executeCommand", json=data)
 
@@ -34,7 +35,7 @@ class Command:
 
 
 def _TraitsDict(
-    traits: Dict[str, Any], trait_map: Dict[str, Any], cmd: Command
+    traits: Mapping[str, Any], trait_map: Mapping[str, Any], cmd: Command
 ) -> Dict[str, Any]:
     d = {}
     for (trait, trait_data) in traits.items():
@@ -46,12 +47,12 @@ def _TraitsDict(
 
 
 def BuildTraits(
-    traits: Dict[str, Any], cmd: Command, device_type: Optional[str] = None
+    traits: Mapping[str, Any], cmd: Command, device_type: Optional[str] = None
 ) -> Dict[str, Any]:
     """Build a trait map out of a response dict."""
     # There is a bug where doorbells do not return the DoorbellChime trait.  Simulate
     # that it was returned
     if device_type and device_type == "sdm.devices.types.DOORBELL":
-        traits = traits.copy()
+        traits = dict(traits)
         traits["sdm.devices.traits.DoorbellChime"] = {}
     return _TraitsDict(traits, TRAIT_MAP, cmd)

@@ -3,7 +3,7 @@
 import datetime
 import logging
 from abc import ABC
-from typing import Awaitable, Callable, Optional, Dict, Any
+from typing import Any, Awaitable, Callable, Dict, Mapping, Optional
 
 from .auth import AbstractAuth
 from .registry import Registry
@@ -37,7 +37,7 @@ class EventProcessingError(Exception):
 class ImageEventBase(ABC):
     """Base class for all image related event types."""
 
-    def __init__(self, data: Dict[str, Any], timestamp: datetime.datetime) -> None:
+    def __init__(self, data: Mapping[str, Any], timestamp: datetime.datetime) -> None:
         """Initialize EventBase."""
         self._data = data
         self._timestamp = timestamp
@@ -125,7 +125,7 @@ class EventTrait(ABC):
 class RelationUpdate:
     """Represents a relational update for a resource."""
 
-    def __init__(self, raw_data: Dict[str, Any]):
+    def __init__(self, raw_data: Mapping[str, Any]):
         """Initialize the RelationUpdate."""
         self._raw_data = raw_data
 
@@ -146,8 +146,8 @@ class RelationUpdate:
 
 
 def BuildEvents(
-    events: Dict[str, Any],
-    event_map: Dict[str, ImageEventBase],
+    events: Mapping[str, Any],
+    event_map: Mapping[str, ImageEventBase],
     timestamp: datetime.datetime,
 ) -> Dict[str, Any]:
     """Build a trait map out of a response dict."""
@@ -163,7 +163,7 @@ def BuildEvents(
 class EventMessage:
     """Event for a change in trait value or device action."""
 
-    def __init__(self, raw_data: dict, auth: AbstractAuth):
+    def __init__(self, raw_data: Mapping[str, Any], auth: AbstractAuth):
         """Initialize an EventMessage."""
         _LOGGER.debug("EventMessage raw_data=%s", raw_data)
         self._raw_data = raw_data
@@ -213,9 +213,9 @@ class EventMessage:
         return RelationUpdate(self._raw_data[RELATION_UPDATE])
 
     @property
-    def raw_data(self) -> dict:
+    def raw_data(self) -> Dict[str, Any]:
         """Return raw data for the event."""
-        return self._raw_data
+        return dict(self._raw_data)
 
 
 class EventTypeFilterCallback:

@@ -1,8 +1,9 @@
 """Library for traits about devices."""
 
-import aiohttp
 import datetime
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Mapping, Optional
+
+import aiohttp
 
 from .traits import TRAIT_MAP, Command
 from .typing import cast_assert, cast_optional
@@ -21,7 +22,7 @@ class ConnectivityTrait:
 
     NAME = "sdm.devices.traits.Connectivity"
 
-    def __init__(self, data: Dict[str, Any], cmd: Command):
+    def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize ConnectivityTrait."""
         self._data = data
 
@@ -41,7 +42,7 @@ class FanTrait:
 
     NAME = "sdm.devices.traits.Fan"
 
-    def __init__(self, data: Dict[str, Any], cmd: Command):
+    def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize FanTrait."""
         self._data = data
         self._cmd = cmd
@@ -84,7 +85,7 @@ class InfoTrait:
 
     NAME = "sdm.devices.traits.Info"
 
-    def __init__(self, data: Dict[str, Any], cmd: Command):
+    def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize InfoTrait."""
         self._data = data
 
@@ -100,7 +101,7 @@ class HumidityTrait:
 
     NAME = "sdm.devices.traits.Humidity"
 
-    def __init__(self, data: Dict[str, Any], cmd: Command):
+    def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize HumidityTrait."""
         self._data = data
 
@@ -116,7 +117,7 @@ class TemperatureTrait:
 
     NAME = "sdm.devices.traits.Temperature"
 
-    def __init__(self, data: Dict[str, Any], cmd: Command):
+    def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize TemperatureTrait."""
         self._data = data
 

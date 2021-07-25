@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import aiohttp
+from typing import Any, Final, List, Mapping, cast
 
-from typing import Any, List, Final, Dict, cast
+import aiohttp
 
 from .traits import TRAIT_MAP, Command
 from .typing import cast_assert
-
 
 STATUS: Final = "status"
 AVAILABLE_MODES: Final = "availableModes"
@@ -23,7 +22,7 @@ class ThermostatEcoTrait:
 
     NAME = "sdm.devices.traits.ThermostatEco"
 
-    def __init__(self, data: Dict[str, Any], cmd: Command):
+    def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize ThermostatEcoTrait."""
         self._data = data
         self._cmd = cmd
@@ -63,7 +62,7 @@ class ThermostatHvacTrait:
 
     NAME = "sdm.devices.traits.ThermostatHvac"
 
-    def __init__(self, data: dict, cmd: Command):
+    def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize ThermostatHvacTrait."""
         self._data = data
 
@@ -79,7 +78,7 @@ class ThermostatModeTrait:
 
     NAME = "sdm.devices.traits.ThermostatMode"
 
-    def __init__(self, data: dict, cmd: Command):
+    def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize ThermostatModeTrait."""
         self._data = data
         self._cmd = cmd
@@ -109,7 +108,7 @@ class ThermostatTemperatureSetpointTrait:
 
     NAME = "sdm.devices.traits.ThermostatTemperatureSetpoint"
 
-    def __init__(self, data: dict, cmd: Command):
+    def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize ThermostatTemperatureSetpointTrait."""
         self._data = data
         self._cmd = cmd

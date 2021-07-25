@@ -1,6 +1,6 @@
 """Traits belonging to doorbell devices."""
 
-from typing import Optional
+from typing import Any, Mapping, Optional
 
 from .camera_traits import CameraEventImageTrait, EventImage
 from .event import DoorbellChimeEvent, EventTrait
@@ -14,7 +14,7 @@ class DoorbellChimeTrait(EventTrait):
     NAME = "sdm.devices.traits.DoorbellChime"
     EVENT_NAME = DoorbellChimeEvent.NAME
 
-    def __init__(self, data: dict, cmd: Command):
+    def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize DoorbellChime."""
         super().__init__()
         self._data = data

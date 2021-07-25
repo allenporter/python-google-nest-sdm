@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import datetime
-from typing import Optional, Dict, Any, cast, List
 import urllib.parse as urlparse
+from typing import Any, List, Mapping, Optional, cast
 
 from .event import CameraMotionEvent, CameraPersonEvent, CameraSoundEvent, EventTrait
 from .traits import TRAIT_MAP, Command
@@ -39,7 +39,7 @@ class CameraImageTrait:
 
     NAME = "sdm.devices.traits.CameraImage"
 
-    def __init__(self, data: Dict[str, Any], cmd: Command):
+    def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize CameraImageTrait."""
         self._data = data
         self._cmd = cmd
@@ -56,7 +56,7 @@ class CameraImageTrait:
 class RtspStream:
     """Provides access an RTSP live stream URL."""
 
-    def __init__(self, data: Dict[str, Any], cmd: Command):
+    def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize RstpStream."""
         self._data = data
         self._cmd = cmd
@@ -119,7 +119,7 @@ class CameraLiveStreamTrait:
 
     NAME = "sdm.devices.traits.CameraLiveStream"
 
-    def __init__(self, data: Dict[str, Any], cmd: Command):
+    def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize CameraLiveStreamTrait."""
         self._data = data
         self._cmd = cmd
@@ -167,7 +167,7 @@ class EventImage:
     Authorization: Basic <token>
     """
 
-    def __init__(self, data: Dict[str, Any], cmd: Command):
+    def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize the EventImage."""
         self._data = data
         self._cmd = cmd
@@ -202,7 +202,7 @@ class CameraEventImageTrait:
 
     NAME = "sdm.devices.traits.CameraEventImage"
 
-    def __init__(self, data: dict, cmd: Command):
+    def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize CameraEventImageTrait."""
         self._data = data
         self._cmd = cmd
@@ -228,7 +228,7 @@ class CameraMotionTrait(EventTrait):
     NAME = "sdm.devices.traits.CameraMotion"
     EVENT_NAME = CameraMotionEvent.NAME
 
-    def __init__(self, data: dict, cmd: Command):
+    def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize CameraMotionTrait."""
         super().__init__()
         self._data = data
@@ -251,7 +251,7 @@ class CameraPersonTrait(EventTrait):
     NAME = "sdm.devices.traits.CameraPerson"
     EVENT_NAME = CameraPersonEvent.NAME
 
-    def __init__(self, data: dict, cmd: Command):
+    def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize CameraPersonTrait."""
         super().__init__()
         self._data = data
@@ -274,7 +274,7 @@ class CameraSoundTrait(EventTrait):
     NAME = "sdm.devices.traits.CameraSound"
     EVENT_NAME = CameraSoundEvent.NAME
 
-    def __init__(self, data: dict, cmd: Command):
+    def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize CameraSoundTrait."""
         super().__init__()
         self._data = data

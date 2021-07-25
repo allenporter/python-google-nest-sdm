@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import logging
 import datetime
-from typing import Awaitable, Callable, Dict, List, Optional, Any, cast
+import logging
+from typing import Any, Awaitable, Callable, Dict, List, Mapping, Optional, cast
 
 # Import traits for registration
 from . import camera_traits  # noqa: F401
@@ -26,7 +26,7 @@ PARENT = "parent"
 DISPLAYNAME = "displayName"
 
 
-def _MakeEventTraitMap(traits: Dict[str, Any]) -> Dict[str, Any]:
+def _MakeEventTraitMap(traits: Mapping[str, Any]) -> Dict[str, Any]:
     if camera_traits.CameraEventImageTrait.NAME not in traits:
         return {}
     event_trait_map: Dict[str, Any] = {}
@@ -40,7 +40,7 @@ def _MakeEventTraitMap(traits: Dict[str, Any]) -> Dict[str, Any]:
 class Device:
     """Class that represents a device object in the Google Nest SDM API."""
 
-    def __init__(self, raw_data: Dict[str, Any], traits: Dict[str, Any]):
+    def __init__(self, raw_data: Mapping[str, Any], traits: Dict[str, Any]):
         """Initialize a device."""
         self._raw_data = raw_data
         self._traits = traits
@@ -54,7 +54,7 @@ class Device:
         self._event_trait_map = _MakeEventTraitMap(self._traits)
 
     @staticmethod
-    def MakeDevice(raw_data: dict, auth: AbstractAuth) -> Device:
+    def MakeDevice(raw_data: Mapping[str, Any], auth: AbstractAuth) -> Device:
         """Create a device with the appropriate traits."""
         device_id = raw_data.get(DEVICE_NAME)
         if not device_id:
@@ -193,4 +193,4 @@ class Device:
     @property
     def raw_data(self) -> Dict[str, Any]:
         """Return raw data for the device."""
-        return self._raw_data
+        return dict(self._raw_data)
