@@ -1,7 +1,7 @@
 from google_nest_sdm.structure import Structure
 
 
-def test_no_traits():
+def test_no_traits() -> None:
     raw = {
         "name": "my/structure/name",
     }
@@ -10,7 +10,7 @@ def test_no_traits():
     assert not ("sdm.structures.traits.Info" in structure.traits)
 
 
-def test_empty_traits():
+def test_empty_traits() -> None:
     raw = {
         "name": "my/structure/name",
         "traits": {},
@@ -20,7 +20,7 @@ def test_empty_traits():
     assert not ("sdm.structures.traits.Info" in structure.traits)
 
 
-def test_info_traits():
+def test_info_traits() -> None:
     raw = {
         "name": "my/structure/name",
         "traits": {
@@ -36,7 +36,7 @@ def test_info_traits():
     assert "Structure Name" == trait.custom_name
 
 
-def test_room_info_traits():
+def test_room_info_traits() -> None:
     raw = {
         "name": "my/structure/name",
         "traits": {

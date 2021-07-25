@@ -1,9 +1,17 @@
 """Tests for the request client library."""
 
+from typing import Awaitable, Callable
+
 import aiohttp
+from aiohttp.test_utils import TestClient, TestServer
+from yarl import URL
+
+from google_nest_sdm.auth import AbstractAuth
 
 
-async def test_request(app, auth_client) -> None:
+async def test_request(
+    app: aiohttp.web.Application, auth_client: Callable[[str], Awaitable[AbstractAuth]]
+) -> None:
     async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         assert request.path == "/path-prefix/some-path"
         assert request.headers["header-1"] == "value-1"
@@ -29,7 +37,9 @@ async def test_request(app, auth_client) -> None:
     assert data["some-key"] == "some-value"
 
 
-async def test_auth_header(app, auth_client) -> None:
+async def test_auth_header(
+    app: aiohttp.web.Application, auth_client: Callable[[str], Awaitable[AbstractAuth]]
+) -> None:
     """Test that a request with an Ahthorization header is preserved."""
 
     async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
@@ -57,7 +67,12 @@ async def test_auth_header(app, auth_client) -> None:
     assert data["some-key"] == "some-value"
 
 
-async def test_full_url(app, client, server, auth_client) -> None:
+async def test_full_url(
+    app: aiohttp.web.Application,
+    client: Callable[[], Awaitable[TestClient]],
+    server: Callable[[], Awaitable[TestServer]],
+    auth_client: Callable[[str], Awaitable[AbstractAuth]],
+) -> None:
     """Test that a request with an Ahthorization header is preserved."""
 
     async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
@@ -75,7 +90,7 @@ async def test_full_url(app, client, server, auth_client) -> None:
 
     test_server = await server()
 
-    def client_make_url(url):
+    def client_make_url(url: str) -> URL:
         assert url == "https://example/path-prefix/some-path"
         return test_server.make_url("/path-prefix/some-path")
 

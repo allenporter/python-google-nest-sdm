@@ -1,7 +1,11 @@
 """Tests for device properties."""
 
+from typing import Any, Callable, Dict
 
-def test_device_id(fake_device):
+from google_nest_sdm.device import Device
+
+
+def test_device_id(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -12,7 +16,7 @@ def test_device_id(fake_device):
     assert "sdm.devices.types.SomeDeviceType" == device.type
 
 
-def test_no_traits(fake_device):
+def test_no_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -22,7 +26,7 @@ def test_no_traits(fake_device):
     assert not ("sdm.devices.traits.Info" in device.traits)
 
 
-def test_empty_traits(fake_device):
+def test_empty_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -33,7 +37,7 @@ def test_empty_traits(fake_device):
     assert not ("sdm.devices.traits.Info" in device.traits)
 
 
-def test_no_parent_relations(fake_device):
+def test_no_parent_relations(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -43,7 +47,9 @@ def test_no_parent_relations(fake_device):
     assert {} == device.parent_relations
 
 
-def test_empty_parent_relations(fake_device):
+def test_empty_parent_relations(
+    fake_device: Callable[[Dict[str, Any]], Device]
+) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -54,7 +60,7 @@ def test_empty_parent_relations(fake_device):
     assert {} == device.parent_relations
 
 
-def test_parent_relation(fake_device):
+def test_parent_relation(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -70,7 +76,9 @@ def test_parent_relation(fake_device):
     assert {"my/structure/or/room": "Some Name"} == device.parent_relations
 
 
-def test_multiple_parent_relations(fake_device):
+def test_multiple_parent_relations(
+    fake_device: Callable[[Dict[str, Any]], Device]
+) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
