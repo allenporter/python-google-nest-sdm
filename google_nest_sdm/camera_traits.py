@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime
 import urllib.parse as urlparse
+from abc import ABC
 from typing import Any, List, Mapping, Optional, cast
 
 from .event import CameraMotionEvent, CameraPersonEvent, CameraSoundEvent, EventTrait
@@ -221,8 +222,15 @@ class CameraEventImageTrait:
         return EventImage(results, self._cmd)
 
 
+class EventImageGenerator(ABC):
+    """Parenet class for a trait that generates an images from events."""
+
+    async def generate_active_event_image(self) -> Optional[EventImage]:
+        """Provide a URL to download a camera image from the active event."""
+
+
 @TRAIT_MAP.register()
-class CameraMotionTrait(EventTrait):
+class CameraMotionTrait(EventTrait, EventImageGenerator):
     """For any device that supports motion detection events."""
 
     NAME = "sdm.devices.traits.CameraMotion"
@@ -245,7 +253,7 @@ class CameraMotionTrait(EventTrait):
 
 
 @TRAIT_MAP.register()
-class CameraPersonTrait(EventTrait):
+class CameraPersonTrait(EventTrait, EventImageGenerator):
     """For any device that supports person detection events."""
 
     NAME = "sdm.devices.traits.CameraPerson"
@@ -268,7 +276,7 @@ class CameraPersonTrait(EventTrait):
 
 
 @TRAIT_MAP.register()
-class CameraSoundTrait(EventTrait):
+class CameraSoundTrait(EventTrait, EventImageGenerator):
     """For any device that supports sound detection events."""
 
     NAME = "sdm.devices.traits.CameraSound"
