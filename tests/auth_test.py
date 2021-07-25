@@ -17,7 +17,7 @@ async def test_request(app, auth_client) -> None:
 
     app.router.add_get("/path-prefix/some-path", handler)
 
-    auth = await auth_client()
+    auth = await auth_client("/path-prefix")
     resp = await auth.request(
         "get",
         "some-path",
@@ -45,7 +45,7 @@ async def test_auth_header(app, auth_client) -> None:
 
     app.router.add_get("/path-prefix/some-path", handler)
 
-    auth = await auth_client()
+    auth = await auth_client("/path-prefix")
     resp = await auth.request(
         "get",
         "some-path",
@@ -82,7 +82,7 @@ async def test_full_url(app, client, server, auth_client) -> None:
     test_client = await client()
     test_client.make_url = client_make_url  # type: ignore
 
-    auth = await auth_client()
+    auth = await auth_client("/path-prefix")
     resp = await auth.request(
         "get",
         "https://example/path-prefix/some-path",

@@ -4,6 +4,7 @@ from typing import AsyncGenerator, Awaitable, Callable, Optional, cast
 
 import aiohttp
 import pytest
+from aiohttp.test_utils import TestServer
 
 from google_nest_sdm.auth import AbstractAuth
 from google_nest_sdm.event import EventMessage
@@ -18,12 +19,10 @@ async def app() -> AsyncGenerator[aiohttp.web.Application, None]:
 
 
 @pytest.fixture
-async def server(
-    app, aiohttp_server
-) -> Callable[[], Awaitable[aiohttp.test_utils.TestServer]]:
-    async def _make_server() -> aiohttp.test_utils.TestServer:
+async def server(app, aiohttp_server) -> Callable[[], Awaitable[TestServer]]:
+    async def _make_server() -> TestServer:
         server = await aiohttp_server(app)
-        assert isinstance(server, aiohttp.test_utils.TestServer)
+        assert isinstance(server, TestServer)
         return server
 
     return _make_server
@@ -48,24 +47,46 @@ async def client(
 
 
 class FakeAuth(AbstractAuth):
-    def __init__(self, test_client: aiohttp.test_utils.TestClient) -> None:
-        super().__init__(cast(aiohttp.ClientSession, test_client), "path-prefix")
+    def __init__(
+        self, test_client: aiohttp.test_utils.TestClient, path_prefix: str = ""
+    ) -> None:
+        super().__init__(cast(aiohttp.ClientSession, test_client), path_prefix)
 
     async def async_get_access_token(self) -> str:
         return FAKE_TOKEN
 
 
 @pytest.fixture
-async def auth_client(client) -> Callable[[], Awaitable[AbstractAuth]]:
+async def auth_client(client) -> Callable[[str], Awaitable[AbstractAuth]]:
+    async def _make_auth(path_prefix: str = "") -> AbstractAuth:
+        return FakeAuth(await client(), path_prefix)
+
+    return _make_auth
+
+
+class RefreshingAuth(AbstractAuth):
+    def __init__(self, websession):
+        super().__init__(websession, "")
+
+    async def async_get_access_token(self) -> str:
+        resp = await self._websession.request("get", "/refresh-auth")
+        resp.raise_for_status()
+        json = await resp.json()
+        assert isinstance(json["token"], str)
+        return json["token"]
+
+
+@pytest.fixture
+async def refreshing_auth_client(client) -> Callable[[], Awaitable[AbstractAuth]]:
     async def _make_auth() -> AbstractAuth:
-        return FakeAuth(await client())
+        return RefreshingAuth(await client())
 
     return _make_auth
 
 
 @pytest.fixture
-def event(auth) -> Callable[[dict], EventMessage]:
-    def _make_event(raw_data: dict) -> EventMessage:
-        return EventMessage(raw_data, auth)
+def event_message(auth_client) -> Callable[[dict], Awaitable[EventMessage]]:
+    async def _make_event(raw_data: dict) -> EventMessage:
+        return EventMessage(raw_data, await auth_client())
 
     return _make_event
