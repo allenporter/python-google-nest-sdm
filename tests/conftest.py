@@ -1,6 +1,6 @@
 """Fixtures and libraries shared by tests."""
 
-from typing import AsyncGenerator, Awaitable, Callable, cast
+from typing import AsyncGenerator, Awaitable, Callable, Optional, cast
 
 import aiohttp
 import pytest
@@ -33,10 +33,16 @@ async def server(
 async def client(
     loop, server, aiohttp_client
 ) -> Callable[[], Awaitable[aiohttp.test_utils.TestClient]]:
+
+    # Cache the value so that it can be mutated by a test
+    cached_client: Optional[aiohttp.test_utils.TestClient] = None
+
     async def _make_client() -> aiohttp.test_utils.TestClient:
-        client = await aiohttp_client(await server())
-        assert isinstance(client, aiohttp.test_utils.TestClient)
-        return client
+        nonlocal cached_client
+        if not cached_client:
+            cached_client = await aiohttp_client(await server())
+            assert isinstance(cached_client, aiohttp.test_utils.TestClient)
+        return cached_client
 
     return _make_client
 
