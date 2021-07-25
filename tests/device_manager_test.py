@@ -3,6 +3,7 @@ from typing import Any, Callable, Dict
 
 import pytest
 
+from google_nest_sdm.device import Device
 from google_nest_sdm.device_manager import DeviceManager
 from google_nest_sdm.device_traits import ConnectivityTrait
 from google_nest_sdm.event import EventMessage
@@ -12,8 +13,8 @@ from google_nest_sdm.structure import Structure
 @pytest.fixture
 def event_message_with_time(
     fake_event_message: Callable[[Dict[str, Any]], EventMessage]
-) -> Callable[[datetime.datetime, str], EventMessage]:
-    def make_event(timestamp, status) -> EventMessage:
+) -> Callable[[str, str], EventMessage]:
+    def make_event(timestamp: str, status: str) -> EventMessage:
         return fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
@@ -33,7 +34,7 @@ def event_message_with_time(
     return make_event
 
 
-def test_add_device(fake_device):
+def test_add_device(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     mgr = DeviceManager()
     mgr.add_device(
         fake_device(
@@ -55,7 +56,7 @@ def test_add_device(fake_device):
     assert 2 == len(mgr.devices)
 
 
-def test_duplicate_device(fake_device):
+def test_duplicate_device(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     mgr = DeviceManager()
     mgr.add_device(
         fake_device(
@@ -77,7 +78,10 @@ def test_duplicate_device(fake_device):
     assert 1 == len(mgr.devices)
 
 
-async def test_update_traits(fake_device, fake_event_message):
+async def test_update_traits(
+    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+) -> None:
     mgr = DeviceManager()
     mgr.add_device(
         fake_device(
@@ -120,7 +124,10 @@ async def test_update_traits(fake_device, fake_event_message):
     assert "ONLINE" == trait.status
 
 
-async def test_device_created_in_structure(fake_device, fake_event_message):
+async def test_device_created_in_structure(
+    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+) -> None:
     mgr = DeviceManager()
     mgr.add_device(
         fake_device(
@@ -190,7 +197,10 @@ async def test_device_created_in_structure(fake_device, fake_event_message):
     assert 0 == len(device.parent_relations)
 
 
-async def test_device_event_callback(fake_device, fake_event_message):
+async def test_device_event_callback(
+    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+) -> None:
     device = fake_device(
         {
             "name": "my/device/name1",
@@ -214,7 +224,7 @@ async def test_device_event_callback(fake_device, fake_event_message):
         def __init__(self) -> None:
             self.invoked = False
 
-        async def async_handle_event(self, event_message: EventMessage):
+        async def async_handle_event(self, event_message: EventMessage) -> None:
             self.invoked = True
 
     callback = MyCallback()
@@ -292,7 +302,10 @@ async def test_device_event_callback(fake_device, fake_event_message):
     assert not callback.invoked
 
 
-async def test_device_update_listener(fake_device, fake_event_message):
+async def test_device_update_listener(
+    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+) -> None:
     device = fake_device(
         {
             "name": "my/device/name1",
@@ -316,7 +329,7 @@ async def test_device_update_listener(fake_device, fake_event_message):
         def __init__(self) -> None:
             self.invoked = False
 
-        def async_handle_event(self):
+        def async_handle_event(self) -> None:
             print("async_handle_event")
             self.invoked = True
 
@@ -395,7 +408,10 @@ async def test_device_update_listener(fake_device, fake_event_message):
     assert not callback.invoked
 
 
-async def test_event_image_tracking(fake_device, fake_event_message):
+async def test_event_image_tracking(
+    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+) -> None:
     """Hold on to the last receieved event image."""
     device = fake_device(
         {
@@ -461,7 +477,10 @@ async def test_event_image_tracking(fake_device, fake_event_message):
     )
 
 
-async def test_update_trait_ordering(fake_device, event_message_with_time):
+async def test_update_trait_ordering(
+    fake_device: Callable[[Dict[str, Any]], Device],
+    event_message_with_time: Callable[[str, str], EventMessage],
+) -> None:
     mgr = DeviceManager()
     mgr.add_device(
         fake_device(

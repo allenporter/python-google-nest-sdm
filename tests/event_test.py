@@ -1,4 +1,5 @@
 import datetime
+from typing import Any, Callable, Dict
 
 from google_nest_sdm.event import (
     EventMessage,
@@ -7,7 +8,9 @@ from google_nest_sdm.event import (
 )
 
 
-def test_camera_sound_event(fake_event_message):
+def test_camera_sound_event(
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+) -> None:
     event = fake_event_message(
         {
             "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
@@ -40,7 +43,9 @@ def test_camera_sound_event(fake_event_message):
     assert expire_ts == e.expires_at
 
 
-def test_camera_person_event(fake_event_message):
+def test_camera_person_event(
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+) -> None:
     event = fake_event_message(
         {
             "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
@@ -71,7 +76,9 @@ def test_camera_person_event(fake_event_message):
     assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." == e.event_session_id
 
 
-def test_camera_motion_event(fake_event_message):
+def test_camera_motion_event(
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+) -> None:
     event = fake_event_message(
         {
             "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
@@ -102,7 +109,9 @@ def test_camera_motion_event(fake_event_message):
     assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." == e.event_session_id
 
 
-def test_doorbell_chime_event(fake_event_message):
+def test_doorbell_chime_event(
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+) -> None:
     event = fake_event_message(
         {
             "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
@@ -133,7 +142,7 @@ def test_doorbell_chime_event(fake_event_message):
     assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." == e.event_session_id
 
 
-def test_relation(fake_event_message):
+def test_relation(fake_event_message: Callable[[Dict[str, Any]], EventMessage]) -> None:
     event = fake_event_message(
         {
             "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
@@ -169,7 +178,9 @@ class MyCallback:
         self.invoked = True
 
 
-async def test_event_callback_filter_no_match(fake_event_message):
+async def test_event_callback_filter_no_match(
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+) -> None:
     callback = MyCallback()
     handler = EventTypeFilterCallback(
         "sdm.devices.events.CameraMotion.Motion", callback.async_handle_event
@@ -195,7 +206,9 @@ async def test_event_callback_filter_no_match(fake_event_message):
     assert not callback.invoked
 
 
-async def test_event_callback_filter_match(fake_event_message):
+async def test_event_callback_filter_match(
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+) -> None:
     callback = MyCallback()
     handler = EventTypeFilterCallback(
         "sdm.devices.events.CameraMotion.Motion", callback.async_handle_event
@@ -221,7 +234,9 @@ async def test_event_callback_filter_match(fake_event_message):
     assert callback.invoked
 
 
-async def test_event_callback_filter_trait_update(fake_event_message):
+async def test_event_callback_filter_trait_update(
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+) -> None:
     callback = MyCallback()
     handler = EventTypeFilterCallback(
         "sdm.devices.events.CameraMotion.Motion", callback.async_handle_event
@@ -246,7 +261,9 @@ async def test_event_callback_filter_trait_update(fake_event_message):
     assert not callback.invoked
 
 
-async def test_event_recent_event_filter_match(fake_event_message):
+async def test_event_recent_event_filter_match(
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+) -> None:
 
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     timestamp = now - datetime.timedelta(seconds=5)
@@ -276,7 +293,9 @@ async def test_event_recent_event_filter_match(fake_event_message):
     assert callback.invoked
 
 
-async def test_event_recent_event_filter_too_old(fake_event_message):
+async def test_event_recent_event_filter_too_old(
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+) -> None:
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     timestamp = now - datetime.timedelta(seconds=15)
 

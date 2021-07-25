@@ -1,13 +1,15 @@
 import asyncio
 import json
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, Dict, Optional
 from unittest.mock import create_autospec
 
 import aiohttp
 import pytest
 from google.api_core.exceptions import ClientError, Unauthenticated
 from google.cloud import pubsub_v1
+from google.oauth2.credentials import Credentials
 
+from google_nest_sdm.auth import AbstractAuth
 from google_nest_sdm.exceptions import (
     AuthException,
     ConfigurationException,
@@ -28,14 +30,20 @@ class FakeSubscriberFactory(AbstractSubscriberFactory):
         self.tasks: Optional[Any] = None
 
     async def async_new_subscriber(
-        self, creds, subscription_name, loop, async_callback
-    ):
+        self,
+        creds: Credentials,
+        subscription_name: str,
+        loop: asyncio.AbstractEventLoop,
+        async_callback: Callable[
+            [pubsub_v1.subscriber.message.Message], Awaitable[None]
+        ],
+    ) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
         self._async_callback = async_callback
         if self.tasks:
             return asyncio.create_task(self.tasks.pop(0)())
         return None
 
-    async def async_push_event(self, event):
+    async def async_push_event(self, event: Dict[str, Any]) -> None:
         message = create_autospec(pubsub_v1.subscriber.message.Message, instance=True)
         message.data = json.dumps(event).encode()
         return await self._async_callback(message)
@@ -45,15 +53,21 @@ class Recorder:
     request = None
 
 
-def NewDeviceHandler(r: Recorder, devices: list, token=FAKE_TOKEN):
+def NewDeviceHandler(
+    r: Recorder, devices: list, token: str = FAKE_TOKEN
+) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
     return NewHandler(r, [{"devices": devices}], token=token)
 
 
-def NewStructureHandler(r: Recorder, structures: list, token=FAKE_TOKEN):
+def NewStructureHandler(
+    r: Recorder, structures: list, token: str = FAKE_TOKEN
+) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
     return NewHandler(r, [{"structures": structures}], token=token)
 
 
-def NewHandler(r: Recorder, response: list, token=FAKE_TOKEN):
+def NewHandler(
+    r: Recorder, response: list, token: str = FAKE_TOKEN
+) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
     async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         assert request.headers["Authorization"] == "Bearer %s" % token
         s = await request.text()
@@ -70,8 +84,9 @@ def subscriber_factory() -> FakeSubscriberFactory:
 
 @pytest.fixture
 def subscriber_client(
-    subscriber_factory, auth_client
-) -> Callable[[Optional[AbstractSubscriberFactory]], Awaitable[GoogleNestSubscriber]]:
+    subscriber_factory: FakeSubscriberFactory,
+    auth_client: Callable[[], Awaitable[AbstractAuth]],
+) -> Callable[[], Awaitable[GoogleNestSubscriber]]:
     async def make_subscriber(
         factory: Optional[AbstractSubscriberFactory] = subscriber_factory,
     ) -> GoogleNestSubscriber:
@@ -82,7 +97,10 @@ def subscriber_client(
     return make_subscriber
 
 
-async def test_subscribe_no_events(app, subscriber_client) -> None:
+async def test_subscribe_no_events(
+    app: aiohttp.web.Application,
+    subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
+) -> None:
     r = Recorder()
     handler = NewDeviceHandler(
         r,
@@ -132,7 +150,10 @@ async def test_subscribe_no_events(app, subscriber_client) -> None:
     subscriber.stop_async()
 
 
-async def test_subscribe_device_manager(app, subscriber_client) -> None:
+async def test_subscribe_device_manager(
+    app: aiohttp.web.Application,
+    subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
+) -> None:
     r = Recorder()
     handler = NewDeviceHandler(
         r,
@@ -183,7 +204,9 @@ async def test_subscribe_device_manager(app, subscriber_client) -> None:
 
 
 async def test_subscribe_update_trait(
-    app, subscriber_client, subscriber_factory
+    app: aiohttp.web.Application,
+    subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
+    subscriber_factory: FakeSubscriberFactory,
 ) -> None:
     r = Recorder()
     handler = NewDeviceHandler(
@@ -247,7 +270,10 @@ async def test_subscribe_update_trait(
     subscriber.stop_async()
 
 
-async def test_subscribe_device_manager_init(app, subscriber_client) -> None:
+async def test_subscribe_device_manager_init(
+    app: aiohttp.web.Application,
+    subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
+) -> None:
     r = Recorder()
     handler = NewDeviceHandler(
         r,
@@ -298,16 +324,20 @@ async def test_subscribe_device_manager_init(app, subscriber_client) -> None:
     subscriber.stop_async()
 
 
-async def test_subscriber_watchdog(app, auth_client, subscriber_factory) -> None:
+async def test_subscriber_watchdog(
+    app: aiohttp.web.Application,
+    auth_client: Callable[[], Awaitable[AbstractAuth]],
+    subscriber_factory: FakeSubscriberFactory,
+) -> None:
     # Waits for the test to wake up the background thread
     event1 = asyncio.Event()
 
-    async def task1():
+    async def task1() -> None:
         await event1.wait()
 
     event2 = asyncio.Event()
 
-    async def task2():
+    async def task2() -> None:
         event2.set()
 
     subscriber_factory.tasks = [task1, task2]
@@ -338,11 +368,22 @@ async def test_subscriber_watchdog(app, auth_client, subscriber_factory) -> None
     subscriber.stop_async()
 
 
-async def test_subscriber_error(app, subscriber_client) -> None:
+async def test_subscriber_error(
+    app: aiohttp.web.Application,
+    subscriber_client: Callable[
+        [Optional[AbstractSubscriberFactory]], Awaitable[GoogleNestSubscriber]
+    ],
+) -> None:
     class FailingFactory(AbstractSubscriberFactory):
         async def async_new_subscriber(
-            self, creds, subscription_name, loop, async_callback
-        ):
+            self,
+            creds: Credentials,
+            subscription_name: str,
+            loop: asyncio.AbstractEventLoop,
+            async_callback: Callable[
+                [pubsub_v1.subscriber.message.Message], Awaitable[None]
+            ],
+        ) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
             raise ClientError("Some error")
 
     r = Recorder()
@@ -359,11 +400,22 @@ async def test_subscriber_error(app, subscriber_client) -> None:
     subscriber.stop_async()
 
 
-async def test_subscriber_auth_error(app, subscriber_client) -> None:
+async def test_subscriber_auth_error(
+    app: aiohttp.web.Application,
+    subscriber_client: Callable[
+        [Optional[AbstractSubscriberFactory]], Awaitable[GoogleNestSubscriber]
+    ],
+) -> None:
     class FailingFactory(AbstractSubscriberFactory):
         async def async_new_subscriber(
-            self, creds, subscription_name, loop, async_callback
-        ):
+            self,
+            creds: Credentials,
+            subscription_name: str,
+            loop: asyncio.AbstractEventLoop,
+            async_callback: Callable[
+                [pubsub_v1.subscriber.message.Message], Awaitable[None]
+            ],
+        ) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
             raise Unauthenticated("Auth failure")
 
     r = Recorder()
@@ -378,7 +430,11 @@ async def test_subscriber_auth_error(app, subscriber_client) -> None:
     subscriber.stop_async()
 
 
-async def test_auth_refresh(app, refreshing_auth_client, subscriber_factory) -> None:
+async def test_auth_refresh(
+    app: aiohttp.web.Application,
+    refreshing_auth_client: Callable[[], Awaitable[AbstractAuth]],
+    subscriber_factory: FakeSubscriberFactory,
+) -> None:
     r = Recorder()
 
     async def auth_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
@@ -429,7 +485,9 @@ async def test_auth_refresh(app, refreshing_auth_client, subscriber_factory) -> 
 
 
 async def test_auth_refresh_error(
-    app, refreshing_auth_client, subscriber_factory
+    app: aiohttp.web.Application,
+    refreshing_auth_client: Callable[[], Awaitable[AbstractAuth]],
+    subscriber_factory: FakeSubscriberFactory,
 ) -> None:
     r = Recorder()
 
@@ -475,7 +533,11 @@ async def test_auth_refresh_error(
     subscriber.stop_async()
 
 
-async def test_subscriber_id_error(app, auth_client, subscriber_factory) -> None:
+async def test_subscriber_id_error(
+    app: aiohttp.web.Application,
+    auth_client: Callable[[], Awaitable[AbstractAuth]],
+    subscriber_factory: FakeSubscriberFactory,
+) -> None:
     r = Recorder()
     app.router.add_get("/enterprises/project-id1/devices", NewDeviceHandler(r, []))
     app.router.add_get(
