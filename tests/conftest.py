@@ -1,6 +1,6 @@
 """Fixtures and libraries shared by tests."""
 
-from typing import AsyncGenerator, Awaitable, Callable, Optional, cast
+from typing import Any, AsyncGenerator, Awaitable, Callable, Dict, Optional, cast
 
 import aiohttp
 import pytest
@@ -57,7 +57,7 @@ class FakeAuth(AbstractAuth):
 
 
 @pytest.fixture
-async def auth_client(client) -> Callable[[str], Awaitable[AbstractAuth]]:
+async def auth_client(app, client) -> Callable[[str], Awaitable[AbstractAuth]]:
     async def _make_auth(path_prefix: str = "") -> AbstractAuth:
         return FakeAuth(await client(), path_prefix)
 
@@ -77,7 +77,7 @@ class RefreshingAuth(AbstractAuth):
 
 
 @pytest.fixture
-async def refreshing_auth_client(client) -> Callable[[], Awaitable[AbstractAuth]]:
+async def refreshing_auth_client(app, client) -> Callable[[], Awaitable[AbstractAuth]]:
     async def _make_auth() -> AbstractAuth:
         return RefreshingAuth(await client())
 
@@ -85,8 +85,18 @@ async def refreshing_auth_client(client) -> Callable[[], Awaitable[AbstractAuth]
 
 
 @pytest.fixture
-def event_message(auth_client) -> Callable[[dict], Awaitable[EventMessage]]:
-    async def _make_event(raw_data: dict) -> EventMessage:
+def event_message(
+    app, auth_client
+) -> Callable[[Dict[str, Any]], Awaitable[EventMessage]]:
+    async def _make_event(raw_data: Dict[str, Any]) -> EventMessage:
         return EventMessage(raw_data, await auth_client())
+
+    return _make_event
+
+
+@pytest.fixture
+def fake_event_message() -> Callable[[Dict[str, Any]], EventMessage]:
+    def _make_event(raw_data: Dict[str, Any]) -> EventMessage:
+        return EventMessage(raw_data, cast(AbstractAuth, None))
 
     return _make_event

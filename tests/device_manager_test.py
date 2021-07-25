@@ -1,4 +1,7 @@
 import datetime
+from typing import Any, Callable, Dict
+
+import pytest
 
 from google_nest_sdm.device import Device
 from google_nest_sdm.device_manager import DeviceManager
@@ -14,8 +17,28 @@ def MakeStructure(raw_data: dict) -> Structure:
     return Structure.MakeStructure(raw_data)
 
 
-def MakeEvent(raw_data: dict) -> EventMessage:
-    return EventMessage(raw_data, auth=None)
+@pytest.fixture
+def event_message_with_time(
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+) -> Callable[[datetime.datetime, str], EventMessage]:
+    def make_event(timestamp, status) -> EventMessage:
+        return fake_event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": timestamp,
+                "resourceUpdate": {
+                    "name": "my/device/name1",
+                    "traits": {
+                        "sdm.devices.traits.Connectivity": {
+                            "status": status,
+                        }
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+
+    return make_event
 
 
 def test_add_device():
@@ -62,7 +85,7 @@ def test_duplicate_device():
     assert 1 == len(mgr.devices)
 
 
-async def test_update_traits():
+async def test_update_traits(fake_event_message):
     mgr = DeviceManager()
     mgr.add_device(
         MakeDevice(
@@ -83,7 +106,7 @@ async def test_update_traits():
     trait = device.traits["sdm.devices.traits.Connectivity"]
     assert "OFFLINE" == trait.status
     await mgr.async_handle_event(
-        MakeEvent(
+        fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
@@ -105,7 +128,7 @@ async def test_update_traits():
     assert "ONLINE" == trait.status
 
 
-async def test_device_created_in_structure():
+async def test_device_created_in_structure(fake_event_message):
     mgr = DeviceManager()
     mgr.add_device(
         MakeDevice(
@@ -139,7 +162,7 @@ async def test_device_created_in_structure():
     assert "Structure Name" == trait.custom_name
 
     await mgr.async_handle_event(
-        MakeEvent(
+        fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
@@ -158,7 +181,7 @@ async def test_device_created_in_structure():
     } == device.parent_relations
 
     await mgr.async_handle_event(
-        MakeEvent(
+        fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
@@ -175,7 +198,7 @@ async def test_device_created_in_structure():
     assert 0 == len(device.parent_relations)
 
 
-async def test_device_event_callback():
+async def test_device_event_callback(fake_event_message):
     device = MakeDevice(
         {
             "name": "my/device/name1",
@@ -207,7 +230,7 @@ async def test_device_event_callback():
     assert not callback.invoked
 
     await mgr.async_handle_event(
-        MakeEvent(
+        fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
@@ -232,7 +255,7 @@ async def test_device_event_callback():
     # Test event not for this device
     callback.invoked = False
     await mgr.async_handle_event(
-        MakeEvent(
+        fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
@@ -254,7 +277,7 @@ async def test_device_event_callback():
     # is not invoked
     unregister()
     await mgr.async_handle_event(
-        MakeEvent(
+        fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
@@ -277,7 +300,7 @@ async def test_device_event_callback():
     assert not callback.invoked
 
 
-async def test_device_update_listener():
+async def test_device_update_listener(fake_event_message):
     device = MakeDevice(
         {
             "name": "my/device/name1",
@@ -310,7 +333,7 @@ async def test_device_update_listener():
     assert not callback.invoked
 
     await mgr.async_handle_event(
-        MakeEvent(
+        fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
@@ -335,7 +358,7 @@ async def test_device_update_listener():
     # Test event not for this device
     callback.invoked = False
     await mgr.async_handle_event(
-        MakeEvent(
+        fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
@@ -357,7 +380,7 @@ async def test_device_update_listener():
     # is not invoked
     unregister()
     await mgr.async_handle_event(
-        MakeEvent(
+        fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
@@ -380,7 +403,7 @@ async def test_device_update_listener():
     assert not callback.invoked
 
 
-async def test_event_image_tracking():
+async def test_event_image_tracking(fake_event_message):
     """Hold on to the last receieved event image."""
     device = MakeDevice(
         {
@@ -403,7 +426,7 @@ async def test_event_image_tracking():
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     timestamp = now - datetime.timedelta(seconds=10)
     await mgr.async_handle_event(
-        MakeEvent(
+        fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": timestamp.isoformat(timespec="seconds"),
@@ -446,7 +469,7 @@ async def test_event_image_tracking():
     )
 
 
-async def test_update_trait_ordering():
+async def test_update_trait_ordering(event_message_with_time):
     mgr = DeviceManager()
     mgr.add_device(
         MakeDevice(
@@ -468,31 +491,22 @@ async def test_update_trait_ordering():
         assert "sdm.devices.traits.Connectivity" in device.traits
         return device.traits["sdm.devices.traits.Connectivity"]
 
-    def MakeEventWithTime(timestamp, status):
-        return MakeEvent(
-            {
-                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
-                "timestamp": timestamp,
-                "resourceUpdate": {
-                    "name": "my/device/name1",
-                    "traits": {
-                        "sdm.devices.traits.Connectivity": {
-                            "status": status,
-                        }
-                    },
-                },
-                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
-            }
-        )
-
     assert get_connectivity().status == "OFFLINE"
-    await mgr.async_handle_event(MakeEventWithTime("2019-01-01T00:00:03Z", "ONLINE"))
+    await mgr.async_handle_event(
+        event_message_with_time("2019-01-01T00:00:03Z", "ONLINE")
+    )
     assert get_connectivity().status == "ONLINE"
-    await mgr.async_handle_event(MakeEventWithTime("2019-01-01T00:00:04Z", "OFFLINE"))
+    await mgr.async_handle_event(
+        event_message_with_time("2019-01-01T00:00:04Z", "OFFLINE")
+    )
     assert get_connectivity().status == "OFFLINE"
     # Event in past is igored
-    await mgr.async_handle_event(MakeEventWithTime("2019-01-01T00:00:01Z", "ONLINE"))
+    await mgr.async_handle_event(
+        event_message_with_time("2019-01-01T00:00:01Z", "ONLINE")
+    )
     assert get_connectivity().status == "OFFLINE"
     # Event in future is applied
-    await mgr.async_handle_event(MakeEventWithTime("2019-01-01T00:00:05Z", "ONLINE"))
+    await mgr.async_handle_event(
+        event_message_with_time("2019-01-01T00:00:05Z", "ONLINE")
+    )
     assert get_connectivity().status == "ONLINE"

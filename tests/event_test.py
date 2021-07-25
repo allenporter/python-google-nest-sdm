@@ -7,12 +7,8 @@ from google_nest_sdm.event import (
 )
 
 
-def MakeEvent(raw_data: dict) -> EventMessage:
-    return EventMessage(raw_data, auth=None)
-
-
-def test_camera_sound_event():
-    event = MakeEvent(
+def test_camera_sound_event(fake_event_message):
+    event = fake_event_message(
         {
             "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
             "timestamp": "2019-01-01T00:00:01Z",
@@ -43,8 +39,8 @@ def test_camera_sound_event():
     assert expire_ts == e.expires_at
 
 
-def test_camera_person_event():
-    event = MakeEvent(
+def test_camera_person_event(fake_event_message):
+    event = fake_event_message(
         {
             "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
             "timestamp": "2019-01-01T00:00:01Z",
@@ -73,8 +69,8 @@ def test_camera_person_event():
     assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." == e.event_session_id
 
 
-def test_camera_motion_event():
-    event = MakeEvent(
+def test_camera_motion_event(fake_event_message):
+    event = fake_event_message(
         {
             "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
             "timestamp": "2019-01-01T00:00:01Z",
@@ -103,8 +99,8 @@ def test_camera_motion_event():
     assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." == e.event_session_id
 
 
-def test_doorbell_chime_event():
-    event = MakeEvent(
+def test_doorbell_chime_event(fake_event_message):
+    event = fake_event_message(
         {
             "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
             "timestamp": "2019-01-01T00:00:01Z",
@@ -133,8 +129,8 @@ def test_doorbell_chime_event():
     assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." == e.event_session_id
 
 
-def test_relation():
-    event = MakeEvent(
+def test_relation(fake_event_message):
+    event = fake_event_message(
         {
             "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
             "timestamp": "2019-01-01T00:00:01Z",
@@ -168,13 +164,13 @@ class MyCallback:
         self.invoked = True
 
 
-async def test_event_callback_filter_no_match():
+async def test_event_callback_filter_no_match(fake_event_message):
     callback = MyCallback()
     handler = EventTypeFilterCallback(
         "sdm.devices.events.CameraMotion.Motion", callback.async_handle_event
     )
     assert not callback.invoked
-    event = MakeEvent(
+    event = fake_event_message(
         {
             "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
             "timestamp": "2019-01-01T00:00:01Z",
@@ -194,13 +190,13 @@ async def test_event_callback_filter_no_match():
     assert not callback.invoked
 
 
-async def test_event_callback_filter_match():
+async def test_event_callback_filter_match(fake_event_message):
     callback = MyCallback()
     handler = EventTypeFilterCallback(
         "sdm.devices.events.CameraMotion.Motion", callback.async_handle_event
     )
     assert not callback.invoked
-    event = MakeEvent(
+    event = fake_event_message(
         {
             "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
             "timestamp": "2019-01-01T00:00:01Z",
@@ -220,13 +216,13 @@ async def test_event_callback_filter_match():
     assert callback.invoked
 
 
-async def test_event_callback_filter_trait_update():
+async def test_event_callback_filter_trait_update(fake_event_message):
     callback = MyCallback()
     handler = EventTypeFilterCallback(
         "sdm.devices.events.CameraMotion.Motion", callback.async_handle_event
     )
     assert not callback.invoked
-    event = MakeEvent(
+    event = fake_event_message(
         {
             "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
             "timestamp": "2019-01-01T00:00:01Z",
@@ -245,7 +241,7 @@ async def test_event_callback_filter_trait_update():
     assert not callback.invoked
 
 
-async def test_event_recent_event_filter_match():
+async def test_event_recent_event_filter_match(fake_event_message):
 
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     timestamp = now - datetime.timedelta(seconds=5)
@@ -255,7 +251,7 @@ async def test_event_recent_event_filter_match():
         datetime.timedelta(seconds=10), callback.async_handle_event
     )
     assert not callback.invoked
-    event = MakeEvent(
+    event = fake_event_message(
         {
             "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
             "timestamp": timestamp.isoformat(timespec="seconds"),
@@ -275,7 +271,7 @@ async def test_event_recent_event_filter_match():
     assert callback.invoked
 
 
-async def test_event_recent_event_filter_too_old():
+async def test_event_recent_event_filter_too_old(fake_event_message):
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     timestamp = now - datetime.timedelta(seconds=15)
 
@@ -284,7 +280,7 @@ async def test_event_recent_event_filter_too_old():
         datetime.timedelta(seconds=10), callback.async_handle_event
     )
     assert not callback.invoked
-    event = MakeEvent(
+    event = fake_event_message(
         {
             "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
             "timestamp": timestamp.isoformat(timespec="seconds"),
