@@ -1,15 +1,7 @@
 import aiohttp
 from aiohttp.test_utils import TestClient
 
-from google_nest_sdm.device import AbstractAuth
-
-
-class FakeAuth(AbstractAuth):
-    def __init__(self, websession):
-        super().__init__(websession, "path-prefix")
-
-    async def async_get_access_token(self) -> str:
-        return "some-token"
+from .conftest import FakeAuth
 
 
 async def test_request(aiohttp_server) -> None:
