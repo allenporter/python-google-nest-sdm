@@ -1,12 +1,14 @@
 import datetime
 import json
-from typing import Awaitable, Callable
+from typing import Any, Awaitable, Callable, Dict
 from unittest.mock import patch
 
 import aiohttp
 import pytest
 
 from google_nest_sdm import google_nest_api
+from google_nest_sdm.auth import AbstractAuth
+from google_nest_sdm.event import EventMessage
 from google_nest_sdm.exceptions import ApiException, AuthException
 
 from .conftest import (
@@ -23,7 +25,7 @@ FAKE_TOKEN = "some-token"
 
 @pytest.fixture
 async def api_client(
-    auth_client,
+    auth_client: Callable[[], Awaitable[AbstractAuth]],
 ) -> Callable[[], Awaitable[google_nest_api.GoogleNestAPI]]:
     async def make_api() -> google_nest_api.GoogleNestAPI:
         auth = await auth_client()
@@ -32,7 +34,10 @@ async def api_client(
     return make_api
 
 
-async def test_get_devices(app, api_client) -> None:
+async def test_get_devices(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
     r = Recorder()
     handler = NewDeviceHandler(
         r,
@@ -63,7 +68,10 @@ async def test_get_devices(app, api_client) -> None:
     assert "sdm.devices.types.device-type2" == devices[1].type
 
 
-async def test_fan_set_timer(app, api_client) -> None:
+async def test_fan_set_timer(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
     r = Recorder()
     handler = NewDeviceHandler(
         r,
@@ -103,7 +111,10 @@ async def test_fan_set_timer(app, api_client) -> None:
     assert expected_request == r.request
 
 
-async def test_thermostat_eco_set_mode(app, api_client) -> None:
+async def test_thermostat_eco_set_mode(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
     r = Recorder()
     handler = NewDeviceHandler(
         r,
@@ -143,7 +154,10 @@ async def test_thermostat_eco_set_mode(app, api_client) -> None:
     assert expected_request == r.request
 
 
-async def test_thermostat_mode_set_mode(app, api_client) -> None:
+async def test_thermostat_mode_set_mode(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
     r = Recorder()
     handler = NewDeviceHandler(
         r,
@@ -181,7 +195,10 @@ async def test_thermostat_mode_set_mode(app, api_client) -> None:
     assert expected_request == r.request
 
 
-async def test_thermostat_temperature_set_point(app, api_client) -> None:
+async def test_thermostat_temperature_set_point(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
     r = Recorder()
     handler = NewDeviceHandler(
         r,
@@ -237,7 +254,10 @@ async def test_thermostat_temperature_set_point(app, api_client) -> None:
     assert expected_request == r.request
 
 
-async def test_camera_live_stream(app, api_client) -> None:
+async def test_camera_live_stream(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
     r = Recorder()
     handler = NewDeviceHandler(
         r,
@@ -351,7 +371,10 @@ async def test_camera_live_stream(app, api_client) -> None:
     assert expected_request == r.request
 
 
-async def test_camera_event_image(app, api_client) -> None:
+async def test_camera_event_image(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
     r = Recorder()
     handler = NewDeviceHandler(
         r,
@@ -398,7 +421,11 @@ async def test_camera_event_image(app, api_client) -> None:
     assert "g.0.eventToken" == image.token
 
 
-async def test_camera_active_event_image(app, api_client, event_message) -> None:
+async def test_camera_active_event_image(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
     r = Recorder()
     handler = NewDeviceHandler(
         r,
@@ -468,7 +495,11 @@ async def test_camera_active_event_image(app, api_client, event_message) -> None
     assert "g.0.eventToken" == image.token
 
 
-async def test_camera_last_active_event_image(app, api_client, event_message) -> None:
+async def test_camera_last_active_event_image(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
     r = Recorder()
     handler = NewDeviceHandler(
         r,
@@ -548,13 +579,17 @@ async def test_camera_last_active_event_image(app, api_client, event_message) ->
     )
 
     trait = device.active_event_trait
+    assert trait
     assert trait.active_event is not None
     assert trait.last_event is not None
     assert trait.last_event.event_session_id == "FMfVTbY91Y4o3RwZTaKV3Y5jC..."
     assert trait.last_event.event_id == "VXNTa2VGM4V2UTlUNGdUVQVWWF..."
 
 
-async def test_camera_event_image_bytes(app, api_client) -> None:
+async def test_camera_event_image_bytes(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
     r = Recorder()
     handler = NewDeviceHandler(
         r,
@@ -598,7 +633,10 @@ async def test_camera_event_image_bytes(app, api_client) -> None:
     assert image_bytes == b"image-bytes"
 
 
-async def test_get_structures(app, api_client) -> None:
+async def test_get_structures(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
     r = Recorder()
     handler = NewStructureHandler(
         r,
@@ -633,7 +671,10 @@ async def test_get_structures(app, api_client) -> None:
     assert "sdm.structures.traits.Info" in structures[1].traits
 
 
-async def test_client_error(app, api_client) -> None:
+async def test_client_error(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
     # No server endpoint registered
     api = await api_client()
     with patch(
@@ -643,14 +684,20 @@ async def test_client_error(app, api_client) -> None:
         await api.async_get_structures()
 
 
-async def test_api_get_error(app, api_client) -> None:
+async def test_api_get_error(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
     # No server endpoint registered
     api = await api_client()
     with pytest.raises(ApiException):
         await api.async_get_structures()
 
 
-async def test_api_post_error(app, api_client) -> None:
+async def test_api_post_error(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
     r = Recorder()
     handler = NewDeviceHandler(
         r,
@@ -689,7 +736,10 @@ async def test_api_post_error(app, api_client) -> None:
         await trait.set_heat(25.0)
 
 
-async def test_auth_refresh(app, refreshing_auth_client) -> None:
+async def test_auth_refresh(
+    app: aiohttp.web.Application,
+    refreshing_auth_client: Callable[[], Awaitable[AbstractAuth]],
+) -> None:
     r = Recorder()
     handler = NewDeviceHandler(
         r,
@@ -719,7 +769,10 @@ async def test_auth_refresh(app, refreshing_auth_client) -> None:
     assert "sdm.devices.types.device-type1" == devices[0].type
 
 
-async def test_auth_refresh_error(app, refreshing_auth_client) -> None:
+async def test_auth_refresh_error(
+    app: aiohttp.web.Application,
+    refreshing_auth_client: Callable[[], Awaitable[AbstractAuth]],
+) -> None:
     r = Recorder()
 
     async def auth_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
@@ -734,7 +787,10 @@ async def test_auth_refresh_error(app, refreshing_auth_client) -> None:
         await api.async_get_devices()
 
 
-async def test_no_devices(app, api_client) -> None:
+async def test_no_devices(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
     r = Recorder()
     app.router.add_get("/enterprises/project-id1/devices", NewHandler(r, [{}]))
 
@@ -743,7 +799,10 @@ async def test_no_devices(app, api_client) -> None:
     assert len(devices) == 0
 
 
-async def test_missing_device(app, api_client) -> None:
+async def test_missing_device(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
     r = Recorder()
     app.router.add_get("/enterprises/project-id1/devices/abc", NewHandler(r, [{}]))
     api = await api_client()
@@ -751,7 +810,10 @@ async def test_missing_device(app, api_client) -> None:
     assert device is None
 
 
-async def test_no_structures(app, api_client) -> None:
+async def test_no_structures(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
     r = Recorder()
     app.router.add_get("/enterprises/project-id1/structures", NewHandler(r, [{}]))
 
@@ -760,7 +822,10 @@ async def test_no_structures(app, api_client) -> None:
     assert len(structures) == 0
 
 
-async def test_missing_structures(app, api_client) -> None:
+async def test_missing_structures(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
     r = Recorder()
     app.router.add_get("/enterprises/project-id1/structures/abc", NewHandler(r, [{}]))
 
@@ -769,7 +834,10 @@ async def test_missing_structures(app, api_client) -> None:
     assert structure is None
 
 
-async def test_api_post_error_with_json_response(app, api_client) -> None:
+async def test_api_post_error_with_json_response(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
     r = Recorder()
     handler = NewDeviceHandler(
         r,
