@@ -1,5 +1,7 @@
 """Events from pubsub subscriber."""
 
+from __future__ import annotations
+
 import datetime
 import logging
 from abc import ABC
@@ -149,7 +151,7 @@ def BuildEvents(
     events: Mapping[str, Any],
     event_map: Mapping[str, ImageEventBase],
     timestamp: datetime.datetime,
-) -> Dict[str, Any]:
+) -> Dict[str, ImageEventBase]:
     """Build a trait map out of a response dict."""
     result = {}
     for (event, event_data) in events.items():
@@ -188,7 +190,7 @@ class EventMessage:
         return cast_optional(str, self._raw_data[RESOURCE_UPDATE].get(NAME))
 
     @property
-    def resource_update_events(self) -> Optional[dict]:
+    def resource_update_events(self) -> Optional[Dict[str, ImageEventBase]]:
         """Return the set of events that happened."""
         if RESOURCE_UPDATE not in self._raw_data:
             return None

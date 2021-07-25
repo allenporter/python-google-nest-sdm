@@ -30,6 +30,7 @@ def test_camera_sound_event(fake_event_message):
     assert ts == event.timestamp
     assert "enterprises/project-id/devices/device-id" == event.resource_update_name
     events = event.resource_update_events
+    assert events is not None
     assert "sdm.devices.events.CameraSound.Sound" in events
     e = events["sdm.devices.events.CameraSound.Sound"]
     assert "FWWVQVUdGNUlTU2V4MGV2aTNXV..." == e.event_id
@@ -63,6 +64,7 @@ def test_camera_person_event(fake_event_message):
     )
     assert "enterprises/project-id/devices/device-id" == event.resource_update_name
     events = event.resource_update_events
+    assert events is not None
     assert "sdm.devices.events.CameraPerson.Person" in events
     e = events["sdm.devices.events.CameraPerson.Person"]
     assert "FWWVQVUdGNUlTU2V4MGV2aTNXV..." == e.event_id
@@ -93,6 +95,7 @@ def test_camera_motion_event(fake_event_message):
     )
     assert "enterprises/project-id/devices/device-id" == event.resource_update_name
     events = event.resource_update_events
+    assert events is not None
     assert "sdm.devices.events.CameraMotion.Motion" in events
     e = events["sdm.devices.events.CameraMotion.Motion"]
     assert "FWWVQVUdGNUlTU2V4MGV2aTNXV..." == e.event_id
@@ -123,6 +126,7 @@ def test_doorbell_chime_event(fake_event_message):
     )
     assert "enterprises/project-id/devices/device-id" == event.resource_update_name
     events = event.resource_update_events
+    assert events is not None
     assert "sdm.devices.events.DoorbellChime.Chime" in events
     e = events["sdm.devices.events.DoorbellChime.Chime"]
     assert "FWWVQVUdGNUlTU2V4MGV2aTNXV..." == e.event_id
@@ -151,6 +155,7 @@ def test_relation(fake_event_message):
     assert event.resource_update_events is None
     assert event.resource_update_traits is None
     update = event.relation_update
+    assert update is not None
     assert "CREATED" == update.type
     assert "enterprises/project-id/structures/structure-id" == update.subject
     assert "enterprises/project-id/devices/device-id" == update.object

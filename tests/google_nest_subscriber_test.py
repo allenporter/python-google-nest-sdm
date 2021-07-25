@@ -73,9 +73,10 @@ def subscriber_client(
     subscriber_factory, auth_client
 ) -> Callable[[Optional[AbstractSubscriberFactory]], Awaitable[GoogleNestSubscriber]]:
     async def make_subscriber(
-        factory: AbstractSubscriberFactory = subscriber_factory,
+        factory: Optional[AbstractSubscriberFactory] = subscriber_factory,
     ) -> GoogleNestSubscriber:
         auth = await auth_client()
+        assert factory
         return GoogleNestSubscriber(auth, PROJECT_ID, SUBSCRIBER_ID, factory)
 
     return make_subscriber

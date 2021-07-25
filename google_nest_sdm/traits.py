@@ -22,6 +22,7 @@ class Command:
 
     async def execute(self, data: Mapping[str, Any]) -> aiohttp.ClientResponse:
         """Run the command."""
+        assert self._auth
         return await self._auth.post(f"{self._device_id}:executeCommand", json=data)
 
     async def fetch_image(self, url: str, basic_auth: Optional[str] = None) -> bytes:
