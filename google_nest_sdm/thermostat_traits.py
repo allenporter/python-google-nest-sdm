@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from abc import ABC
 from typing import Any, Final, List, Mapping, cast
 
 import aiohttp
@@ -16,8 +17,20 @@ HEAT_CELSIUS: Final = "heatCelsius"
 COOL_CELSIUS: Final = "coolCelsius"
 
 
+class ThermostatHeatCoolTrait(ABC):
+    """Parent class for traits related to temperature set points."""
+
+    @property
+    def heat_celsius(self) -> float:
+        """Lowest temperature where Eco mode begins heating."""
+
+    @property
+    def cool_celsius(self) -> float:
+        """Highest cooling temperature where Eco mode begins cooling."""
+
+
 @TRAIT_MAP.register()
-class ThermostatEcoTrait:
+class ThermostatEcoTrait(ThermostatHeatCoolTrait):
     """This trait belongs to any device that has a sensor to measure temperature."""
 
     NAME = "sdm.devices.traits.ThermostatEco"
@@ -103,7 +116,7 @@ class ThermostatModeTrait:
 
 
 @TRAIT_MAP.register()
-class ThermostatTemperatureSetpointTrait:
+class ThermostatTemperatureSetpointTrait(ThermostatHeatCoolTrait):
     """This trait belongs to devices that support setting target temperature."""
 
     NAME = "sdm.devices.traits.ThermostatTemperatureSetpoint"
