@@ -1,11 +1,14 @@
 """Tests for device traits."""
 
 import datetime
+from typing import Any, Callable, Dict
 
 import pytest
 
+from google_nest_sdm.device import Device
 
-def test_info_traits(fake_device):
+
+def test_info_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -22,7 +25,7 @@ def test_info_traits(fake_device):
     assert "Device Name" == trait.custom_name
 
 
-def test_connectivity_traits(fake_device):
+def test_connectivity_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -38,7 +41,7 @@ def test_connectivity_traits(fake_device):
     assert "OFFLINE" == trait.status
 
 
-def test_fan_traits(fake_device):
+def test_fan_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -59,7 +62,7 @@ def test_fan_traits(fake_device):
     )
 
 
-def test_fan_traits_empty(fake_device):
+def test_fan_traits_empty(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -74,7 +77,7 @@ def test_fan_traits_empty(fake_device):
     assert trait.timer_timeout is None
 
 
-def test_humidity_traits(fake_device):
+def test_humidity_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -90,7 +93,7 @@ def test_humidity_traits(fake_device):
     assert 25.3 == trait.ambient_humidity_percent
 
 
-def test_temperature_traits(fake_device):
+def test_temperature_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -106,7 +109,7 @@ def test_temperature_traits(fake_device):
     assert 31.1 == trait.ambient_temperature_celsius
 
 
-def test_multiple_traits(fake_device):
+def test_multiple_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -131,7 +134,9 @@ def test_multiple_traits(fake_device):
     assert "OFFLINE" == trait.status
 
 
-def test_info_traits_type_error(fake_device):
+def test_info_traits_type_error(
+    fake_device: Callable[[Dict[str, Any]], Device]
+) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -149,7 +154,9 @@ def test_info_traits_type_error(fake_device):
         trait.custom_name
 
 
-def test_info_traits_missing_optional_field(fake_device):
+def test_info_traits_missing_optional_field(
+    fake_device: Callable[[Dict[str, Any]], Device]
+) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -164,7 +171,9 @@ def test_info_traits_missing_optional_field(fake_device):
     assert trait.custom_name is None
 
 
-def test_connectivity_traits_missing_required_field(fake_device):
+def test_connectivity_traits_missing_required_field(
+    fake_device: Callable[[Dict[str, Any]], Device]
+) -> None:
     device = fake_device(
         {
             "name": "my/device/name",

@@ -1,7 +1,11 @@
 """Tests for thermostat traits."""
 
+from typing import Any, Callable, Dict
 
-def test_thermostat_eco_traits(fake_device):
+from google_nest_sdm.device import Device
+
+
+def test_thermostat_eco_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -23,7 +27,9 @@ def test_thermostat_eco_traits(fake_device):
     assert 22.0 == trait.cool_celsius
 
 
-def test_thermostat_hvac_traits(fake_device):
+def test_thermostat_hvac_traits(
+    fake_device: Callable[[Dict[str, Any]], Device]
+) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -39,7 +45,9 @@ def test_thermostat_hvac_traits(fake_device):
     assert "HEATING" == trait.status
 
 
-def test_thermostat_mode_traits(fake_device):
+def test_thermostat_mode_traits(
+    fake_device: Callable[[Dict[str, Any]], Device]
+) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -57,7 +65,9 @@ def test_thermostat_mode_traits(fake_device):
     assert "COOL" == trait.mode
 
 
-def test_thermostat_temperature_setpoint_traits(fake_device):
+def test_thermostat_temperature_setpoint_traits(
+    fake_device: Callable[[Dict[str, Any]], Device]
+) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -75,7 +85,9 @@ def test_thermostat_temperature_setpoint_traits(fake_device):
     assert 22.0 == trait.cool_celsius
 
 
-def test_thermostat_multiple_traits(fake_device):
+def test_thermostat_multiple_traits(
+    fake_device: Callable[[Dict[str, Any]], Device]
+) -> None:
     device = fake_device(
         {
             "name": "my/device/name",

@@ -1,7 +1,11 @@
 """Test for camera traits."""
 
+from typing import Any, Callable, Dict
 
-def test_camera_image_traits(fake_device):
+from google_nest_sdm.device import Device
+
+
+def test_camera_image_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     raw = {
         "name": "my/device/name",
         "traits": {
@@ -20,7 +24,9 @@ def test_camera_image_traits(fake_device):
     assert 300 == trait.max_image_resolution.height
 
 
-def test_camera_live_stream_traits(fake_device):
+def test_camera_live_stream_traits(
+    fake_device: Callable[[Dict[str, Any]], Device]
+) -> None:
     raw = {
         "name": "my/device/name",
         "traits": {
@@ -43,7 +49,9 @@ def test_camera_live_stream_traits(fake_device):
     assert ["AAC"] == trait.audio_codecs
 
 
-def test_camera_event_image_traits(fake_device):
+def test_camera_event_image_traits(
+    fake_device: Callable[[Dict[str, Any]], Device]
+) -> None:
     raw = {
         "name": "my/device/name",
         "traits": {
@@ -54,7 +62,7 @@ def test_camera_event_image_traits(fake_device):
     assert "sdm.devices.traits.CameraEventImage" in device.traits
 
 
-def test_camera_motion_traits(fake_device):
+def test_camera_motion_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     raw = {
         "name": "my/device/name",
         "traits": {
@@ -65,7 +73,7 @@ def test_camera_motion_traits(fake_device):
     assert "sdm.devices.traits.CameraMotion" in device.traits
 
 
-def test_camera_person_traits(fake_device):
+def test_camera_person_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     raw = {
         "name": "my/device/name",
         "traits": {
@@ -76,7 +84,7 @@ def test_camera_person_traits(fake_device):
     assert "sdm.devices.traits.CameraPerson" in device.traits
 
 
-def test_camera_sound_traits(fake_device):
+def test_camera_sound_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     raw = {
         "name": "my/device/name",
         "traits": {
