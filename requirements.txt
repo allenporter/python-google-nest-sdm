@@ -40,7 +40,7 @@ nodeenv==1.6.0
 oauthlib==3.1.1
 packaging==21.0
 pathspec==0.9.0
-platformdirs==2.1.0
+platformdirs==2.2.0
 pluggy==0.13.1
 pre-commit==2.13.0
 proto-plus==1.19.0
