@@ -1,7 +1,7 @@
 """Library for traits about devices."""
 
 import datetime
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, Mapping, Optional, cast
 
 import aiohttp
 
@@ -108,7 +108,7 @@ class HumidityTrait:
     @property
     def ambient_humidity_percent(self) -> float:
         """Percent humidity, measured at the device."""
-        return cast_assert(float, self._data[AMBIENT_HUMIDITY_PERCENT])
+        return cast(float, self._data[AMBIENT_HUMIDITY_PERCENT])
 
 
 @TRAIT_MAP.register()
@@ -124,4 +124,4 @@ class TemperatureTrait:
     @property
     def ambient_temperature_celsius(self) -> float:
         """Percent humidity, measured at the device."""
-        return cast_assert(float, self._data[AMBIENT_TEMPERATURE_CELSIUS])
+        return cast(float, self._data[AMBIENT_TEMPERATURE_CELSIUS])

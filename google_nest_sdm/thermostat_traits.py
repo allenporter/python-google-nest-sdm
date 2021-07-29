@@ -61,12 +61,12 @@ class ThermostatEcoTrait(ThermostatHeatCoolTrait):
     @property
     def heat_celsius(self) -> float:
         """Lowest temperature where Eco mode begins heating."""
-        return cast_assert(float, self._data[HEAT_CELSIUS])
+        return cast(float, self._data[HEAT_CELSIUS])
 
     @property
     def cool_celsius(self) -> float:
         """Highest cooling temperature where Eco mode begins cooling."""
-        return cast_assert(float, self._data[COOL_CELSIUS])
+        return cast(float, self._data[COOL_CELSIUS])
 
 
 @TRAIT_MAP.register()
@@ -129,12 +129,12 @@ class ThermostatTemperatureSetpointTrait(ThermostatHeatCoolTrait):
     @property
     def heat_celsius(self) -> float:
         """Lowest temperature where Eco mode begins heating."""
-        return cast_assert(float, self._data[HEAT_CELSIUS])
+        return cast(float, self._data[HEAT_CELSIUS])
 
     @property
     def cool_celsius(self) -> float:
         """Highest cooling temperature where Eco mode begins cooling."""
-        return cast_assert(float, self._data[COOL_CELSIUS])
+        return cast(float, self._data[COOL_CELSIUS])
 
     async def set_heat(self, heat: float) -> aiohttp.ClientResponse:
         """Change the thermostat Eco mode."""

@@ -93,6 +93,22 @@ def test_humidity_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> Non
     assert 25.3 == trait.ambient_humidity_percent
 
 
+def test_humidity_int_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
+    device = fake_device(
+        {
+            "name": "my/device/name",
+            "traits": {
+                "sdm.devices.traits.Humidity": {
+                    "ambientHumidityPercent": 25,
+                },
+            },
+        }
+    )
+    assert "sdm.devices.traits.Humidity" in device.traits
+    trait = device.traits["sdm.devices.traits.Humidity"]
+    assert 25 == trait.ambient_humidity_percent
+
+
 def test_temperature_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
