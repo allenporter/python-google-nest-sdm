@@ -70,7 +70,7 @@ class Device:
         return cast_assert(str, self._raw_data[DEVICE_NAME])
 
     @property
-    def type(self) -> Optional[str]:
+    def type(self) -> str:
         """Type of device for display purposes.
 
         The device type should not be used to deduce or infer functionality of
