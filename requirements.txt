@@ -30,7 +30,7 @@ identify==2.2.13
 idna==3.2
 iniconfig==1.1.1
 isort==5.9.3
-libcst==0.3.19
+libcst==0.3.20
 mccabe==0.6.1
 mock==4.0.3
 multidict==5.1.0
