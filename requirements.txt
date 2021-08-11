@@ -69,5 +69,5 @@ typing-extensions==3.10.0.0
 typing-inspect==0.7.1
 unittest2pytest==0.4
 urllib3==1.26.6
-virtualenv==20.7.1
+virtualenv==20.7.2
 yarl==1.6.3
