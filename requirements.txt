@@ -20,7 +20,7 @@ google-api-core==1.31.2
 google-auth==1.35.0
 google-auth-oauthlib==0.4.5
 google-cloud-core==1.7.2
-google-cloud-pubsub==2.7.0
+google-cloud-pubsub==2.7.1
 google-cloud-resource-manager==1.0.2
 googleapis-common-protos==1.53.0
 grpc-google-iam-v1==0.12.3
