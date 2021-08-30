@@ -65,7 +65,7 @@ six==1.16.0
 toml==0.10.2
 typed-ast==1.4.3
 types-PyYAML==5.4.8
-typing-extensions==3.10.0.1
+typing-extensions==3.10.0.2
 typing-inspect==0.7.1
 unittest2pytest==0.4
 urllib3==1.26.6
