@@ -41,7 +41,7 @@ oauthlib==3.1.1
 packaging==21.0
 pathspec==0.9.0
 platformdirs==2.3.0
-pluggy==0.13.1
+pluggy==1.0.0
 pre-commit==2.15.0
 proto-plus==1.19.0
 protobuf==3.17.3
