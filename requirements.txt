@@ -26,7 +26,7 @@ googleapis-common-protos==1.53.0
 grpc-google-iam-v1==0.12.3
 grpcio==1.40.0
 httplib2==0.19.1
-identify==2.2.14
+identify==2.2.15
 idna==3.2
 iniconfig==1.1.1
 isort==5.9.3
