@@ -22,7 +22,7 @@ import json
 import logging
 import os
 import pickle
-from typing import Optional, List, cast
+from typing import List, Optional, cast
 
 import yaml
 from aiohttp import ClientSession
@@ -31,12 +31,12 @@ from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 from .auth import AbstractAuth
-from .structure import Structure
-from .device import Device
 from .camera_traits import CameraLiveStreamTrait
+from .device import Device
 from .event import EventMessage
 from .google_nest_api import GoogleNestAPI
 from .google_nest_subscriber import GoogleNestSubscriber
+from .structure import Structure
 from .thermostat_traits import (
     ThermostatEcoTrait,
     ThermostatModeTrait,

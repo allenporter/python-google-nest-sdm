@@ -47,6 +47,42 @@ def test_camera_live_stream_traits(
     assert 300 == trait.max_video_resolution.height
     assert ["H264"] == trait.video_codecs
     assert ["AAC"] == trait.audio_codecs
+    # Default value
+    assert ["RTSP"] == trait.supported_protocols
+
+
+def test_camera_live_stream_webrtc_protocol(
+    fake_device: Callable[[Dict[str, Any]], Device]
+) -> None:
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.CameraLiveStream": {
+                "supportedProtocols": ["WEB_RTC"],
+            },
+        },
+    }
+    device = fake_device(raw)
+    assert "sdm.devices.traits.CameraLiveStream" in device.traits
+    trait = device.traits["sdm.devices.traits.CameraLiveStream"]
+    assert ["WEB_RTC"] == trait.supported_protocols
+
+
+def test_camera_live_stream_multiple_protocols(
+    fake_device: Callable[[Dict[str, Any]], Device]
+) -> None:
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.CameraLiveStream": {
+                "supportedProtocols": ["WEB_RTC", "RTSP"],
+            },
+        },
+    }
+    device = fake_device(raw)
+    assert "sdm.devices.traits.CameraLiveStream" in device.traits
+    trait = device.traits["sdm.devices.traits.CameraLiveStream"]
+    assert ["WEB_RTC", "RTSP"] == trait.supported_protocols
 
 
 def test_camera_event_image_traits(

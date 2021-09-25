@@ -11,8 +11,8 @@ from aiohttp.client_exceptions import ClientError
 from google.api_core.exceptions import GoogleAPIError, NotFound, Unauthenticated
 from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
 from google.cloud import pubsub_v1
+from google.oauth2.credentials import Credentials
 
 from .auth import AbstractAuth
 from .device_manager import DeviceManager

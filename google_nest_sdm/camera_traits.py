@@ -17,6 +17,7 @@ WIDTH = "width"
 HEIGHT = "height"
 VIDEO_CODECS = "videoCodecs"
 AUDIO_CODECS = "audioCodecs"
+SUPPORTED_PROTOCOLS = "supportedProtocols"
 STREAM_URLS = "streamUrls"
 RESULTS = "results"
 RTSP_URL = "rtspUrl"
@@ -143,6 +144,11 @@ class CameraLiveStreamTrait:
     def audio_codecs(self) -> List[str]:
         """Audio codecs supported for the live stream."""
         return cast(List[str], self._data[AUDIO_CODECS])
+
+    @property
+    def supported_protocols(self) -> List[str]:
+        """Streaming protocols supported for the live stream."""
+        return cast(List[str], self._data.get(SUPPORTED_PROTOCOLS, ["RTSP"]))
 
     async def generate_rtsp_stream(self) -> RtspStream:
         """Request a token to access an RTSP live stream URL."""
