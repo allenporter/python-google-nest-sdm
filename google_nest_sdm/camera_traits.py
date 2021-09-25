@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import datetime
 import urllib.parse as urlparse
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Any, List, Mapping, Optional, cast
 
 from .event import CameraMotionEvent, CameraPersonEvent, CameraSoundEvent, EventTrait
@@ -26,6 +26,8 @@ STREAM_TOKEN = "streamToken"
 URL = "url"
 TOKEN = "token"
 EXPIRES_AT = "expiresAt"
+ANSWER_SDP = "answerSdp"
+MEDIA_SESSION_ID = "mediaSessionId"
 
 
 class Resolution:
@@ -55,12 +57,35 @@ class CameraImageTrait:
         return res
 
 
-class RtspStream:
+class Stream(ABC):
+    """Base class for streams."""
+
+    def __init__(self, data: Mapping[str, Any]):
+        self._data = data
+
+    @property
+    def expires_at(self) -> datetime.datetime:
+        """Time at which both streamExtensionToken and streamToken expire."""
+        expires_at = self._data[EXPIRES_AT]
+        return datetime.datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+
+    @abstractmethod
+    async def extend_stream(self) -> Stream:
+        """Extend the lifetime of the stream."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def stop_stream(self) -> None:
+        """Invalidate the stream."""
+        raise NotImplementedError
+
+
+class RtspStream(Stream):
     """Provides access an RTSP live stream URL."""
 
     def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize RstpStream."""
-        self._data = data
+        super().__init__(data)
         self._cmd = cmd
 
     @property
@@ -82,11 +107,9 @@ class RtspStream:
         """Token to use to access an RTSP live stream."""
         return cast_assert(str, self._data[STREAM_EXTENSION_TOKEN])
 
-    @property
-    def expires_at(self) -> datetime.datetime:
-        """Time at which both streamExtensionToken and streamToken expire."""
-        expires_at = self._data[EXPIRES_AT]
-        return datetime.datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+    async def extend_stream(self) -> Stream | RtspStream:
+        """Extend the lifetime of the stream."""
+        return await self.extend_rtsp_stream()
 
     async def extend_rtsp_stream(self) -> RtspStream:
         """Request a new RTSP live stream URL access token."""
@@ -106,11 +129,60 @@ class RtspStream:
         results[STREAM_URLS][RTSP_URL] = url
         return RtspStream(results, self._cmd)
 
+    async def stop_stream(self) -> None:
+        """Invalidate the stream."""
+        return await self.stop_rtsp_stream()
+
     async def stop_rtsp_stream(self) -> None:
         """Invalidates a valid RTSP access token and stops the RTSP live stream."""
         data = {
             "command": "sdm.devices.commands.CameraLiveStream.StopRtspStream",
             "params": {"streamExtensionToken": self.stream_extension_token},
+        }
+        await self._cmd.execute(data)
+
+
+class WebRtcStream(Stream):
+    """Provides access an RTSP live stream URL."""
+
+    def __init__(self, data: Mapping[str, Any], cmd: Command):
+        """Initialize RstpStream."""
+        super().__init__(data)
+        self._cmd = cmd
+
+    @property
+    def answer_sdp(self) -> str:
+        """An SDP answer to use with the local device dispalying the stream."""
+        answer_sdp = self._data[ANSWER_SDP]
+        assert isinstance(answer_sdp, str)
+        return answer_sdp
+
+    @property
+    def media_session_id(self) -> str:
+        """Media Session ID of the live stream."""
+        media_session_id = self._data[MEDIA_SESSION_ID]
+        assert isinstance(media_session_id, str)
+        return media_session_id
+
+    async def extend_stream(self) -> WebRtcStream:
+        """Request a new RTSP live stream URL access token."""
+        data = {
+            "command": "sdm.devices.commands.CameraLiveStream.ExtendWebRtcStream",
+            "params": {MEDIA_SESSION_ID: self.media_session_id},
+        }
+        resp = await self._cmd.execute(data)
+        response_data = await resp.json()
+        # Preserve original answerSdp, and merge with response that contains
+        # the other fields (expiresAt, and mediaSessionId.
+        results = response_data[RESULTS]
+        results[ANSWER_SDP] = self.answer_sdp
+        return WebRtcStream(results, self._cmd)
+
+    async def stop_stream(self) -> None:
+        """Invalidates a valid RTSP access token and stops the RTSP live stream."""
+        data = {
+            "command": "sdm.devices.commands.CameraLiveStream.StopWebRtcStream",
+            "params": {MEDIA_SESSION_ID: self.media_session_id},
         }
         await self._cmd.execute(data)
 
@@ -152,6 +224,8 @@ class CameraLiveStreamTrait:
 
     async def generate_rtsp_stream(self) -> RtspStream:
         """Request a token to access an RTSP live stream URL."""
+        if "RTSP" not in self.supported_protocols:
+            raise ValueError("Device does not support RTSP stream")
         data = {
             "command": "sdm.devices.commands.CameraLiveStream.GenerateRtspStream",
             "params": {},
@@ -160,6 +234,21 @@ class CameraLiveStreamTrait:
         response_data = await resp.json()
         results = response_data[RESULTS]
         return RtspStream(results, self._cmd)
+
+    async def generate_web_rtc_stream(
+        self, offerSdp: str = "a=recvonly"
+    ) -> WebRtcStream:
+        """Request a token to access a Web RTC live stream URL."""
+        if "WEB_RTC" not in self.supported_protocols:
+            raise ValueError("Device does not support WEB_RTC stream")
+        data = {
+            "command": "sdm.devices.commands.CameraLiveStream.GenerateWebRtcStream",
+            "params": {"offerSdp": offerSdp},
+        }
+        resp = await self._cmd.execute(data)
+        response_data = await resp.json()
+        results = response_data[RESULTS]
+        return WebRtcStream(results, self._cmd)
 
 
 class EventImage:

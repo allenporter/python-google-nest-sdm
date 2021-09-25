@@ -254,7 +254,7 @@ async def test_thermostat_temperature_set_point(
     assert expected_request == r.request
 
 
-async def test_camera_live_stream(
+async def test_camera_live_stream_rtsp(
     app: aiohttp.web.Application,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
@@ -366,6 +366,117 @@ async def test_camera_live_stream(
         "command": "sdm.devices.commands.CameraLiveStream.StopRtspStream",
         "params": {
             "streamExtensionToken": "last-token...",
+        },
+    }
+    assert expected_request == r.request
+
+
+async def test_camera_live_stream_web_rtc(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "enterprises/project-id1/devices/device-id1",
+                "traits": {
+                    "sdm.devices.traits.CameraLiveStream": {
+                        "supportedProtocols": ["WEB_RTC"],
+                    },
+                },
+            }
+        ],
+    )
+
+    post_handler = NewHandler(
+        r,
+        [
+            {
+                "results": {
+                    "answerSdp": "some-answer",
+                    "expiresAt": "2018-01-04T18:30:00.000Z",
+                    "mediaSessionId": "JxdTxkkatHk4kVnXlKzQICbfVR...",
+                },
+            },
+            {
+                "results": {
+                    "expiresAt": "2019-01-04T18:30:00.000Z",
+                    "mediaSessionId": "JxdTxkkatHk4kVnXlKzQICbfVR...",
+                }
+            },
+            {
+                "results": {
+                    "expiresAt": "2020-01-04T18:30:00.000Z",
+                    "mediaSessionId": "JxdTxkkatHk4kVnXlKzQICbfVR...",
+                }
+            },
+            {},
+        ],
+    )
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+    app.router.add_post(
+        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
+    )
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert "enterprises/project-id1/devices/device-id1" == device.name
+    trait = device.traits["sdm.devices.traits.CameraLiveStream"]
+    assert ["WEB_RTC"] == trait.supported_protocols
+    stream = await trait.generate_web_rtc_stream()
+    expected_request = {
+        "command": "sdm.devices.commands.CameraLiveStream.GenerateWebRtcStream",
+        "params": {
+            "offerSdp": "a=recvonly",
+        },
+    }
+    assert expected_request == r.request
+    assert "some-answer" == stream.answer_sdp
+    assert (
+        datetime.datetime(2018, 1, 4, 18, 30, tzinfo=datetime.timezone.utc)
+        == stream.expires_at
+    )
+    assert "JxdTxkkatHk4kVnXlKzQICbfVR..." == stream.media_session_id
+
+    stream = await stream.extend_stream()
+    expected_request = {
+        "command": "sdm.devices.commands.CameraLiveStream.ExtendWebRtcStream",
+        "params": {
+            "mediaSessionId": "JxdTxkkatHk4kVnXlKzQICbfVR...",
+        },
+    }
+    assert expected_request == r.request
+    assert "some-answer" == stream.answer_sdp
+    assert (
+        datetime.datetime(2019, 1, 4, 18, 30, tzinfo=datetime.timezone.utc)
+        == stream.expires_at
+    )
+    assert "JxdTxkkatHk4kVnXlKzQICbfVR..." == stream.media_session_id
+
+    stream = await stream.extend_stream()
+    expected_request = {
+        "command": "sdm.devices.commands.CameraLiveStream.ExtendWebRtcStream",
+        "params": {
+            "mediaSessionId": "JxdTxkkatHk4kVnXlKzQICbfVR...",
+        },
+    }
+    assert expected_request == r.request
+    assert "some-answer" == stream.answer_sdp
+    assert (
+        datetime.datetime(2020, 1, 4, 18, 30, tzinfo=datetime.timezone.utc)
+        == stream.expires_at
+    )
+    assert "JxdTxkkatHk4kVnXlKzQICbfVR..." == stream.media_session_id
+
+    await stream.stop_stream()
+    expected_request = {
+        "command": "sdm.devices.commands.CameraLiveStream.StopWebRtcStream",
+        "params": {
+            "mediaSessionId": "JxdTxkkatHk4kVnXlKzQICbfVR...",
         },
     }
     assert expected_request == r.request
