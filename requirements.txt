@@ -17,7 +17,7 @@ flake8==3.9.2
 flake8-black==0.2.3
 frozenlist==1.1.1
 google-api-core==2.0.1
-google-auth==1.35.0
+google-auth==2.2.1
 google-auth-oauthlib==0.4.6
 google-cloud-core==2.0.0
 google-cloud-pubsub==2.8.0
