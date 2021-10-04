@@ -427,7 +427,7 @@ async def test_camera_live_stream_web_rtc(
     assert "enterprises/project-id1/devices/device-id1" == device.name
     trait = device.traits["sdm.devices.traits.CameraLiveStream"]
     assert ["WEB_RTC"] == trait.supported_protocols
-    stream = await trait.generate_web_rtc_stream()
+    stream = await trait.generate_web_rtc_stream("a=recvonly")
     expected_request = {
         "command": "sdm.devices.commands.CameraLiveStream.GenerateWebRtcStream",
         "params": {

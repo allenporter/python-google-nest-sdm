@@ -235,15 +235,13 @@ class CameraLiveStreamTrait:
         results = response_data[RESULTS]
         return RtspStream(results, self._cmd)
 
-    async def generate_web_rtc_stream(
-        self, offerSdp: str = "a=recvonly"
-    ) -> WebRtcStream:
+    async def generate_web_rtc_stream(self, offer_sdp: str) -> WebRtcStream:
         """Request a token to access a Web RTC live stream URL."""
         if "WEB_RTC" not in self.supported_protocols:
             raise ValueError("Device does not support WEB_RTC stream")
         data = {
             "command": "sdm.devices.commands.CameraLiveStream.GenerateWebRtcStream",
-            "params": {"offerSdp": offerSdp},
+            "params": {"offerSdp": offer_sdp},
         }
         resp = await self._cmd.execute(data)
         response_data = await resp.json()

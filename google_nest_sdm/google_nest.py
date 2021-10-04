@@ -110,6 +110,7 @@ generate_rtsp_stream_parser = cmd_parser.add_parser("generate_rtsp_stream")
 generate_rtsp_stream_parser.add_argument("device_id")
 generate_web_rtc_stream_parser = cmd_parser.add_parser("generate_web_rtc_stream")
 generate_web_rtc_stream_parser.add_argument("device_id")
+generate_web_rtc_stream_parser.add_argument("offer_file")
 subscribe_parser = cmd_parser.add_parser("subscribe")
 subscribe_parser.add_argument("subscription_id")
 subscribe_parser.add_argument("device_id", nargs="?")
@@ -319,7 +320,11 @@ async def RunTool(args: argparse.Namespace, user_creds: Credentials) -> None:
 
         if args.command == "generate_web_rtc_stream":
             trait = device.traits[CameraLiveStreamTrait.NAME]
-            stream = await trait.generate_web_rtc_stream()
+            offer_sdp = None
+            if args.offer_file:
+                f = open(args.offer_file, "r")
+                offer_sdp = f.read()
+            stream = await trait.generate_web_rtc_stream(offer_sdp)
             print(f"Answer SDP: {stream.answer_sdp}")
             print(f"Media Session Id: {stream.media_session_id}")
             print(f"Expires At: {stream.expires_at}")
