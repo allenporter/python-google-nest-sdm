@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime
 import urllib.parse as urlparse
 from abc import ABC, abstractmethod
+from enum import Enum
 from typing import Any, List, Mapping, Optional, cast
 
 from .event import CameraMotionEvent, CameraPersonEvent, CameraSoundEvent, EventTrait
@@ -187,6 +188,13 @@ class WebRtcStream(Stream):
         await self._cmd.execute(data)
 
 
+class StreamingProtocol(Enum):
+    """Streaming protocols supported by the device."""
+
+    RTSP = (1,)
+    WEB_RTC = (2,)
+
+
 @TRAIT_MAP.register()
 class CameraLiveStreamTrait:
     """This trait belongs to any device that supports live streaming."""
@@ -218,13 +226,17 @@ class CameraLiveStreamTrait:
         return cast(List[str], self._data[AUDIO_CODECS])
 
     @property
-    def supported_protocols(self) -> List[str]:
+    def supported_protocols(self) -> List[StreamingProtocol]:
         """Streaming protocols supported for the live stream."""
-        return cast(List[str], self._data.get(SUPPORTED_PROTOCOLS, ["RTSP"]))
+        return [
+            StreamingProtocol[x]
+            for x in self._data.get(SUPPORTED_PROTOCOLS, ["RTSP"])
+            if x in StreamingProtocol.__members__
+        ]
 
     async def generate_rtsp_stream(self) -> RtspStream:
         """Request a token to access an RTSP live stream URL."""
-        if "RTSP" not in self.supported_protocols:
+        if StreamingProtocol.RTSP not in self.supported_protocols:
             raise ValueError("Device does not support RTSP stream")
         data = {
             "command": "sdm.devices.commands.CameraLiveStream.GenerateRtspStream",
@@ -237,7 +249,7 @@ class CameraLiveStreamTrait:
 
     async def generate_web_rtc_stream(self, offer_sdp: str) -> WebRtcStream:
         """Request a token to access a Web RTC live stream URL."""
-        if "WEB_RTC" not in self.supported_protocols:
+        if StreamingProtocol.WEB_RTC not in self.supported_protocols:
             raise ValueError("Device does not support WEB_RTC stream")
         data = {
             "command": "sdm.devices.commands.CameraLiveStream.GenerateWebRtcStream",

@@ -8,6 +8,7 @@ import pytest
 
 from google_nest_sdm import google_nest_api
 from google_nest_sdm.auth import AbstractAuth
+from google_nest_sdm.camera_traits import StreamingProtocol
 from google_nest_sdm.event import EventMessage
 from google_nest_sdm.exceptions import ApiException, AuthException
 
@@ -426,7 +427,7 @@ async def test_camera_live_stream_web_rtc(
     device = devices[0]
     assert "enterprises/project-id1/devices/device-id1" == device.name
     trait = device.traits["sdm.devices.traits.CameraLiveStream"]
-    assert ["WEB_RTC"] == trait.supported_protocols
+    assert [StreamingProtocol.WEB_RTC] == trait.supported_protocols
     stream = await trait.generate_web_rtc_stream("a=recvonly")
     expected_request = {
         "command": "sdm.devices.commands.CameraLiveStream.GenerateWebRtcStream",

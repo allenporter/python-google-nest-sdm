@@ -2,6 +2,7 @@
 
 from typing import Any, Callable, Dict
 
+from google_nest_sdm.camera_traits import StreamingProtocol
 from google_nest_sdm.device import Device
 
 
@@ -48,7 +49,7 @@ def test_camera_live_stream_traits(
     assert ["H264"] == trait.video_codecs
     assert ["AAC"] == trait.audio_codecs
     # Default value
-    assert ["RTSP"] == trait.supported_protocols
+    assert [StreamingProtocol.RTSP] == trait.supported_protocols
 
 
 def test_camera_live_stream_webrtc_protocol(
@@ -65,7 +66,7 @@ def test_camera_live_stream_webrtc_protocol(
     device = fake_device(raw)
     assert "sdm.devices.traits.CameraLiveStream" in device.traits
     trait = device.traits["sdm.devices.traits.CameraLiveStream"]
-    assert ["WEB_RTC"] == trait.supported_protocols
+    assert [StreamingProtocol.WEB_RTC] == trait.supported_protocols
 
 
 def test_camera_live_stream_multiple_protocols(
@@ -82,7 +83,29 @@ def test_camera_live_stream_multiple_protocols(
     device = fake_device(raw)
     assert "sdm.devices.traits.CameraLiveStream" in device.traits
     trait = device.traits["sdm.devices.traits.CameraLiveStream"]
-    assert ["WEB_RTC", "RTSP"] == trait.supported_protocols
+    assert [
+        StreamingProtocol.WEB_RTC,
+        StreamingProtocol.RTSP,
+    ] == trait.supported_protocols
+
+
+def test_camera_live_stream_unknown_protocols(
+    fake_device: Callable[[Dict[str, Any]], Device]
+) -> None:
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.CameraLiveStream": {
+                "supportedProtocols": ["WEB_RTC", "XXX"],
+            },
+        },
+    }
+    device = fake_device(raw)
+    assert "sdm.devices.traits.CameraLiveStream" in device.traits
+    trait = device.traits["sdm.devices.traits.CameraLiveStream"]
+    assert [
+        StreamingProtocol.WEB_RTC,
+    ] == trait.supported_protocols
 
 
 def test_camera_event_image_traits(
