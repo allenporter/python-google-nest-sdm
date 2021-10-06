@@ -19,7 +19,7 @@ frozenlist==1.1.1
 google-api-core==2.1.0
 google-auth==2.2.1
 google-auth-oauthlib==0.4.6
-google-cloud-core==2.0.0
+google-cloud-core==2.1.0
 google-cloud-pubsub==2.8.0
 google-cloud-resource-manager==1.1.2
 googleapis-common-protos==1.53.0
