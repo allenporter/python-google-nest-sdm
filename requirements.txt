@@ -9,7 +9,7 @@ cachetools==4.2.4
 certifi==2021.10.8
 cfgv==3.3.1
 chardet==4.0.0
-charset-normalizer==2.0.6
+charset-normalizer==2.0.7
 click==8.0.3
 distlib==0.3.3
 filelock==3.3.0
