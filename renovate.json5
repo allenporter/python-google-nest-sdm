@@ -20,14 +20,13 @@
       ],
       "branchPrefix": "flake8",
       "matchUpdateTypes": ["minor", "patch", "major"],
-      "extends": ["schedule:weekends"],
       "groupSlug": "flake8",
+      "additionalBranchPrefix": "example",
     },
     {
       "groupName": "group:pytest",
       "matchPackageNames": ["pytest"],
       "matchPackagePrefixes": ["pytest-"],
-      "extends": ["schedule:weekends"],
     },
     {
       "groupName": "group:mypy",
@@ -50,23 +49,14 @@
       "extends": ["schedule:weekends"],
       "additionalBranchPrefix": "major",
       "matchUpdateTypes": ["major"],
-      "packageRules": [
-        {
-          "excludePackageNames": ["flake8", "mypy", "pytest"],
-        },
-        {
-          "excludePackagePrefixes": [
-            "flake8",
-            "pyflakes",
-            "mccabe",
-            "pycodestyle",
-            "mypy-",
-            "types-",
-            "typing-",
-            "pytest-",
-          ],
-        },
-      ],
-    },
+      "excludePackagePrefixes": [
+        "flake8",
+        "pyflakes",
+        "mccabe",
+        "pycodestyle",
+        "mypy",
+        "types-",
+        "typing-",
+        "pytest",
   ],
 }
