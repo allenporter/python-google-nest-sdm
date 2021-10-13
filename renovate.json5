@@ -46,6 +46,15 @@
       "extends": ["schedule:weekends"],
       "additionalBranchPrefix": "major",
       "matchUpdateTypes": ["major"],
+      "excludePackagePatterns": [
+          "^flake8",
+          "^pyflakes",
+          "^mccabe",
+          "^pycodestyle",
+          "^mypy-",
+          "^types-",
+          "^typing-",
+      ],
     },
   ],
 }
