@@ -19,6 +19,7 @@
           "pycodestyle",
       ],
       "branchPrefix": "flake8",
+      "matchUpdateTypes": ["minor", "patch", "major"],
       "extends": ["schedule:weekends"],
     },
     {
