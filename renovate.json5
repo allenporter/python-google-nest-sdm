@@ -13,13 +13,13 @@
       "groupName": "group:flake8",
       "matchPackageNames": ["flake8"],
       "matchPackagePatterns": [
-          "^flake8-",
+          "^flake8",
           "^pyflakes",
           "^mccabe",
           "^pycodestyle",
       ],
-      "matchUpdateTypes": ["minor", "patch", "major"],
-      "additionalBranchPrefix": "flake8",
+      "branchPrefix": "flake8",
+      "matchUpdateTypes": ["major", "minor", "patch"],
     },
     {
       "groupName": "group:pytest",
@@ -46,6 +46,15 @@
       "extends": ["schedule:weekends"],
       "additionalBranchPrefix": "major",
       "matchUpdateTypes": ["major"],
+      "excludePackagePatterns": [
+          "^flake8",
+          "^pyflakes",
+          "^mccabe",
+          "^pycodestyle",
+          "^mypy-",
+          "^types-",
+          "^typing-",
+      ],
     },
   ],
 }
