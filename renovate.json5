@@ -19,7 +19,6 @@
           "pycodestyle",
       ],
       "branchPrefix": "flake8",
-      "matchUpdateTypes": ["major", "minor", "patch"],
       "extends": ["schedule:weekends"],
     },
     {
@@ -51,7 +50,7 @@
       "matchUpdateTypes": ["major"],
       "excludePackageNames": ["flake8", "mypy", "pytest"],
       "excludePackagePrefixes": [
-          "flake8-",
+          "flake8",
           "pyflakes",
           "mccabe",
           "pycodestyle",
