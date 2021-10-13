@@ -12,28 +12,32 @@
     {
       "groupName": "group:flake8",
       "matchPackageNames": ["flake8"],
-      "matchPackagePatterns": [
-          "^flake8-",
-          "^pyflakes",
-          "^mccabe",
-          "^pycodestyle",
+      "matchPackagePrefixes": [
+          "flake8-",
+          "pyflakes",
+          "mccabe",
+          "pycodestyle",
       ],
+      "branchPrefix": "flake8",
       "matchUpdateTypes": ["minor", "patch", "major"],
-      "additionalBranchPrefix": "flake8",
+      "extends": ["schedule:weekends"],
+      "groupSlug": "flake8",
     },
     {
       "groupName": "group:pytest",
       "matchPackageNames": ["pytest"],
-      "matchPackagePatterns": ["^pytest-"],
+      "matchPackagePrefixes": ["pytest-"],
+      "extends": ["schedule:weekends"],
     },
     {
       "groupName": "group:mypy",
       "matchPackageNames": ["mypy"],
-      "matchPackagePatterns": [
-          "^mypy-",
-          "^types-",
-          "^typing-",
+      "matchPackagePrefixes": [
+          "mypy-",
+          "types-",
+          "typing-",
       ],
+      "extends": ["schedule:weekends"],
     },
     {
       "description": "Minor updates are automatic",
@@ -46,6 +50,17 @@
       "extends": ["schedule:weekends"],
       "additionalBranchPrefix": "major",
       "matchUpdateTypes": ["major"],
+      "excludePackageNames": ["flake8", "mypy", "pytest"],
+      "excludePackagePrefixes": [
+          "flake8",
+          "pyflakes",
+          "mccabe",
+          "pycodestyle",
+          "mypy-",
+          "types-",
+          "typing-",
+          "pytest-",
+      ],
     },
   ],
 }

@@ -75,10 +75,6 @@ $ pytest
 
 # Formatting and linting
 $ pre-commit run --all-files
-
-# Releasing
-$ python3 setup.py sdist bdist_wheel
-$ twine upload --skip-existing dist/*
 ```
 
 # Funding and Support
