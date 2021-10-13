@@ -50,16 +50,22 @@
       "extends": ["schedule:weekends"],
       "additionalBranchPrefix": "major",
       "matchUpdateTypes": ["major"],
-      "excludePackageNames": ["flake8", "mypy", "pytest"],
-      "excludePackagePrefixes": [
-          "flake8",
-          "pyflakes",
-          "mccabe",
-          "pycodestyle",
-          "mypy-",
-          "types-",
-          "typing-",
-          "pytest-",
+      "packageRules": [
+        {
+          "excludePackageNames": ["flake8", "mypy", "pytest"],
+        },
+        {
+          "excludePackagePrefixes": [
+            "flake8",
+            "pyflakes",
+            "mccabe",
+            "pycodestyle",
+            "mypy-",
+            "types-",
+            "typing-",
+            "pytest-",
+          ],
+        },
       ],
     },
   ],
