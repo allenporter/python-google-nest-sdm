@@ -19,7 +19,7 @@
           "^mccabe",
           "^pycodestyle",
       ],
-      "additionalBranchPrefix": "flake8",
+      "branchPrefix": "flake8",
     },
     {
       "groupName": "group:pytest",
