@@ -11,6 +11,7 @@
   "packageRules": [
     {
       "groupName": "group:flake8",
+      "separateMajorMinor": false,
       "matchPackageNames": ["flake8"],
       "matchPackagePatterns": [
           "^flake8-",
@@ -18,7 +19,6 @@
           "^mccabe",
           "^pycodestyle",
       ],
-      "matchUpdateTypes": ["minor", "patch", "major"],
       "additionalBranchPrefix": "flake8",
     },
     {
