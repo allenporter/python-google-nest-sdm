@@ -20,6 +20,7 @@
           "^pycodestyle",
       ],
       "branchPrefix": "flake8",
+      "matchUpdateTypes": ["major", "minor", "patch"],
     },
     {
       "groupName": "group:pytest",
