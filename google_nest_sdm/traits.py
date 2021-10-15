@@ -27,10 +27,9 @@ class Command:
 
     async def fetch_image(self, url: str, basic_auth: Optional[str] = None) -> bytes:
         """Fetch an image at the specified url."""
-        headers: Optional[Dict[str, Any]] = None
+        headers: Dict[str, Any] = {}
         if basic_auth:
             headers = {"Authorization": f"Basic {basic_auth}"}
-        assert headers
         resp = await self._auth.get(url, headers=headers)
         return await resp.read()
 

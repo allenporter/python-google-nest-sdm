@@ -1,9 +1,11 @@
 import datetime
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Optional
 
 from google_nest_sdm.event import (
+    CameraClipPreviewEvent,
     EventMessage,
     EventTypeFilterCallback,
+    ImageEventBase,
     RecentEventFilterCallback,
 )
 
@@ -322,3 +324,44 @@ async def test_event_recent_event_filter_too_old(
     )
     await handler.async_handle_event(event)
     assert not callback.invoked
+
+
+def test_camera_clip_preview_event(
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+) -> None:
+    event = fake_event_message(
+        {
+            "eventId": "201fcd21-967a-4f82-8082-5073bd09d31f",
+            "timestamp": "2019-01-01T00:00:01Z",
+            "resourceUpdate": {
+                "name": "enterprises/project-id/devices/device-id",
+                "events": {
+                    "sdm.devices.events.CameraClipPreview.ClipPreview": {
+                        "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                        "previewUrl": "https://previewUrl/...",
+                    }
+                },
+            },
+            "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+        }
+    )
+    assert "201fcd21-967a-4f82-8082-5073bd09d31f" == event.event_id
+    ts = datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.timezone.utc)
+
+    assert ts == event.timestamp
+    assert "enterprises/project-id/devices/device-id" == event.resource_update_name
+
+    events: Optional[Dict[str, ImageEventBase]] = event.resource_update_events
+    assert events is not None
+    assert "sdm.devices.events.CameraClipPreview.ClipPreview" in events
+    e = events["sdm.devices.events.CameraClipPreview.ClipPreview"]
+    assert isinstance(e, CameraClipPreviewEvent)
+    assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." == e.event_session_id
+    assert ts == e.timestamp
+    assert (
+        "1cd28a21db0705a03f612d1df956444094a8c85a75fd35dfd277a81b5a9ad2a8c18"
+        "2a9a7decb2936664d6e1344915850a31fc3c828c3813765d1c73be1e958f3" == e.event_id
+    )
+    assert "https://previewUrl/..." == e.preview_url
+    expire_ts = datetime.datetime(2019, 1, 1, 0, 15, 1, tzinfo=datetime.timezone.utc)
+    assert expire_ts == e.expires_at

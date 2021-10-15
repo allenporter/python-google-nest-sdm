@@ -745,6 +745,59 @@ async def test_camera_event_image_bytes(
     assert image_bytes == b"image-bytes"
 
 
+async def test_camera_active_clip_preview(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "enterprises/project-id1/devices/device-id1",
+                "traits": {
+                    "sdm.devices.traits.CameraClipPreview": {},
+                },
+            }
+        ],
+    )
+
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert "enterprises/project-id1/devices/device-id1" == device.name
+
+    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": now.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": "enterprises/project-id1/devices/device-id1",
+                    "events": {
+                        "sdm.devices.events.CameraClipPreview.ClipPreview": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "previewUrl": "https://previewUrl/...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+
+    trait = device.traits["sdm.devices.traits.CameraClipPreview"]
+    assert trait.active_event is not None
+    image = await trait.generate_active_event_image()
+    assert "https://previewUrl/..." == image.url
+    assert image.token is None
+
+
 async def test_get_structures(
     app: aiohttp.web.Application,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],

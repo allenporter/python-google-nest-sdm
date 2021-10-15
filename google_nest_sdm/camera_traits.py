@@ -8,7 +8,13 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, List, Mapping, Optional, cast
 
-from .event import CameraMotionEvent, CameraPersonEvent, CameraSoundEvent, EventTrait
+from .event import (
+    CameraClipPreviewEvent,
+    CameraMotionEvent,
+    CameraPersonEvent,
+    CameraSoundEvent,
+    EventTrait,
+)
 from .traits import TRAIT_MAP, Command
 from .typing import cast_assert, cast_optional
 
@@ -401,3 +407,29 @@ class CameraSoundTrait(EventTrait, EventImageGenerator):
             return None
         assert event.event_id
         return await self._event_image.generate_image(event.event_id)
+
+
+@TRAIT_MAP.register()
+class CameraClipPreview(EventTrait, EventImageGenerator):
+    """For any device that supports a clip preview."""
+
+    NAME = "sdm.devices.traits.CameraClipPreview"
+    EVENT_NAME = CameraClipPreviewEvent.NAME
+
+    def __init__(self, data: Mapping[str, Any], cmd: Command):
+        """Initialize CameraCliPreview."""
+        super().__init__()
+        self._data = data
+        self._cmd = cmd
+
+    async def generate_active_event_image(self) -> Optional[EventImage]:
+        """Provide a URL to download a camera image from the active event."""
+        event = self.active_event
+        if not event:
+            return None
+        if not isinstance(event, CameraClipPreviewEvent):
+            return None
+        preview_event: CameraClipPreviewEvent = event
+        # Clip preview events have the url baked in without an additional
+        # step to generate the image
+        return EventImage({"url": preview_event.preview_url}, self._cmd)

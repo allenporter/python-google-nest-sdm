@@ -152,3 +152,14 @@ def test_camera_sound_traits(fake_device: Callable[[Dict[str, Any]], Device]) ->
     }
     device = fake_device(raw)
     assert "sdm.devices.traits.CameraSound" in device.traits
+
+
+def test_camera_clip_preview_traits(
+    fake_device: Callable[[Dict[str, Any]], Device]
+) -> None:
+    raw = {
+        "name": "my/device/name",
+        "traits": {"sdm.devices.traits.CameraClipPreview": {}},
+    }
+    device = fake_device(raw)
+    assert "sdm.devices.traits.CameraClipPreview" in device.traits

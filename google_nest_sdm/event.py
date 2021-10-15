@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import datetime
+import hashlib
 import logging
 from abc import ABC
-from typing import Any, Awaitable, Callable, Dict, Mapping, Optional
+from typing import Any, Awaitable, Callable, Dict, Mapping, Optional, TypeVar
 
 from .auth import AbstractAuth
 from .registry import Registry
@@ -23,9 +24,14 @@ RELATION_UPDATE = "relationUpdate"
 TYPE = "type"
 SUBJECT = "subject"
 OBJECT = "object"
+PREVIEW_URL = "previewUrl"
 
 # Event images expire 30 seconds after the event is published
 EVENT_IMAGE_EXPIRE_SECS = 30
+
+# Camera clip previews don't list an expiration in the API. Lets say 15 minutes
+# as an arbitrary number for now.
+CAMERA_CLIP_PREVIEW_EXPIRE_SECS = 15 * 60
 
 EVENT_MAP = Registry()
 
@@ -96,6 +102,34 @@ class DoorbellChimeEvent(ImageEventBase):
     NAME = "sdm.devices.events.DoorbellChime.Chime"
 
 
+@EVENT_MAP.register()
+class CameraClipPreviewEvent(ImageEventBase):
+    """A video clip is available for preview, without extra download."""
+
+    NAME = "sdm.devices.events.CameraClipPreview.ClipPreview"
+
+    @property
+    def event_id(self) -> str:
+        """Use a URL hash as the event id.
+
+        Since clip preview events already have a url associated with them,
+        we don't have an event id for downloading the image.
+        """
+        return hashlib.blake2b(self.preview_url.encode()).hexdigest()
+
+    @property
+    def expires_at(self) -> datetime.datetime:
+        """Event ids do not expire."""
+        return self._timestamp + datetime.timedelta(
+            seconds=CAMERA_CLIP_PREVIEW_EXPIRE_SECS
+        )
+
+    @property
+    def preview_url(self) -> str:
+        """A url 10 second frame video file in mp4 format."""
+        return cast_assert(str, self._data[PREVIEW_URL])
+
+
 class EventTrait(ABC):
     """Parent class for traits related to handling events."""
 
@@ -147,11 +181,14 @@ class RelationUpdate:
         return cast_assert(str, self._raw_data[OBJECT])
 
 
-def BuildEvents(
+_T = TypeVar("_T")
+
+
+def _BuildEvents(
     events: Mapping[str, Any],
-    event_map: Mapping[str, ImageEventBase],
+    event_map: Mapping[str, _T],
     timestamp: datetime.datetime,
-) -> Dict[str, ImageEventBase]:
+) -> Dict[str, _T]:
     """Build a trait map out of a response dict."""
     result = {}
     for (event, event_data) in events.items():
@@ -196,7 +233,7 @@ class EventMessage:
             return None
         events = self._raw_data[RESOURCE_UPDATE].get(EVENTS, {})
         assert isinstance(events, dict)
-        return BuildEvents(events, EVENT_MAP, self.timestamp)
+        return _BuildEvents(events, EVENT_MAP, self.timestamp)
 
     @property
     def resource_update_traits(self) -> Optional[dict]:

@@ -27,7 +27,10 @@ DISPLAYNAME = "displayName"
 
 
 def _MakeEventTraitMap(traits: Mapping[str, Any]) -> Dict[str, Any]:
-    if camera_traits.CameraEventImageTrait.NAME not in traits:
+    if (
+        camera_traits.CameraEventImageTrait.NAME not in traits
+        and camera_traits.CameraClipPreview.NAME not in traits
+    ):
         return {}
     event_trait_map: Dict[str, Any] = {}
     for (trait_name, trait) in traits.items():
