@@ -15,7 +15,7 @@ distlib==0.3.3
 filelock==3.3.1
 flake8==3.9.2
 flake8-black==0.2.3
-frozenlist==1.1.1
+frozenlist==1.2.0
 google-api-core==2.1.0
 google-auth==2.3.0
 google-auth-oauthlib==0.4.6
