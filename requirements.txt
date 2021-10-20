@@ -1,5 +1,5 @@
 aiohttp==3.7.4.post0
-aiosignal==1.1.2
+aiosignal==1.2.0
 appdirs==1.4.4
 async-timeout==3.0.1
 attrs==21.2.0
@@ -12,10 +12,10 @@ chardet==4.0.0
 charset-normalizer==2.0.7
 click==8.0.3
 distlib==0.3.3
-filelock==3.3.0
+filelock==3.3.1
 flake8==3.9.2
 flake8-black==0.2.3
-frozenlist==1.1.1
+frozenlist==1.2.0
 google-api-core==2.1.0
 google-auth==2.3.0
 google-auth-oauthlib==0.4.6
@@ -53,10 +53,10 @@ pyflakes==2.3.1
 pyparsing==2.4.7
 pytest==6.2.5
 pytest-aiohttp==0.3.0
-pytest-asyncio==0.15.1
+pytest-asyncio==0.16.0
 pytest-mock==3.6.1
 pytz==2021.3
-PyYAML==5.4.1
+PyYAML==6.0
 regex==2021.10.8
 requests==2.26.0
 requests-oauthlib==1.3.0
@@ -64,7 +64,7 @@ rsa==4.7.2
 six==1.16.0
 toml==0.10.2
 typed-ast==1.4.3
-types-PyYAML==5.4.11
+types-PyYAML==5.4.12
 typing-extensions==3.10.0.2
 typing-inspect==0.7.1
 unittest2pytest==0.4
