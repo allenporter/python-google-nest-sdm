@@ -410,7 +410,7 @@ class CameraSoundTrait(EventTrait, EventImageGenerator):
 
 
 @TRAIT_MAP.register()
-class CameraClipPreview(EventTrait, EventImageGenerator):
+class CameraClipPreviewTrait(EventTrait, EventImageGenerator):
     """For any device that supports a clip preview."""
 
     NAME = "sdm.devices.traits.CameraClipPreview"
