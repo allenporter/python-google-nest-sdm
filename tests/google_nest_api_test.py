@@ -607,6 +607,114 @@ async def test_camera_active_event_image(
     assert "g.0.eventToken" == image.token
 
 
+async def test_camera_active_event_image_contents(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "enterprises/project-id1/devices/device-id1",
+                "traits": {
+                    "sdm.devices.traits.CameraEventImage": {},
+                    "sdm.devices.traits.CameraMotion": {},
+                },
+            }
+        ],
+    )
+
+    post_handler = NewHandler(
+        r,
+        [
+            {
+                "results": {
+                    "url": "image-url-1",
+                    "token": "g.1.eventToken",
+                },
+            },
+            {
+                "results": {
+                    "url": "image-url-2",
+                    "token": "g.2.eventToken",
+                },
+            },
+        ],
+    )
+
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+    app.router.add_post(
+        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
+    )
+    app.router.add_get(
+        "/image-url-1", NewImageHandler([b"image-bytes-1"], token="g.1.eventToken")
+    )
+    app.router.add_get(
+        "/image-url-2", NewImageHandler([b"image-bytes-2"], token="g.2.eventToken")
+    )
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert "enterprises/project-id1/devices/device-id1" == device.name
+
+    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": now.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": "enterprises/project-id1/devices/device-id1",
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+
+    trait = device.traits["sdm.devices.traits.CameraMotion"]
+    assert trait.active_event is not None
+    event_image = await trait.active_event_image_contents()
+    assert event_image.event_id == "FWWVQVUdGNUlTU2V4MGV2aTNXV..."
+    assert event_image.contents == b"image-bytes-1"
+
+    # Another event image arrives
+    now = datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(
+        seconds=5
+    )
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "a94b2115-3b57-4eb4-8830-80519f188ec9",
+                "timestamp": now.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": "enterprises/project-id1/devices/device-id1",
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "ABCZQRUdGNUlTU2V4MGV3bRZ23...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    # New image bytes are fetched for new event
+    event_image = await trait.active_event_image_contents()
+    assert event_image.event_id == "ABCZQRUdGNUlTU2V4MGV3bRZ23..."
+    assert event_image.contents == b"image-bytes-2"
+
+
 async def test_camera_last_active_event_image(
     app: aiohttp.web.Application,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],

@@ -14,6 +14,7 @@ from .event import (
     CameraPersonEvent,
     CameraSoundEvent,
     EventTrait,
+    ImageEventBase,
 )
 from .traits import TRAIT_MAP, Command
 from .typing import cast_assert, cast_optional
@@ -308,6 +309,37 @@ class EventImage:
         return await self._cmd.fetch_image(fetch_url, basic_auth=self.token)
 
 
+class EventImageContents:
+    """Holds image contents and the associated event.
+
+    This object is used to represent the event image contents and associated
+    data needed for providing a lightweight cache (an id and expiration).
+    """
+
+    def __init__(
+        self, event_id: str, expires_at: datetime.datetime, contents: bytes
+    ) -> None:
+        """Initialize ImageEventContent."""
+        self._event_id = event_id
+        self._expires_at = expires_at
+        self._contents = contents
+
+    @property
+    def event_id(self) -> str:
+        """A unique id associated with this event."""
+        return self._event_id
+
+    @property
+    def expires_at(self) -> datetime.datetime:
+        """Timestamp when the message expires."""
+        return self._expires_at
+
+    @property
+    def contents(self) -> bytes:
+        """Image contents captured during the event."""
+        return self._contents
+
+
 @TRAIT_MAP.register()
 class CameraEventImageTrait:
     """This trait belongs to any device that generates images from events."""
@@ -333,100 +365,107 @@ class CameraEventImageTrait:
         return EventImage(results, self._cmd)
 
 
-class EventImageGenerator(ABC):
+class EventImageGenerator(EventTrait, ABC):
     """Parenet class for a trait that generates an images from events."""
+
+    async def generate_event_image(self, event: ImageEventBase) -> Optional[EventImage]:
+        """Provide a URL to download a camera image from the active event."""
 
     async def generate_active_event_image(self) -> Optional[EventImage]:
         """Provide a URL to download a camera image from the active event."""
+        event = self.active_event
+        if not event:
+            return None
+        return await self.generate_event_image(event)
+
+    async def active_event_image_contents(
+        self, width: Optional[int] = None, height: Optional[int] = None
+    ) -> Optional[EventImageContents]:
+        """Downloads camera image for the active event."""
+        event = self.active_event
+        if not event:
+            return None
+        event_image = await self.generate_event_image(event)
+        if not event_image:
+            return None
+        contents = await event_image.contents(width, height)
+        return EventImageContents(event.event_id, event.expires_at, contents)
 
 
 @TRAIT_MAP.register()
-class CameraMotionTrait(EventTrait, EventImageGenerator):
+class CameraMotionTrait(EventImageGenerator):
     """For any device that supports motion detection events."""
 
     NAME = "sdm.devices.traits.CameraMotion"
     EVENT_NAME = CameraMotionEvent.NAME
 
     def __init__(self, data: Mapping[str, Any], cmd: Command):
-        """Initialize CameraMotionTrait."""
+        """Initialize CameraClipPreviewTrait."""
         super().__init__()
-        self._data = data
-        self._cmd = cmd
         self._event_image = CameraEventImageTrait({}, cmd)
 
-    async def generate_active_event_image(self) -> Optional[EventImage]:
+    async def generate_event_image(self, event: ImageEventBase) -> Optional[EventImage]:
         """Provide a URL to download a camera image from the active event."""
-        event = self.active_event
-        if not event:
+        if not isinstance(event, CameraMotionEvent):
             return None
         assert event.event_id
         return await self._event_image.generate_image(event.event_id)
 
 
 @TRAIT_MAP.register()
-class CameraPersonTrait(EventTrait, EventImageGenerator):
+class CameraPersonTrait(EventImageGenerator):
     """For any device that supports person detection events."""
 
     NAME = "sdm.devices.traits.CameraPerson"
     EVENT_NAME = CameraPersonEvent.NAME
 
     def __init__(self, data: Mapping[str, Any], cmd: Command):
-        """Initialize CameraPersonTrait."""
+        """Initialize CameraClipPreviewTrait."""
         super().__init__()
-        self._data = data
-        self._cmd = cmd
         self._event_image = CameraEventImageTrait({}, cmd)
 
-    async def generate_active_event_image(self) -> Optional[EventImage]:
+    async def generate_event_image(self, event: ImageEventBase) -> Optional[EventImage]:
         """Provide a URL to download a camera image from the active event."""
-        event = self.active_event
-        if not event:
+        if not isinstance(event, CameraPersonEvent):
             return None
         assert event.event_id
         return await self._event_image.generate_image(event.event_id)
 
 
 @TRAIT_MAP.register()
-class CameraSoundTrait(EventTrait, EventImageGenerator):
+class CameraSoundTrait(EventImageGenerator):
     """For any device that supports sound detection events."""
 
     NAME = "sdm.devices.traits.CameraSound"
     EVENT_NAME = CameraSoundEvent.NAME
 
     def __init__(self, data: Mapping[str, Any], cmd: Command):
-        """Initialize CameraSoundTrait."""
+        """Initialize CameraClipPreviewTrait."""
         super().__init__()
-        self._data = data
-        self._cmd = cmd
         self._event_image = CameraEventImageTrait({}, cmd)
 
-    async def generate_active_event_image(self) -> Optional[EventImage]:
+    async def generate_event_image(self, event: ImageEventBase) -> Optional[EventImage]:
         """Provide a URL to download a camera image from the active event."""
-        event = self.active_event
-        if not event:
+        if not isinstance(event, CameraSoundEvent):
             return None
         assert event.event_id
         return await self._event_image.generate_image(event.event_id)
 
 
 @TRAIT_MAP.register()
-class CameraClipPreviewTrait(EventTrait, EventImageGenerator):
+class CameraClipPreviewTrait(EventImageGenerator):
     """For any device that supports a clip preview."""
 
     NAME = "sdm.devices.traits.CameraClipPreview"
     EVENT_NAME = CameraClipPreviewEvent.NAME
 
     def __init__(self, data: Mapping[str, Any], cmd: Command):
-        """Initialize CameraCliPreview."""
+        """Initialize CameraClipPreviewTrait."""
         super().__init__()
-        self._data = data
         self._cmd = cmd
 
-    async def generate_active_event_image(self) -> Optional[EventImage]:
+    async def generate_event_image(self, event: ImageEventBase) -> Optional[EventImage]:
         """Provide a URL to download a camera image from the active event."""
-        event = self.active_event
-        if not event:
-            return None
         if not isinstance(event, CameraClipPreviewEvent):
             return None
         preview_event: CameraClipPreviewEvent = event
