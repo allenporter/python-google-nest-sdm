@@ -8,7 +8,7 @@ import pytest
 
 from google_nest_sdm import google_nest_api
 from google_nest_sdm.auth import AbstractAuth
-from google_nest_sdm.camera_traits import StreamingProtocol
+from google_nest_sdm.camera_traits import EventImageType, StreamingProtocol
 from google_nest_sdm.event import EventMessage
 from google_nest_sdm.exceptions import ApiException, AuthException
 
@@ -531,6 +531,7 @@ async def test_camera_event_image(
     assert expected_request == r.request
     assert "https://domain/sdm_event/dGNUlTU2CjY5Y3VKaTZwR3o4Y" == image.url
     assert "g.0.eventToken" == image.token
+    assert image.event_image_type == EventImageType.IMAGE
 
 
 async def test_camera_active_event_image(
@@ -605,6 +606,7 @@ async def test_camera_active_event_image(
     assert expected_request == r.request
     assert "https://domain/sdm_event/dGNUlTU2CjY5Y3VKaTZwR3o4Y" == image.url
     assert "g.0.eventToken" == image.token
+    assert image.event_image_type == EventImageType.IMAGE
 
 
 async def test_camera_active_event_image_contents(
@@ -904,6 +906,7 @@ async def test_camera_active_clip_preview(
     image = await trait.generate_active_event_image()
     assert "https://previewUrl/..." == image.url
     assert image.token is None
+    assert image.event_image_type == EventImageType.CLIP_PREVIEW
 
 
 async def test_get_structures(

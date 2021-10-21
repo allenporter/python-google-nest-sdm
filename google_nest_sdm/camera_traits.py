@@ -37,6 +37,8 @@ EXPIRES_AT = "expiresAt"
 ANSWER_SDP = "answerSdp"
 MEDIA_SESSION_ID = "mediaSessionId"
 
+EVENT_IMAGE_CLIP_PREVIEW = "clip_preview"
+
 
 class Resolution:
     """Maximum Resolution of an image or stream."""
@@ -268,6 +270,13 @@ class CameraLiveStreamTrait:
         return WebRtcStream(results, self._cmd)
 
 
+class EventImageType(Enum):
+    """Event image type."""
+
+    IMAGE = 1, "An image generated from the event."
+    CLIP_PREVIEW = 2, "A 10 frame video file in mp4 format."
+
+
 class EventImage:
     """Provides access to an image in response to an event.
 
@@ -280,10 +289,18 @@ class EventImage:
     Authorization: Basic <token>
     """
 
-    def __init__(self, data: Mapping[str, Any], cmd: Command):
+    def __init__(
+        self, data: Mapping[str, Any], cmd: Command, event_image_type: EventImageType
+    ):
         """Initialize the EventImage."""
         self._data = data
         self._cmd = cmd
+        self._event_image_type = event_image_type
+
+    @property
+    def event_image_type(self) -> EventImageType:
+        """Return the type of event image."""
+        return self._event_image_type
 
     @property
     def url(self) -> Optional[str]:
@@ -317,10 +334,15 @@ class EventImageContents:
     """
 
     def __init__(
-        self, event_id: str, expires_at: datetime.datetime, contents: bytes
+        self,
+        event_id: str,
+        event_image_type: EventImageType,
+        expires_at: datetime.datetime,
+        contents: bytes,
     ) -> None:
         """Initialize ImageEventContent."""
         self._event_id = event_id
+        self._event_image_type = event_image_type
         self._expires_at = expires_at
         self._contents = contents
 
@@ -328,6 +350,10 @@ class EventImageContents:
     def event_id(self) -> str:
         """A unique id associated with this event."""
         return self._event_id
+
+    @property
+    def event_image_type(self) -> EventImageType:
+        return self._event_image_type
 
     @property
     def expires_at(self) -> datetime.datetime:
@@ -362,7 +388,7 @@ class CameraEventImageTrait:
         resp = await self._cmd.execute(data)
         response_data = await resp.json()
         results = response_data[RESULTS]
-        return EventImage(results, self._cmd)
+        return EventImage(results, self._cmd, EventImageType.IMAGE)
 
 
 class EventImageGenerator(EventTrait, ABC):
@@ -389,7 +415,9 @@ class EventImageGenerator(EventTrait, ABC):
         if not event_image:
             return None
         contents = await event_image.contents(width, height)
-        return EventImageContents(event.event_id, event.expires_at, contents)
+        return EventImageContents(
+            event.event_id, event_image.event_image_type, event.expires_at, contents
+        )
 
 
 @TRAIT_MAP.register()
@@ -471,4 +499,6 @@ class CameraClipPreviewTrait(EventImageGenerator):
         preview_event: CameraClipPreviewEvent = event
         # Clip preview events have the url baked in without an additional
         # step to generate the image
-        return EventImage({"url": preview_event.preview_url}, self._cmd)
+        return EventImage(
+            {"url": preview_event.preview_url}, self._cmd, EventImageType.CLIP_PREVIEW
+        )
