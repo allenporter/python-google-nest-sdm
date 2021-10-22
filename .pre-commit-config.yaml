@@ -24,3 +24,4 @@ repos:
   hooks:
   - id: mypy
     additional_dependencies: [types-PyYAML,pytest-aiohttp]
+    args: ['--no-warn-unused-ignores']

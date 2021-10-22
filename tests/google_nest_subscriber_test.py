@@ -358,7 +358,7 @@ async def test_subscriber_error(
                 [pubsub_v1.subscriber.message.Message], Awaitable[None]
             ],
         ) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
-            raise ClientError("Some error")
+            raise ClientError("Some error")  # type: ignore
 
     r = Recorder()
     app.router.add_get("/enterprises/project-id1/devices", NewDeviceHandler(r, []))
@@ -390,7 +390,7 @@ async def test_subscriber_auth_error(
                 [pubsub_v1.subscriber.message.Message], Awaitable[None]
             ],
         ) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
-            raise Unauthenticated("Auth failure")
+            raise Unauthenticated("Auth failure")  # type: ignore
 
     r = Recorder()
     app.router.add_get("/enterprises/project-id1/devices", NewDeviceHandler(r, []))
