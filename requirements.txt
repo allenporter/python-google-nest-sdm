@@ -29,7 +29,7 @@ httplib2==0.20.2
 identify==2.3.3
 idna==3.3
 iniconfig==1.1.1
-isort==5.9.3
+isort==5.10.0
 libcst==0.3.21
 mccabe==0.6.1
 mock==4.0.3
