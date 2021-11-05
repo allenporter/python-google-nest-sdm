@@ -31,6 +31,15 @@ class FakeSubscriberFactory(AbstractSubscriberFactory):
     def __init__(self) -> None:
         self.tasks: Optional[Any] = None
 
+    async def async_create_subscription(
+        self,
+        creds: Credentials,
+        subscription_name: str,
+        topic_name: str,
+        loop: asyncio.AbstractEventLoop,
+    ) -> None:
+        return
+
     async def async_new_subscriber(
         self,
         creds: Credentials,
@@ -348,7 +357,7 @@ async def test_subscriber_error(
         [Optional[AbstractSubscriberFactory]], Awaitable[GoogleNestSubscriber]
     ],
 ) -> None:
-    class FailingFactory(AbstractSubscriberFactory):
+    class FailingFactory(FakeSubscriberFactory):
         async def async_new_subscriber(
             self,
             creds: Credentials,
@@ -380,7 +389,7 @@ async def test_subscriber_auth_error(
         [Optional[AbstractSubscriberFactory]], Awaitable[GoogleNestSubscriber]
     ],
 ) -> None:
-    class FailingFactory(AbstractSubscriberFactory):
+    class FailingFactory(FakeSubscriberFactory):
         async def async_new_subscriber(
             self,
             creds: Credentials,

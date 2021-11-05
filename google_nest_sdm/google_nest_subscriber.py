@@ -13,6 +13,7 @@ from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
 from google.cloud import pubsub_v1
 from google.oauth2.credentials import Credentials
+from google.protobuf.duration_pb2 import Duration
 
 from .auth import AbstractAuth
 from .device_manager import DeviceManager
@@ -36,9 +37,51 @@ WATCHDOG_RESTART_DELAY_MAX_SECONDS = 300
 # Reset watchdog backoff
 WATCHDOG_RESET_THRESHOLD_SECONDS = 60
 
+DEFAULT_MESSAGE_RETENTION_SECONDS = 15 * 60  # 15 minutes
+
+# Note: Users of non-prod instances will have to manually configure a topic
+SUBSCRIPTION_FORMAT = "projects/{cloud_project_id}/{subscription_id}"
+TOPIC_FORMAT = "projects/sdm-prod/topics/enterprise-{project_id}"
+
+
+def _validate_subscription_name(subscription_name: str) -> None:
+    """Validates that a subcription name is correct.
+
+    Raises ConfigurationException on failure.
+    """
+    if not EXPECTED_SUBSCRIBER_REGEXP.match(subscription_name):
+        raise ConfigurationException(
+            "Subscription misconfigured. Expected subscriber_id to "
+            f"match '{EXPECTED_SUBSCRIBER_REGEXP.pattern}' but was "
+            f"'{subscription_name}'"
+        )
+
+
+def _validate_topic_name(topic_name: str) -> None:
+    """Validates that a topic name is correct.
+
+    Raises ConfigurationException on failure.
+    """
+    if not EXPECTED_TOPIC_REGEXP.match(topic_name):
+        raise ConfigurationException(
+            "Subscription misconfigured. Expected topic name to "
+            f"match '{EXPECTED_TOPIC_REGEXP.pattern}' but was "
+            f"'{topic_name}'."
+        )
+
 
 class AbstractSubscriberFactory(ABC):
     """Abstract class for creating a subscriber, to facilitate testing."""
+
+    @abstractmethod
+    async def async_create_subscription(
+        self,
+        creds: Credentials,
+        subscription_name: str,
+        topic_name: str,
+        loop: asyncio.AbstractEventLoop,
+    ) -> None:
+        """Creates a subscription name if it does not already exist."""
 
     @abstractmethod
     async def async_new_subscriber(
@@ -55,6 +98,55 @@ class AbstractSubscriberFactory(ABC):
 
 class DefaultSubscriberFactory(AbstractSubscriberFactory):
     """Default implementation that creates Google Pubsub subscriber."""
+
+    async def async_create_subscription(
+        self,
+        creds: Credentials,
+        subscription_name: str,
+        topic_name: str,
+        loop: asyncio.AbstractEventLoop,
+    ) -> None:
+        """Creates a subscription name if it does not already exist."""
+        _validate_subscription_name(subscription_name)
+        _validate_topic_name(topic_name)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            await loop.run_in_executor(
+                executor,
+                self._create_subscription,
+                creds,
+                subscription_name,
+                topic_name,
+            )
+
+    def _create_subscription(
+        self,
+        creds: Credentials,
+        subscription_name: str,
+        topic_name: str,
+    ) -> None:
+        """Creates a subscription name if it does not already exist."""
+        creds = self._refresh_creds(creds)
+        subscriber = pubsub_v1.SubscriberClient(credentials=creds)
+        subscription = subscriber.get_subscription(subscription=subscription_name)
+        if subscription:
+            if subscription.topic != topic_name:
+                raise ConfigurationException(
+                    "Subscription misconfigured. Expected topic name to "
+                    f"match '{topic_name}' but was "
+                    f"'{subscription.topic}'. Please delete in cloud "
+                    "console and it will be re-created."
+                )
+            # Valid subscription already exists; No-op
+            return
+
+        message_retention_duration = Duration()
+        message_retention_duration.FromSeconds(DEFAULT_MESSAGE_RETENTION_SECONDS)
+        subscription_request = {
+            "name": subscription_name,
+            "topic": topic_name,
+            "message_retention_duration": message_retention_duration,
+        }
+        subscriber.create_subscription(request=subscription_request)
 
     async def async_new_subscriber(
         self,
@@ -85,6 +177,14 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
                 callback_wrapper,
             )
 
+    def _refresh_creds(self, creds: Credentials) -> Credentials:
+        """Refresh credentials."""
+        try:
+            creds.refresh(Request())
+        except RefreshError as err:
+            raise AuthException(f"Access token failure: {err}") from err
+        return creds
+
     def _new_subscriber(
         self,
         creds: Credentials,
@@ -92,27 +192,16 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
         callback_wrapper: Callable[[pubsub_v1.subscriber.message.Message], None],
     ) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
         """Issue a command to verify subscriber creds are correct."""
-
-        try:
-            creds.refresh(Request())
-        except RefreshError as err:
-            raise AuthException(f"Access token failure: {err}") from err
-
+        creds = self._refresh_creds(creds)
         subscriber = pubsub_v1.SubscriberClient(credentials=creds)
         subscription = subscriber.get_subscription(subscription=subscription_name)
         if subscription.topic:
-            if not EXPECTED_TOPIC_REGEXP.match(subscription.topic):
-                raise ConfigurationException(
-                    "Subscription misconfigured. Expected topic name to "
-                    f"match '{EXPECTED_TOPIC_REGEXP.pattern}' but was "
-                    f"'{subscription.topic}'."
-                )
-            else:
-                _LOGGER.debug(
-                    "Subscriber '%s' configured on topic '%s'",
-                    subscription_name,
-                    subscription.topic,
-                )
+            _validate_topic_name(subscription.topic)
+            _LOGGER.debug(
+                "Subscriber '%s' configured on topic '%s'",
+                subscription_name,
+                subscription.topic,
+            )
         return subscriber.subscribe(subscription_name, callback_wrapper)
 
 
@@ -132,6 +221,7 @@ class GoogleNestSubscriber:
         """Initialize the subscriber for the specified topic."""
         self._auth = auth
         self._subscriber_id = subscriber_id
+        self._project_id = project_id
         self._api = GoogleNestAPI(auth, project_id)
         self._loop = loop or asyncio.get_event_loop()
         self._device_manager_task: Optional[asyncio.Task[DeviceManager]] = None
@@ -154,14 +244,30 @@ class GoogleNestSubscriber:
         """Register a callback invoked when new messages are received."""
         self._callback = target
 
+    async def create_subscription(self) -> None:
+        """Create the subscription if it does not already exist."""
+        _validate_subscription_name(self._subscriber_id)
+        try:
+            creds = await self._auth.async_get_creds()
+        except ClientError as err:
+            raise AuthException(f"Access token failure: {err}") from err
+        try:
+            await self._subscriber_factory.async_create_subscription(
+                creds,
+                self._subscriber_id,
+                TOPIC_FORMAT.format(self._project_id),
+                self._loop,
+            )
+        except Unauthenticated as err:
+            raise AuthException("Failed to authenticate subscriber: {err}") from err
+        except GoogleAPIError as err:
+            raise SubscriberException(
+                f"Failed to create subscriber '{self._subscriber_id}': {err}"
+            ) from err
+
     async def start_async(self) -> None:
         """Start the subscriber."""
-        if not EXPECTED_SUBSCRIBER_REGEXP.match(self._subscriber_id):
-            raise ConfigurationException(
-                "Subscription misconfigured. Expected subscriber_id to "
-                f"match '{EXPECTED_SUBSCRIBER_REGEXP.pattern}' but was "
-                f"'{self._subscriber_id}'"
-            )
+        _validate_subscription_name(self._subscriber_id)
         try:
             creds = await self._auth.async_get_creds()
         except ClientError as err:
