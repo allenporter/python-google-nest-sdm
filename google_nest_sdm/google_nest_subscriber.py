@@ -40,7 +40,6 @@ WATCHDOG_RESET_THRESHOLD_SECONDS = 60
 DEFAULT_MESSAGE_RETENTION_SECONDS = 15 * 60  # 15 minutes
 
 # Note: Users of non-prod instances will have to manually configure a topic
-SUBSCRIPTION_FORMAT = "projects/{cloud_project_id}/{subscription_id}"
 TOPIC_FORMAT = "projects/sdm-prod/topics/enterprise-{project_id}"
 
 
@@ -127,7 +126,12 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
         """Creates a subscription name if it does not already exist."""
         creds = self._refresh_creds(creds)
         subscriber = pubsub_v1.SubscriberClient(credentials=creds)
-        subscription = subscriber.get_subscription(subscription=subscription_name)
+
+        subscription = None
+        try:
+            subscription = subscriber.get_subscription(subscription=subscription_name)
+        except NotFound:
+            _LOGGER.debug("Existing subscription not found; Creating")
         if subscription:
             if subscription.topic != topic_name:
                 raise ConfigurationException(
@@ -146,6 +150,7 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
             "topic": topic_name,
             "message_retention_duration": message_retention_duration,
         }
+        _LOGGER.info(f"Creating subscription: {subscription_request}")
         subscriber.create_subscription(request=subscription_request)
 
     async def async_new_subscriber(
@@ -235,8 +240,6 @@ class GoogleNestSubscriber:
         self._watchdog_restart_delay_min_seconds = watchdog_restart_delay_min_seconds
         self._watchdog_restart_delay_seconds = watchdog_restart_delay_min_seconds
         self._watchdog_task: Optional[asyncio.Task] = None
-        if self._watchdog_check_interval_seconds > 0:
-            self._watchdog_task = asyncio.create_task(self._watchdog())
 
     def set_update_callback(
         self, target: Callable[[EventMessage], Awaitable[None]]
@@ -255,7 +258,7 @@ class GoogleNestSubscriber:
             await self._subscriber_factory.async_create_subscription(
                 creds,
                 self._subscriber_id,
-                TOPIC_FORMAT.format(self._project_id),
+                TOPIC_FORMAT.format(project_id=self._project_id),
                 self._loop,
             )
         except Unauthenticated as err:
@@ -280,7 +283,7 @@ class GoogleNestSubscriber:
                 )
             )
         except NotFound as err:
-            raise SubscriberException(
+            raise ConfigurationException(
                 f"Failed to create subscriber '{self._subscriber_id}' id was not found"
             ) from err
         except Unauthenticated as err:
@@ -296,6 +299,8 @@ class GoogleNestSubscriber:
             self._watchdog_restart_delay_seconds = (
                 self._watchdog_restart_delay_min_seconds
             )
+        if self._watchdog_check_interval_seconds > 0:
+            self._watchdog_task = asyncio.create_task(self._watchdog())
         if self._subscriber_future:
             self._subscriber_future.add_done_callback(self._done_callback)
 
