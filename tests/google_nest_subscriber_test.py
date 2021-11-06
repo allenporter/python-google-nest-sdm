@@ -40,6 +40,14 @@ class FakeSubscriberFactory(AbstractSubscriberFactory):
     ) -> None:
         return
 
+    async def async_delete_subscription(
+        self,
+        creds: Credentials,
+        subscription_name: str,
+        loop: asyncio.AbstractEventLoop,
+    ) -> None:
+        return
+
     async def async_new_subscriber(
         self,
         creds: Credentials,

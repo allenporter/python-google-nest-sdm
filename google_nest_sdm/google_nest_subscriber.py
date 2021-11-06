@@ -83,6 +83,15 @@ class AbstractSubscriberFactory(ABC):
         """Creates a subscription name if it does not already exist."""
 
     @abstractmethod
+    async def async_delete_subscription(
+        self,
+        creds: Credentials,
+        subscription_name: str,
+        loop: asyncio.AbstractEventLoop,
+    ) -> None:
+        """Deletes a subscription."""
+
+    @abstractmethod
     async def async_new_subscriber(
         self,
         creds: Credentials,
@@ -150,8 +159,34 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
             "topic": topic_name,
             "message_retention_duration": message_retention_duration,
         }
-        _LOGGER.info(f"Creating subscription: {subscription_request}")
+        _LOGGER.debug(f"Creating subscription: {subscription_request}")
         subscriber.create_subscription(request=subscription_request)
+
+    async def async_delete_subscription(
+        self,
+        creds: Credentials,
+        subscription_name: str,
+        loop: asyncio.AbstractEventLoop,
+    ) -> None:
+        """Creates a subscription name if it does not already exist."""
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            await loop.run_in_executor(
+                executor,
+                self._delete_subscription,
+                creds,
+                subscription_name,
+            )
+
+    def _delete_subscription(
+        self,
+        creds: Credentials,
+        subscription_name: str,
+    ) -> None:
+        """Deletes a subscription."""
+        creds = self._refresh_creds(creds)
+        subscriber = pubsub_v1.SubscriberClient(credentials=creds)
+        _LOGGER.debug(f"Deleting subscription '{subscription_name}'")
+        subscriber.delete_subscription(subscription=subscription_name)
 
     async def async_new_subscriber(
         self,
@@ -241,6 +276,16 @@ class GoogleNestSubscriber:
         self._watchdog_restart_delay_seconds = watchdog_restart_delay_min_seconds
         self._watchdog_task: Optional[asyncio.Task] = None
 
+    @property
+    def subscriber_id(self) -> str:
+        """Return the configured subscriber_id."""
+        return self._subscriber_id
+
+    @property
+    def project_id(self) -> str:
+        """Return the configured SDM project_id."""
+        return self._project_id
+
     def set_update_callback(
         self, target: Callable[[EventMessage], Awaitable[None]]
     ) -> None:
@@ -261,11 +306,37 @@ class GoogleNestSubscriber:
                 TOPIC_FORMAT.format(project_id=self._project_id),
                 self._loop,
             )
+        except NotFound as err:
+            raise ConfigurationException(
+                f"Failed to create subscriber '{self._subscriber_id}' "
+                + "(cloud project id incorrect?)"
+            ) from err
         except Unauthenticated as err:
             raise AuthException("Failed to authenticate subscriber: {err}") from err
         except GoogleAPIError as err:
             raise SubscriberException(
                 f"Failed to create subscriber '{self._subscriber_id}': {err}"
+            ) from err
+
+    async def delete_subscription(self) -> None:
+        """Delete the subscription."""
+        try:
+            creds = await self._auth.async_get_creds()
+        except ClientError as err:
+            raise AuthException(f"Access token failure: {err}") from err
+
+        try:
+            await self._subscriber_factory.async_delete_subscription(
+                creds, self._subscriber_id, self._loop
+            )
+        except NotFound:
+            # No-op if subscription was already deleted
+            return
+        except Unauthenticated as err:
+            raise AuthException("Failed to authenticate subscriber: {err}") from err
+        except GoogleAPIError as err:
+            raise SubscriberException(
+                f"Failed to delete subscription '{self._subscriber_id}': {err}"
             ) from err
 
     async def start_async(self) -> None:
