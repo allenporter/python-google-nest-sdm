@@ -44,7 +44,7 @@
       "matchPackagePrefixes": [
           "async-timeout",
       ],
-      "groupSlip": "aiohttp"
+      "groupSlip": "aiohttp",
       "matchUpdateTypes": ["minor", "patch", "major"],
     },
     {
