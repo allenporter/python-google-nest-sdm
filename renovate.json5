@@ -39,6 +39,13 @@
       "extends": ["schedule:weekends"],
     },
     {
+      "groupName": "group:aiohttp",
+      "matchPackageNames": ["aiohttp"],
+      "matchPackagePrefixes": [
+          "async-timeout",
+      ],
+    },
+    {
       "description": "Minor updates are automatic",
       "automerge": true,
       "automergeType": "branch",
