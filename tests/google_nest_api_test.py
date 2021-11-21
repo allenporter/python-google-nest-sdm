@@ -1160,3 +1160,115 @@ async def test_api_post_error_with_json_response(
         ApiException, match=r".*FAILED_PRECONDITION: Some error message.*"
     ):
         await trait.set_heat(25.0)
+
+
+async def test_event_manager_image(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "enterprises/project-id1/devices/device-id1",
+                "traits": {
+                    "sdm.devices.traits.CameraEventImage": {},
+                    "sdm.devices.traits.CameraMotion": {},
+                },
+            }
+        ],
+    )
+
+    post_handler = NewHandler(
+        r,
+        [
+            {
+                "results": {
+                    "url": "image-url-1",
+                    "token": "g.1.eventToken",
+                },
+            },
+            {
+                "results": {
+                    "url": "image-url-2",
+                    "token": "g.2.eventToken",
+                },
+            },
+        ],
+    )
+
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+    app.router.add_post(
+        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
+    )
+    app.router.add_get(
+        "/image-url-1", NewImageHandler([b"image-bytes-1"], token="g.1.eventToken")
+    )
+    app.router.add_get(
+        "/image-url-2", NewImageHandler([b"image-bytes-2"], token="g.2.eventToken")
+    )
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert "enterprises/project-id1/devices/device-id1" == device.name
+
+    ts1 = datetime.datetime(2019, 1, 1, 0, 0, 1)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": ts1.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": "enterprises/project-id1/devices/device-id1",
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    ts2 = ts1 + datetime.timedelta(seconds=5)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "a94b2115-3b57-4eb4-8830-80519f188ec9",
+                "timestamp": ts2.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": "enterprises/project-id1/devices/device-id1",
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "ABCZQRUdGNUlTU2V4MGV3bRZ23...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+
+    event_media_manager = device.event_media_manager
+
+    event_media = await event_media_manager.get_media("FWWVQVUdGNUlTU2V4MGV2aTNXV...")
+    assert event_media
+    assert event_media.event_id == "FWWVQVUdGNUlTU2V4MGV2aTNXV..."
+    assert event_media.event_type == "sdm.devices.events.CameraMotion.Motion"
+    assert event_media.event_timestamp == ts1
+    assert event_media.media.contents == b"image-bytes-1"
+    assert event_media.media.event_image_type.content_type == "image/jpeg"
+
+    event_media = await event_media_manager.get_media("ABCZQRUdGNUlTU2V4MGV3bRZ23...")
+    assert event_media
+    assert event_media.event_id == "ABCZQRUdGNUlTU2V4MGV3bRZ23..."
+    assert event_media.event_type == "sdm.devices.events.CameraMotion.Motion"
+    assert event_media.event_timestamp == ts2
+    assert event_media.media.contents == b"image-bytes-2"
+    assert event_media.media.event_image_type.content_type == "image/jpeg"

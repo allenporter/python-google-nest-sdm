@@ -13,6 +13,7 @@ from . import doorbell_traits  # noqa: F401
 from . import thermostat_traits  # noqa: F401
 from .auth import AbstractAuth
 from .event import EventMessage, EventProcessingError, EventTrait
+from .event_media import EventMediaManager
 from .traits import BuildTraits, Command
 from .typing import cast_assert
 
@@ -26,7 +27,9 @@ PARENT = "parent"
 DISPLAYNAME = "displayName"
 
 
-def _MakeEventTraitMap(traits: Mapping[str, Any]) -> Dict[str, Any]:
+def _MakeEventTraitMap(
+    traits: Mapping[str, Any]
+) -> Dict[str, camera_traits.EventImageGenerator]:
     if (
         camera_traits.CameraEventImageTrait.NAME not in traits
         and camera_traits.CameraClipPreviewTrait.NAME not in traits
@@ -34,9 +37,9 @@ def _MakeEventTraitMap(traits: Mapping[str, Any]) -> Dict[str, Any]:
         return {}
     event_trait_map: Dict[str, Any] = {}
     for (trait_name, trait) in traits.items():
-        if not hasattr(trait, "EVENT_NAME"):
+        if not isinstance(trait, camera_traits.EventImageGenerator):
             continue
-        event_trait_map[trait.EVENT_NAME] = trait
+        event_trait_map[trait.event_type] = trait
     return event_trait_map
 
 
@@ -54,7 +57,8 @@ class Device:
                 continue
             self._relations[relation[PARENT]] = relation[DISPLAYNAME]
         self._callbacks: List[Callable[[EventMessage], Awaitable[None]]] = []
-        self._event_trait_map = _MakeEventTraitMap(self._traits)
+        event_trait_map = _MakeEventTraitMap(self._traits)
+        self._event_media_manager = EventMediaManager(event_trait_map)
 
     @staticmethod
     def MakeDevice(raw_data: Mapping[str, Any], auth: AbstractAuth) -> Device:
@@ -135,7 +139,7 @@ class Device:
                 f"Mismatch {self.name} != {event_message.resource_update_name}"
             )
         self._async_handle_traits(event_message)
-        self._async_handle_events(event_message)
+        await self._event_media_manager.async_handle_events(event_message)
         for callback in self._callbacks:
             await callback(event_message)
 
@@ -156,42 +160,18 @@ class Device:
             self._traits[trait_name] = trait
             self._trait_event_ts[trait_name] = event_message.timestamp
 
-    def _async_handle_events(self, event_message: EventMessage) -> None:
-        events = event_message.resource_update_events
-        if not events:
-            return
-        _LOGGER.debug("Event Update %s", events.keys())
-        for (event_name, event) in events.items():
-            if event_name not in self._event_trait_map:
-                continue
-            self._event_trait_map[event_name].handle_event(event)
+    @property
+    def event_media_manager(self) -> EventMediaManager:
+        return self._event_media_manager
 
     def active_events(self, event_types: list) -> dict:
         """Return any active events for the specified trait names."""
-        active_events = {}
-        for event_type in event_types:
-            trait = self._event_trait_map.get(event_type)
-            if not trait or not trait.active_event:
-                continue
-            active_events[event_type] = trait.active_event
-        return active_events
+        return self._event_media_manager.active_events(event_types)
 
     @property
     def active_event_trait(self) -> Optional[EventTrait]:
         """Return trait with the most recently received active event."""
-        trait_to_return: EventTrait | None = None
-        for trait in self._event_trait_map.values():
-            if not trait.active_event:
-                continue
-            if trait_to_return is None:
-                trait_to_return = trait
-            else:
-                event = trait.last_event
-                if not event or not trait_to_return.last_event:
-                    continue
-                if event.expires_at > trait_to_return.last_event.expires_at:
-                    trait_to_return = trait
-        return trait_to_return
+        return self._event_media_manager.active_event_trait
 
     @property
     def raw_data(self) -> Dict[str, Any]:

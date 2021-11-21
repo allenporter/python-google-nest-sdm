@@ -273,8 +273,11 @@ class CameraLiveStreamTrait:
 class EventImageType(Enum):
     """Event image type."""
 
-    IMAGE = 1, "An image generated from the event."
-    CLIP_PREVIEW = 2, "A 10 frame video file in mp4 format."
+    IMAGE = "image/jpeg"  # "An image generated from the event.
+    CLIP_PREVIEW = "video/mp4"  # A 10 frame video file in mp4 format.
+
+    def __init__(self, content_type: str) -> None:
+        self.content_type = content_type
 
 
 class EventImage:
@@ -394,6 +397,11 @@ class CameraEventImageTrait:
 class EventImageGenerator(EventTrait, ABC):
     """Parenet class for a trait that generates an images from events."""
 
+    @property
+    @abstractmethod
+    def event_type(self) -> str:
+        """Event types supported by this trait."""
+
     async def generate_event_image(self, event: ImageEventBase) -> Optional[EventImage]:
         """Provide a URL to download a camera image from the active event."""
 
@@ -426,6 +434,7 @@ class CameraMotionTrait(EventImageGenerator):
 
     NAME = "sdm.devices.traits.CameraMotion"
     EVENT_NAME = CameraMotionEvent.NAME
+    event_type = EVENT_NAME
 
     def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize CameraClipPreviewTrait."""
@@ -446,6 +455,7 @@ class CameraPersonTrait(EventImageGenerator):
 
     NAME = "sdm.devices.traits.CameraPerson"
     EVENT_NAME = CameraPersonEvent.NAME
+    event_type = EVENT_NAME
 
     def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize CameraClipPreviewTrait."""
@@ -466,6 +476,7 @@ class CameraSoundTrait(EventImageGenerator):
 
     NAME = "sdm.devices.traits.CameraSound"
     EVENT_NAME = CameraSoundEvent.NAME
+    event_type = EVENT_NAME
 
     def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize CameraClipPreviewTrait."""
@@ -486,6 +497,7 @@ class CameraClipPreviewTrait(EventImageGenerator):
 
     NAME = "sdm.devices.traits.CameraClipPreview"
     EVENT_NAME = CameraClipPreviewEvent.NAME
+    event_type = EVENT_NAME
 
     def __init__(self, data: Mapping[str, Any], cmd: Command):
         """Initialize CameraClipPreviewTrait."""

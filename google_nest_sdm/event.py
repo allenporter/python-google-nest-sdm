@@ -5,7 +5,7 @@ from __future__ import annotations
 import datetime
 import hashlib
 import logging
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Any, Awaitable, Callable, Dict, Mapping, Optional, TypeVar
 
 from .auth import AbstractAuth
@@ -51,6 +51,11 @@ class ImageEventBase(ABC):
         self._timestamp = timestamp
 
     @property
+    @abstractmethod
+    def event_type(self) -> str:
+        """The type of event."""
+
+    @property
     def event_id(self) -> str:
         """ID associated with the event.
 
@@ -79,6 +84,7 @@ class CameraMotionEvent(ImageEventBase):
     """Motion has been detected by the camera."""
 
     NAME = "sdm.devices.events.CameraMotion.Motion"
+    event_type = NAME
 
 
 @EVENT_MAP.register()
@@ -86,6 +92,7 @@ class CameraPersonEvent(ImageEventBase):
     """A person has been detected by the camera."""
 
     NAME = "sdm.devices.events.CameraPerson.Person"
+    event_type = NAME
 
 
 @EVENT_MAP.register()
@@ -93,6 +100,7 @@ class CameraSoundEvent(ImageEventBase):
     """Sound has been detected by the camera."""
 
     NAME = "sdm.devices.events.CameraSound.Sound"
+    event_type = NAME
 
 
 @EVENT_MAP.register()
@@ -100,6 +108,7 @@ class DoorbellChimeEvent(ImageEventBase):
     """The doorbell has been pressed."""
 
     NAME = "sdm.devices.events.DoorbellChime.Chime"
+    event_type = NAME
 
 
 @EVENT_MAP.register()
@@ -107,6 +116,7 @@ class CameraClipPreviewEvent(ImageEventBase):
     """A video clip is available for preview, without extra download."""
 
     NAME = "sdm.devices.events.CameraClipPreview.ClipPreview"
+    event_type = NAME
 
     @property
     def event_id(self) -> str:

@@ -4,6 +4,7 @@ from typing import Dict, Optional
 
 from .device import Device
 from .event import EventMessage, RelationUpdate
+from .event_media import CachePolicy
 from .structure import InfoTrait, RoomInfoTrait, Structure
 
 
@@ -14,6 +15,7 @@ class DeviceManager:
         """Initialize DeviceManager."""
         self._devices: Dict[str, Device] = {}
         self._structures: Dict[str, Structure] = {}
+        self._cache_policy = CachePolicy()
 
     @property
     def devices(self) -> Dict[str, Device]:
@@ -29,11 +31,18 @@ class DeviceManager:
         """Track the specified device."""
         assert device.name
         self._devices[device.name] = device
+        # Share a single cache policy across all devices
+        device.event_media_manager.cache_policy = self._cache_policy
 
     def add_structure(self, structure: Structure) -> None:
         """Track the specified device."""
         assert structure.name
         self._structures[structure.name] = structure
+
+    @property
+    def cache_policy(self) -> CachePolicy:
+        """Return cache policy shared by device EventMediaManager objects."""
+        return self._cache_policy
 
     async def async_handle_event(self, event_message: EventMessage) -> None:
         """Handle a new message received."""
