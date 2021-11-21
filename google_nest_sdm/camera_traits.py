@@ -13,6 +13,7 @@ from .event import (
     CameraMotionEvent,
     CameraPersonEvent,
     CameraSoundEvent,
+    EventImageType,
     EventTrait,
     ImageEventBase,
 )
@@ -268,16 +269,6 @@ class CameraLiveStreamTrait:
         response_data = await resp.json()
         results = response_data[RESULTS]
         return WebRtcStream(results, self._cmd)
-
-
-class EventImageType(Enum):
-    """Event image type."""
-
-    IMAGE = "image/jpeg"  # "An image generated from the event.
-    CLIP_PREVIEW = "video/mp4"  # A 10 frame video file in mp4 format.
-
-    def __init__(self, content_type: str) -> None:
-        self.content_type = content_type
 
 
 class EventImage:

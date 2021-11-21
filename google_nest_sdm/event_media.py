@@ -146,7 +146,8 @@ class EventMediaManager:
             self._event_media.popitem(last=False)
         return event_media
 
-    async def events(self) -> Iterable[ImageEventBase]:
+    @property
+    def events(self) -> Iterable[ImageEventBase]:
         """Return revent events."""
         result = list(self._event_data.values())
         result.sort(key=lambda x: x.timestamp, reverse=True)

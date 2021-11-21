@@ -6,6 +6,7 @@ import datetime
 import hashlib
 import logging
 from abc import ABC, abstractmethod
+from enum import Enum
 from typing import Any, Awaitable, Callable, Dict, Mapping, Optional, TypeVar
 
 from .auth import AbstractAuth
@@ -42,6 +43,16 @@ class EventProcessingError(Exception):
     """Raised when there was an error handling an event."""
 
 
+class EventImageType(Enum):
+    """Event image type."""
+
+    IMAGE = "image/jpeg"  # "An image generated from the event.
+    CLIP_PREVIEW = "video/mp4"  # A 10 frame video file in mp4 format.
+
+    def __init__(self, content_type: str) -> None:
+        self.content_type = content_type
+
+
 class ImageEventBase(ABC):
     """Base class for all image related event types."""
 
@@ -54,6 +65,11 @@ class ImageEventBase(ABC):
     @abstractmethod
     def event_type(self) -> str:
         """The type of event."""
+
+    @property
+    @abstractmethod
+    def event_image_type(self) -> EventImageType:
+        """The image type for this event."""
 
     @property
     def event_id(self) -> str:
@@ -85,6 +101,7 @@ class CameraMotionEvent(ImageEventBase):
 
     NAME = "sdm.devices.events.CameraMotion.Motion"
     event_type = NAME
+    event_image_type = EventImageType.IMAGE
 
 
 @EVENT_MAP.register()
@@ -93,6 +110,7 @@ class CameraPersonEvent(ImageEventBase):
 
     NAME = "sdm.devices.events.CameraPerson.Person"
     event_type = NAME
+    event_image_type = EventImageType.IMAGE
 
 
 @EVENT_MAP.register()
@@ -101,6 +119,7 @@ class CameraSoundEvent(ImageEventBase):
 
     NAME = "sdm.devices.events.CameraSound.Sound"
     event_type = NAME
+    event_image_type = EventImageType.IMAGE
 
 
 @EVENT_MAP.register()
@@ -109,6 +128,7 @@ class DoorbellChimeEvent(ImageEventBase):
 
     NAME = "sdm.devices.events.DoorbellChime.Chime"
     event_type = NAME
+    event_image_type = EventImageType.IMAGE
 
 
 @EVENT_MAP.register()
@@ -117,6 +137,7 @@ class CameraClipPreviewEvent(ImageEventBase):
 
     NAME = "sdm.devices.events.CameraClipPreview.ClipPreview"
     event_type = NAME
+    event_image_type = EventImageType.CLIP_PREVIEW
 
     @property
     def event_id(self) -> str:
