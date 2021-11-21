@@ -123,8 +123,14 @@ class EventMediaManager:
         """Update the CachePolicy."""
         self._cache_policy = value
 
-    async def get_media(self, event_id: str) -> Optional[EventMedia]:
-        """Get media for the specified event."""
+    async def get_media(
+        self, event_id: str, width: Optional[int] = None, height: Optional[int] = None
+    ) -> Optional[EventMedia]:
+        """Get media for the specified event.
+
+        Note that the height and width hints are best effort and may not be
+        honored (e.g. if image is already cached).
+        """
         if not (event := self._event_data.get(event_id)):
             return None
         self._event_data.move_to_end(event_id)
@@ -137,7 +143,7 @@ class EventMediaManager:
         event_image = await generator.generate_event_image(event)
         if not event_image:
             return None
-        contents = await event_image.contents()
+        contents = await event_image.contents(width=width, height=height)
         media = Media(contents, event_image.event_image_type)
         event_media = EventMedia(event_id, event.event_type, event.timestamp, media)
         # Update EventMedia cache
