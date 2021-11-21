@@ -10,6 +10,7 @@ from typing import Dict, Optional
 
 from .camera_traits import EventImageGenerator, EventImageType
 from .event import EventMessage, ImageEventBase
+from .exceptions import GoogleNestException
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -107,7 +108,10 @@ class EventMediaManager:
         """Initialize DeviceEventMediaManager."""
         self._event_trait_map = event_trait_map
         self._cache_policy = CachePolicy()
-        self._data: OrderedDict[str, ImageEventBase] = OrderedDict()
+        # Cache of event ids to the received messages
+        self._event_data: OrderedDict[str, ImageEventBase] = OrderedDict()
+        # Cache of event ids to the media
+        self._event_media: OrderedDict[str, EventMedia] = OrderedDict()
 
     @property
     def cache_policy(self) -> CachePolicy:
@@ -121,9 +125,13 @@ class EventMediaManager:
 
     async def get_media(self, event_id: str) -> Optional[EventMedia]:
         """Get media for the specified event."""
-        if not (event := self._data.get(event_id)):
+        if not (event := self._event_data.get(event_id)):
             return None
-        self._data.move_to_end(event_id)
+        self._event_data.move_to_end(event_id)
+
+        if event_media := self._event_media.get(event_id):
+            return event_media
+
         if not (generator := self._event_trait_map.get(event.event_type)):
             return None
         event_image = await generator.generate_event_image(event)
@@ -131,11 +139,16 @@ class EventMediaManager:
             return None
         contents = await event_image.contents()
         media = Media(contents, event_image.event_image_type)
-        return EventMedia(event_id, event.event_type, event.timestamp, media)
+        event_media = EventMedia(event_id, event.event_type, event.timestamp, media)
+        # Update EventMedia cache
+        self._event_media[event_id] = event_media
+        if len(self._event_media) > self._cache_policy.event_cache_size:
+            self._event_media.popitem(last=False)
+        return event_media
 
     async def events(self) -> Iterable[ImageEventBase]:
         """Return revent events."""
-        result = list(self._data.values())
+        result = list(self._event_data.values())
         result.sort(key=lambda x: x.timestamp, reverse=True)
         return result
 
@@ -149,9 +162,20 @@ class EventMediaManager:
             if event_name not in self._event_trait_map:
                 continue
             self._event_trait_map[event_name].handle_event(event)
-            self._data[event.event_id] = event
-            if len(self._data) > self._cache_policy.event_cache_size:
-                self._data.popitem(last=False)
+            # Update event cache
+            self._event_data[event.event_id] = event
+            if len(self._event_data) > self._cache_policy.event_cache_size:
+                self._event_data.popitem(last=False)
+            # Prefetch media
+            if self._cache_policy.prefetch:
+                try:
+                    await self.get_media(event.event_id)
+                except GoogleNestException as err:
+                    _LOGGER.warning(
+                        "Failure when pre-fetching event '%s': %s",
+                        event.event_id,
+                        str(err),
+                    )
 
     def active_events(self, event_types: list) -> Dict[str, ImageEventBase]:
         """Return any active events for the specified trait names."""
