@@ -1216,7 +1216,7 @@ async def test_event_manager_image(
     device = devices[0]
     assert "enterprises/project-id1/devices/device-id1" == device.name
 
-    ts1 = datetime.datetime(2019, 1, 1, 0, 0, 1)
+    ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
     await device.async_handle_event(
         await event_message(
             {
@@ -1261,7 +1261,9 @@ async def test_event_manager_image(
     assert event_media
     assert event_media.event_id == "FWWVQVUdGNUlTU2V4MGV2aTNXV..."
     assert event_media.event_type == "sdm.devices.events.CameraMotion.Motion"
-    assert event_media.event_timestamp == ts1
+    assert event_media.event_timestamp.isoformat(timespec="seconds") == ts1.isoformat(
+        timespec="seconds"
+    )
     assert event_media.media.contents == b"image-bytes-1"
     assert event_media.media.event_image_type.content_type == "image/jpeg"
 
@@ -1269,9 +1271,13 @@ async def test_event_manager_image(
     assert event_media
     assert event_media.event_id == "ABCZQRUdGNUlTU2V4MGV3bRZ23..."
     assert event_media.event_type == "sdm.devices.events.CameraMotion.Motion"
-    assert event_media.event_timestamp == ts2
+    assert event_media.event_timestamp.isoformat(timespec="seconds") == ts2.isoformat(
+        timespec="seconds"
+    )
     assert event_media.media.contents == b"image-bytes-2"
     assert event_media.media.event_image_type.content_type == "image/jpeg"
+
+    assert len(list(event_media_manager.events)) == 2
 
 
 async def test_event_manager_prefetch_image(
@@ -1323,7 +1329,7 @@ async def test_event_manager_prefetch_image(
     # Turn on event fetching
     device.event_media_manager.cache_policy.fetch = True
 
-    ts1 = datetime.datetime(2019, 1, 1, 0, 0, 1)
+    ts1 = datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.timezone.utc)
     await device.async_handle_event(
         await event_message(
             {
@@ -1343,12 +1349,106 @@ async def test_event_manager_prefetch_image(
         )
     )
 
-    event_media = await device.event_media_manager.get_media(
-        "FWWVQVUdGNUlTU2V4MGV2aTNXV..."
-    )
+    event_media_manager = device.event_media_manager
+    event_media = await event_media_manager.get_media("FWWVQVUdGNUlTU2V4MGV2aTNXV...")
     assert event_media
     assert event_media.event_id == "FWWVQVUdGNUlTU2V4MGV2aTNXV..."
     assert event_media.event_type == "sdm.devices.events.CameraMotion.Motion"
     assert event_media.event_timestamp == ts1
     assert event_media.media.contents == b"image-bytes-1"
     assert event_media.media.event_image_type.content_type == "image/jpeg"
+
+    assert len(list(event_media_manager.events)) == 1
+
+
+async def test_event_manager_event_expiration(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "enterprises/project-id1/devices/device-id1",
+                "traits": {
+                    "sdm.devices.traits.CameraEventImage": {},
+                    "sdm.devices.traits.CameraMotion": {},
+                },
+            }
+        ],
+    )
+
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert "enterprises/project-id1/devices/device-id1" == device.name
+
+    device.event_media_manager.cache_policy.event_cache_size = 10
+
+    ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": ts1.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": "enterprises/project-id1/devices/device-id1",
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    ts2 = ts1 + datetime.timedelta(seconds=5)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "a94b2115-3b57-4eb4-8830-80519f188ec9",
+                "timestamp": ts2.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": "enterprises/project-id1/devices/device-id1",
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "ABCZQRUdGNUlTU2V4MGV3bRZ23...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+
+    # Event is in the past and is expired
+    ts3 = ts1 - datetime.timedelta(seconds=90)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "b83c2115-3b57-4eb4-8830-80519f167fa8",
+                "timestamp": ts3.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": "enterprises/project-id1/devices/device-id1",
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "1234QRUdGNUlTU2V4MGV3bRZ23...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+
+    event_media_manager = device.event_media_manager
+    assert len(list(event_media_manager.events)) == 2
