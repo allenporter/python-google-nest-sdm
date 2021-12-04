@@ -155,6 +155,11 @@ class EventMediaManager:
         """Return revent events."""
         result = list(self._event_data.values())
         result.sort(key=lambda x: x.timestamp, reverse=True)
+        # If event fetching is on, then return all the events we have.
+        # Otherwise, only return events that have not expired since there
+        # is no chance we can actually fetch the media.
+        if not self._cache_policy.fetch:
+            result = list(filter(lambda x: not x.is_expired, result))
         return result
 
     async def async_handle_events(self, event_message: EventMessage) -> None:

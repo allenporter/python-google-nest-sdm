@@ -94,6 +94,12 @@ class ImageEventBase(ABC):
         """Timestamp when the message expires."""
         return self._timestamp + datetime.timedelta(seconds=EVENT_IMAGE_EXPIRE_SECS)
 
+    @property
+    def is_expired(self) -> bool:
+        """Return true if the event expiration has passed."""
+        now = datetime.datetime.now(tz=datetime.timezone.utc)
+        return self.expires_at < now
+
 
 @EVENT_MAP.register()
 class CameraMotionEvent(ImageEventBase):
@@ -178,9 +184,7 @@ class EventTrait(ABC):
         """Any current active events."""
         if not self._last_event:
             return None
-        if self._last_event.expires_at < datetime.datetime.now(
-            tz=datetime.timezone.utc
-        ):
+        if self._last_event.is_expired:
             return None
         return self._last_event
 
