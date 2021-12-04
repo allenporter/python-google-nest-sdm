@@ -1320,8 +1320,8 @@ async def test_event_manager_prefetch_image(
     device = devices[0]
     assert "enterprises/project-id1/devices/device-id1" == device.name
 
-    # Turn on event prefetching
-    device.event_media_manager.cache_policy.prefetch = True
+    # Turn on event fetching
+    device.event_media_manager.cache_policy.fetch = True
 
     ts1 = datetime.datetime(2019, 1, 1, 0, 0, 1)
     await device.async_handle_event(
