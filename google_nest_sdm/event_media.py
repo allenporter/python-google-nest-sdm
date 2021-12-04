@@ -20,11 +20,9 @@ DEFAULT_CACHE_SIZE = 2
 class CachePolicy:
     """Policy for how many local objects to cache in memory."""
 
-    def __init__(
-        self, event_cache_size: int = DEFAULT_CACHE_SIZE, prefetch: bool = False
-    ):
+    def __init__(self, event_cache_size: int = DEFAULT_CACHE_SIZE, fetch: bool = False):
         self._event_cache_size = event_cache_size
-        self._prefetch = prefetch
+        self._fetch = fetch
 
     @property
     def event_cache_size(self) -> int:
@@ -37,14 +35,14 @@ class CachePolicy:
         self._event_cache_size = value
 
     @property
-    def prefetch(self) -> bool:
+    def fetch(self) -> bool:
         """Return true if event media should be pre-fetched."""
-        return self._prefetch
+        return self._fetch
 
-    @prefetch.setter
-    def prefetch(self, value: bool) -> None:
+    @fetch.setter
+    def fetch(self, value: bool) -> None:
         """Update the value for whether event media should be pre-fetched."""
-        self._prefetch = value
+        self._fetch = value
 
 
 class Media:
@@ -173,8 +171,8 @@ class EventMediaManager:
             self._event_data[event.event_id] = event
             if len(self._event_data) > self._cache_policy.event_cache_size:
                 self._event_data.popitem(last=False)
-            # Prefetch media
-            if self._cache_policy.prefetch:
+            # Prefetch media, otherwise we may
+            if self._cache_policy.fetch:
                 try:
                     await self.get_media(event.event_id)
                 except GoogleNestException as err:
