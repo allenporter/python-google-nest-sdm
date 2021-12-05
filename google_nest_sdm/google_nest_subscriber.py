@@ -18,6 +18,7 @@ from google.protobuf.duration_pb2 import Duration
 from .auth import AbstractAuth
 from .device_manager import DeviceManager
 from .event import EventMessage
+from .event_media import CachePolicy
 from .exceptions import AuthException, ConfigurationException, SubscriberException
 from .google_nest_api import GoogleNestAPI
 
@@ -285,6 +286,7 @@ class GoogleNestSubscriber:
         self._watchdog_restart_delay_min_seconds = watchdog_restart_delay_min_seconds
         self._watchdog_restart_delay_seconds = watchdog_restart_delay_min_seconds
         self._watchdog_task: Optional[asyncio.Task] = None
+        self._cache_policy = CachePolicy()
 
     @property
     def subscriber_id(self) -> str:
@@ -412,6 +414,11 @@ class GoogleNestSubscriber:
         if self._subscriber_future:
             self._subscriber_future.cancel()
 
+    @property
+    def cache_policy(self) -> CachePolicy:
+        """Return cache policy shared by device EventMediaManager objects."""
+        return self._cache_policy
+
     async def async_get_device_manager(self) -> DeviceManager:
         """Return the DeviceManger with the current state of devices."""
         if not self._device_manager_task:
@@ -423,7 +430,7 @@ class GoogleNestSubscriber:
 
     async def _async_create_device_manager(self) -> DeviceManager:
         """Create a DeviceManager, populated with initial state."""
-        device_manager = DeviceManager()
+        device_manager = DeviceManager(self._cache_policy)
         structures = await self._api.async_get_structures()
         for structure in structures:
             device_manager.add_structure(structure)

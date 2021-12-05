@@ -230,6 +230,7 @@ async def test_subscribe_update_trait(
     )
 
     subscriber = await subscriber_client()
+    subscriber.cache_policy.event_cache_size = 5
     await subscriber.start_async()
     device_manager = await subscriber.async_get_device_manager()
     devices = device_manager.devices
