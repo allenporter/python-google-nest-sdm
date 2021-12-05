@@ -114,10 +114,10 @@ class EventMedia:
 class EventMediaStore(ABC):
     """Interface for external storage."""
 
-    async def async_load(self) -> list | None:
+    async def async_load(self) -> dict | None:
         """Load data."""
 
-    async def async_save(self, data: list | None) -> None:
+    async def async_save(self, data: dict | None) -> None:
         """Save data."""
 
     def get_media_key(self, device_id: str, event: ImageEventBase) -> str:
@@ -137,14 +137,14 @@ class InMemoryEventMediaStore(EventMediaStore):
     """An in memory implementation of EventMediaStore."""
 
     def __init__(self) -> None:
-        self._data: list | None = None
+        self._data: dict | None = None
         self._media: dict[str, bytes] = {}
 
-    async def async_load(self) -> list | None:
+    async def async_load(self) -> dict | None:
         """Load data."""
         return self._data
 
-    async def async_save(self, data: list | None) -> None:
+    async def async_save(self, data: dict | None) -> None:
         """Save data."""
         self._data = data
 
@@ -242,25 +242,31 @@ class EventMediaManager:
         self._cache_policy = value
 
     async def _async_load(self) -> OrderedDict[str, EventMediaModelItem]:
-        """Load the model from the store."""
+        """Load the device specific data from the store."""
+        store_data = await self._cache_policy.store.async_load()
         event_data: OrderedDict[str, EventMediaModelItem] = OrderedDict()
-        data = await self._cache_policy.store.async_load()
-        if data and isinstance(data, list):
-            for item_data in data:
+        if store_data:
+            device_data = store_data.get(self._device_id, [])
+            for item_data in device_data:
                 item = EventMediaModelItem.from_dict(item_data)
                 if not item:
                     continue
                 event_data[item.event.event_id] = item
         return event_data
 
-    async def _async_save(
-        self, event_data: OrderedDict[str, EventMediaModelItem]
-    ) -> None:
-        """Save the model to the store."""
+    async def _async_update(self, event_data: dict[str, EventMediaModelItem]) -> None:
+        """Save the device specific model to the store."""
+        # Event order is preserved so popping from the oldest entry works
         data: list[dict[str, Any]] = []
         for item in event_data.values():
             data.append(item.as_dict())
-        await self._cache_policy._store.async_save(data)
+
+        # Read data from the store and update information for this device
+        store_data = await self._cache_policy.store.async_load()
+        if not store_data:
+            store_data = {}
+        store_data[self._device_id] = data
+        await self._cache_policy._store.async_save(store_data)
 
     async def get_media(
         self, event_id: str, width: Optional[int] = None, height: Optional[int] = None
@@ -291,7 +297,7 @@ class EventMediaManager:
 
         if not item.media_key:
             item.media_key = media_key
-            await self._async_save(event_data)
+            await self._async_update(event_data)
 
         return item.get_event_media(contents)
 
@@ -330,7 +336,7 @@ class EventMediaManager:
                 (key, item) = event_data.popitem(last=False)
                 if item.media_key:
                     await self._cache_policy.store.async_remove_media(item.media_key)
-            await self._async_save(event_data)
+            await self._async_update(event_data)
 
             # Prefetch media, otherwise we may
             if self._cache_policy.fetch:

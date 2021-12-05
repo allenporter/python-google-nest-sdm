@@ -1619,3 +1619,120 @@ async def test_event_manager_cache_expiration(
     event_media_manager = device.event_media_manager
     events = await event_media_manager.async_events()
     assert len(list(events)) == 1
+
+
+async def test_multi_device_events(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "device-id1",
+                "traits": {
+                    "sdm.devices.traits.CameraEventImage": {},
+                    "sdm.devices.traits.CameraMotion": {},
+                },
+            },
+            {
+                "name": "device-id2",
+                "traits": {
+                    "sdm.devices.traits.CameraEventImage": {},
+                    "sdm.devices.traits.CameraMotion": {},
+                },
+            },
+        ],
+    )
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+
+    RESPONSE = {
+        "results": {
+            "url": "image-url-1",
+            "token": "g.1.eventToken",
+        },
+    }
+    num_events = 4
+    post_handler = NewHandler(r, list(itertools.repeat(RESPONSE, num_events)))
+    app.router.add_post(
+        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
+    )
+    app.router.add_get(
+        "/image-url-1",
+        NewImageHandler(
+            list(itertools.repeat(b"image-bytes-1", num_events)), token="g.1.eventToken"
+        ),
+    )
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 2
+    device = devices[0]
+    assert "device-id1" == device.name
+    device = devices[1]
+    assert "device-id2" == device.name
+
+    # Use shared event store for all devices
+    store = InMemoryEventMediaStore()
+    devices[0].event_media_manager.cache_policy.store = store
+    devices[1].event_media_manager.cache_policy.store = store
+
+    # Each device has
+    event_media_manager = devices[0].event_media_manager
+    assert len(list(await event_media_manager.async_events())) == 0
+    event_media_manager = devices[1].event_media_manager
+    assert len(list(await event_media_manager.async_events())) == 0
+
+    ts = datetime.datetime.now(tz=datetime.timezone.utc)
+    await devices[0].async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-1",
+                "timestamp": ts.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": "device-id1",
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "FWWVQVU..1...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+
+    # Each device has a single event
+    event_media_manager = devices[0].event_media_manager
+    assert len(list(await event_media_manager.async_events())) == 1
+    event_media_manager = devices[1].event_media_manager
+    assert len(list(await event_media_manager.async_events())) == 0
+
+    await devices[1].async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-2",
+                "timestamp": ts.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": "device-id2",
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "FWWVQVU..2...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+
+    # Each device has a single event
+    event_media_manager = devices[0].event_media_manager
+    assert len(list(await event_media_manager.async_events())) == 1
+    event_media_manager = devices[1].event_media_manager
+    assert len(list(await event_media_manager.async_events())) == 1
