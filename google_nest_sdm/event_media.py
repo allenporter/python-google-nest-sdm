@@ -163,7 +163,8 @@ class InMemoryEventMediaStore(EventMediaStore):
 
     async def async_remove_media(self, media_key: str) -> None:
         """Remove media content."""
-        del self._media[media_key]
+        if media_key in self._media:
+            del self._media[media_key]
 
 
 class EventMediaModelItem:
@@ -340,6 +341,7 @@ class EventMediaManager:
 
             # Prefetch media, otherwise we may
             if self._cache_policy.fetch:
+                _LOGGER.debug("Fetching media for event_id=%s", event.event_id)
                 try:
                     await self.get_media(event.event_id)
                 except GoogleNestException as err:
