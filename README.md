@@ -73,6 +73,9 @@ $ pip3 install -r requirements.txt
 # Running tests
 $ pytest
 
+# Running tests w/ Code Coverage
+$ pytest --cov=google_nest_sdm tests/ --cov-report=term-missing
+
 # Formatting and linting
 $ pre-commit run --all-files
 ```

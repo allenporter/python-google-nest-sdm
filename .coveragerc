@@ -1,2 +1,5 @@
 [run]
 source=google_nest_sdm
+
+omit =
+  google_nest_sdm/google_nest.py
