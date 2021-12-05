@@ -42,6 +42,16 @@ DEFAULT_MESSAGE_RETENTION_SECONDS = 15 * 60  # 15 minutes
 # Note: Users of non-prod instances will have to manually configure a topic
 TOPIC_FORMAT = "projects/sdm-prod/topics/enterprise-{project_id}"
 
+OAUTH2_AUTHORIZE_FORMAT = (
+    "https://nestservices.google.com/partnerconnections/{project_id}/auth"
+)
+OAUTH2_TOKEN = "https://www.googleapis.com/oauth2/v4/token"
+SDM_SCOPES = [
+    "https://www.googleapis.com/auth/sdm.service",
+    "https://www.googleapis.com/auth/pubsub",
+]
+API_URL = "https://smartdevicemanagement.googleapis.com/v1"
+
 
 def _validate_subscription_name(subscription_name: str) -> None:
     """Validates that a subcription name is correct.

@@ -35,7 +35,13 @@ from .camera_traits import CameraLiveStreamTrait
 from .device import Device
 from .event import EventMessage
 from .google_nest_api import GoogleNestAPI
-from .google_nest_subscriber import GoogleNestSubscriber
+from .google_nest_subscriber import (
+    API_URL,
+    OAUTH2_AUTHORIZE_FORMAT,
+    OAUTH2_TOKEN,
+    SDM_SCOPES,
+    GoogleNestSubscriber,
+)
 from .structure import Structure
 from .thermostat_traits import (
     ThermostatEcoTrait,
@@ -115,16 +121,6 @@ subscribe_parser = cmd_parser.add_parser("subscribe")
 subscribe_parser.add_argument("subscription_id")
 subscribe_parser.add_argument("device_id", nargs="?")
 
-OAUTH2_AUTHORIZE = (
-    "https://nestservices.google.com/partnerconnections/{project_id}/auth"
-)
-OAUTH2_TOKEN = "https://www.googleapis.com/oauth2/v4/token"
-SDM_SCOPES = [
-    "https://www.googleapis.com/auth/sdm.service",
-    "https://www.googleapis.com/auth/pubsub",
-]
-API_URL = "https://smartdevicemanagement.googleapis.com/v1"
-
 
 class Auth(AbstractAuth):
     """Implementation of AbstractAuth that uses the token cache."""
@@ -168,7 +164,9 @@ def CreateCreds(args: argparse.Namespace) -> Credentials:
                     "client_id": args.client_id,
                     "client_secret": args.client_secret,
                     "redirect_uris": ["urn:ietf:wg:oauth:2.0:oob"],
-                    "auth_uri": OAUTH2_AUTHORIZE.format(project_id=args.project_id),
+                    "auth_uri": OAUTH2_AUTHORIZE_FORMAT.format(
+                        project_id=args.project_id
+                    ),
                     "token_uri": OAUTH2_TOKEN,
                 },
             }
