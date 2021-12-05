@@ -45,7 +45,7 @@
           "async-timeout",
       ],
       "groupSlug": "aiohttp",
-      "separateMajorReleases": false,
+      "separateMajorMinor": true,
     },
     {
       "description": "Minor updates are automatic",
