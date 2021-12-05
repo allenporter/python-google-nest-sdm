@@ -46,6 +46,7 @@
       ],
       "groupSlug": "aiohttp",
       "matchUpdateTypes": ["minor", "patch", "major"],
+      "separateMajorReleases": false,
     },
     {
       "description": "Minor updates are automatic",
