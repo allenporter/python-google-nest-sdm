@@ -1277,7 +1277,7 @@ async def test_event_manager_image(
     assert event_media.media.contents == b"image-bytes-2"
     assert event_media.media.event_image_type.content_type == "image/jpeg"
 
-    assert len(list(event_media_manager.events)) == 2
+    assert len(list(await event_media_manager.async_events())) == 2
 
 
 async def test_event_manager_prefetch_image(
@@ -1358,7 +1358,7 @@ async def test_event_manager_prefetch_image(
     assert event_media.media.contents == b"image-bytes-1"
     assert event_media.media.event_image_type.content_type == "image/jpeg"
 
-    assert len(list(event_media_manager.events)) == 1
+    assert len(list(await event_media_manager.async_events())) == 1
 
 
 async def test_event_manager_event_expiration(
@@ -1451,4 +1451,4 @@ async def test_event_manager_event_expiration(
     )
 
     event_media_manager = device.event_media_manager
-    assert len(list(event_media_manager.events)) == 2
+    assert len(list(await event_media_manager.async_events())) == 2

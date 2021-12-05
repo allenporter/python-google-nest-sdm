@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import datetime
 import logging
+from abc import ABC
 from collections import OrderedDict
 from collections.abc import Iterable
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from .camera_traits import EventImageGenerator, EventImageType
 from .event import EventMessage, ImageEventBase
@@ -99,17 +100,126 @@ class EventMedia:
         return self._media
 
 
+class EventMediaStore(ABC):
+    """Interface for external storage."""
+
+    async def async_load(self) -> list | None:
+        """Load data."""
+
+    async def async_save(self, data: list | None) -> None:
+        """Save data."""
+
+    def get_media_key(self, device_id: str, event: ImageEventBase) -> str:
+        """Return the filename to use for the device and event."""
+
+    async def async_load_media(self, media_key: str) -> bytes | None:
+        """Load media content."""
+
+    async def async_save_media(self, media_key: str, content: bytes) -> None:
+        """Write media content."""
+
+    async def async_remove_media(self, media_key: str) -> None:
+        """Remove media content."""
+
+
+class InMemoryEventMediaStore(EventMediaStore):
+    """An in memory implementation of EventMediaStore."""
+
+    def __init__(self) -> None:
+        self._data: list | None = None
+        self._media: dict[str, bytes] = {}
+
+    async def async_load(self) -> list | None:
+        """Load data."""
+        return self._data
+
+    async def async_save(self, data: list | None) -> None:
+        """Save data."""
+        self._data = data
+
+    def get_media_key(self, device_id: str, event: ImageEventBase) -> str:
+        """Return the media key to use for the device and event."""
+        suffix = "jpg" if event.event_image_type == EventImageType.IMAGE else "mp4"
+        return f"{device_id}_{event.timestamp}_{event.event_id}.{suffix}"
+
+    async def async_load_media(self, media_key: str) -> bytes | None:
+        """Load media content."""
+        return self._media.get(media_key)
+
+    async def async_save_media(self, media_key: str, content: bytes) -> None:
+        """Remove media content."""
+        self._media[media_key] = content
+
+    async def async_remove_media(self, media_key: str) -> None:
+        """Remove media content."""
+        del self._media[media_key]
+
+
+class EventMediaModelItem:
+    """Structure used to persist the event in EventMediaStore."""
+
+    def __init__(self, event: ImageEventBase, media_key: str | None = None) -> None:
+        """Initialize EventMediaModelItem."""
+        self._event = event
+        self._media_key = media_key
+
+    @staticmethod
+    def from_dict(data: dict[str, Any]) -> EventMediaModelItem | None:
+        if not (event := ImageEventBase.from_dict(data["event"])):
+            return None
+        return EventMediaModelItem(event, data.get("media_key"))
+
+    @property
+    def event(self) -> ImageEventBase:
+        return self._event
+
+    @property
+    def media_key(self) -> str | None:
+        return self._media_key
+
+    @media_key.setter
+    def media_key(self, value: str) -> None:
+        """Update the media_key."""
+        self._media_key = value
+
+    def get_media(self, content: bytes) -> Media:
+        return Media(content, self.event.event_image_type)
+
+    def get_event_media(self, content: bytes) -> EventMedia:
+        return EventMedia(
+            self.event.event_id,
+            self.event.event_type,
+            self.event.timestamp,
+            self.get_media(content),
+        )
+
+    def as_dict(self) -> dict[str, Any]:
+        result: dict[str, Any] = {"event": self._event.as_dict()}
+        if self._media_key:
+            result["media_key"] = self._media_key
+        return result
+
+    def __repr__(self) -> str:
+        return (
+            "<EventMediaModelItem event="
+            + str(self._event)
+            + " media_key="
+            + str(self._media_key)
+            + ">"
+        )
+
+
 class EventMediaManager:
     """Responsible for handling recent events and fetching associated media."""
 
-    def __init__(self, event_trait_map: Dict[str, EventImageGenerator]) -> None:
+    def __init__(
+        self, device_id: str, event_trait_map: Dict[str, EventImageGenerator]
+    ) -> None:
         """Initialize DeviceEventMediaManager."""
+        self._device_id = device_id
         self._event_trait_map = event_trait_map
         self._cache_policy = CachePolicy()
-        # Cache of event ids to the received messages
-        self._event_data: OrderedDict[str, ImageEventBase] = OrderedDict()
-        # Cache of event ids to the media
-        self._event_media: OrderedDict[str, EventMedia] = OrderedDict()
+        self._store = InMemoryEventMediaStore()
 
     @property
     def cache_policy(self) -> CachePolicy:
@@ -121,6 +231,27 @@ class EventMediaManager:
         """Update the CachePolicy."""
         self._cache_policy = value
 
+    async def _async_load(self) -> OrderedDict[str, EventMediaModelItem]:
+        """Load the model from the store."""
+        event_data: OrderedDict[str, EventMediaModelItem] = OrderedDict()
+        data = await self._store.async_load()
+        if data and isinstance(data, list):
+            for item_data in data:
+                item = EventMediaModelItem.from_dict(item_data)
+                if not item:
+                    continue
+                event_data[item.event.event_id] = item
+        return event_data
+
+    async def _async_save(
+        self, event_data: OrderedDict[str, EventMediaModelItem]
+    ) -> None:
+        """Save the model to the store."""
+        data: list[dict[str, Any]] = []
+        for item in event_data.values():
+            data.append(item.as_dict())
+        await self._store.async_save(data)
+
     async def get_media(
         self, event_id: str, width: Optional[int] = None, height: Optional[int] = None
     ) -> Optional[EventMedia]:
@@ -129,38 +260,44 @@ class EventMediaManager:
         Note that the height and width hints are best effort and may not be
         honored (e.g. if image is already cached).
         """
-        if not (event := self._event_data.get(event_id)):
+        event_data = await self._async_load()
+        if not (item := event_data.get(event_id)):
             return None
-        self._event_data.move_to_end(event_id)
+        event = item.event
+        if item.media_key:
+            media_key = item.media_key
+        else:
+            media_key = self._store.get_media_key(self._device_id, event)
+            item.media_key = media_key
+            await self._async_save(event_data)
 
-        if event_media := self._event_media.get(event_id):
-            return event_media
+        contents = await self._store.async_load_media(media_key)
+        if contents is None:
+            if not (generator := self._event_trait_map.get(event.event_type)):
+                return None
+            event_image = await generator.generate_event_image(event)
+            if not event_image:
+                return None
+            contents = await event_image.contents(width=width, height=height)
+            await self._store.async_save_media(media_key, contents)
+        return item.get_event_media(contents)
 
-        if not (generator := self._event_trait_map.get(event.event_type)):
-            return None
-        event_image = await generator.generate_event_image(event)
-        if not event_image:
-            return None
-        contents = await event_image.contents(width=width, height=height)
-        media = Media(contents, event_image.event_image_type)
-        event_media = EventMedia(event_id, event.event_type, event.timestamp, media)
-        # Update EventMedia cache
-        self._event_media[event_id] = event_media
-        if len(self._event_media) > self._cache_policy.event_cache_size:
-            self._event_media.popitem(last=False)
-        return event_media
-
-    @property
-    def events(self) -> Iterable[ImageEventBase]:
+    async def async_events(self) -> Iterable[ImageEventBase]:
         """Return revent events."""
-        result = list(self._event_data.values())
-        result.sort(key=lambda x: x.timestamp, reverse=True)
-        # If event fetching is on, then return all the events we have.
-        # Otherwise, only return events that have not expired since there
-        # is no chance we can actually fetch the media.
-        if not self._cache_policy.fetch:
-            result = list(filter(lambda x: not x.is_expired, result))
-        return result
+        event_data = await self._async_load()
+        result: list[EventMediaModelItem] = list(event_data.values())
+        result.sort(key=lambda x: x.event.timestamp, reverse=True)
+
+        def _filter(x: EventMediaModelItem) -> bool:
+            """Return events already fetched or that could be fetched."""
+            return x.media_key is not None or not x.event.is_expired
+
+        result = list(filter(_filter, result))
+
+        def _get_event(x: EventMediaModelItem) -> ImageEventBase:
+            return x.event
+
+        return list(map(_get_event, result))
 
     async def async_handle_events(self, event_message: EventMessage) -> None:
         """Handle the EventMessage."""
@@ -172,10 +309,14 @@ class EventMediaManager:
             if event_name not in self._event_trait_map:
                 continue
             self._event_trait_map[event_name].handle_event(event)
+
             # Update event cache
-            self._event_data[event.event_id] = event
-            if len(self._event_data) > self._cache_policy.event_cache_size:
-                self._event_data.popitem(last=False)
+            event_data = await self._async_load()
+            event_data[event.event_id] = EventMediaModelItem(event)
+            if len(event_data) > self._cache_policy.event_cache_size:
+                event_data.popitem(last=False)
+            await self._async_save(event_data)
+
             # Prefetch media, otherwise we may
             if self._cache_policy.fetch:
                 try:
