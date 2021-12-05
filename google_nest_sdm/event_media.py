@@ -278,8 +278,6 @@ class EventMediaManager:
             media_key = item.media_key
         else:
             media_key = self._cache_policy._store.get_media_key(self._device_id, event)
-            item.media_key = media_key
-            await self._async_save(event_data)
 
         contents = await self._cache_policy._store.async_load_media(media_key)
         if contents is None:
@@ -290,6 +288,11 @@ class EventMediaManager:
                 return None
             contents = await event_image.contents(width=width, height=height)
             await self._cache_policy._store.async_save_media(media_key, contents)
+
+        if not item.media_key:
+            item.media_key = media_key
+            await self._async_save(event_data)
+
         return item.get_event_media(contents)
 
     async def async_events(self) -> Iterable[ImageEventBase]:

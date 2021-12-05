@@ -1467,7 +1467,7 @@ async def test_event_manager_event_expiration(
     assert len(list(await event_media_manager.async_events())) == 2
 
 
-async def test_event_manager_cache_expiration(
+async def test_event_manager_prefetch_image_failure(
     app: aiohttp.web.Application,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
@@ -1556,3 +1556,66 @@ async def test_event_manager_cache_expiration(
     assert await store.async_load_media("FWWVQVU..1...") is None
     for i in range(2, num_events):
         assert await store.async_load_media(f"FWWVQVU..{i}...") == b"image-bytes-1"
+
+
+async def test_event_manager_cache_expiration(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "enterprises/project-id1/devices/device-id1",
+                "traits": {
+                    "sdm.devices.traits.CameraEventImage": {},
+                    "sdm.devices.traits.CameraMotion": {},
+                },
+            }
+        ],
+    )
+
+    async def fail_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
+        return aiohttp.web.Response(status=502)
+
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+    app.router.add_post(
+        "/enterprises/project-id1/devices/device-id1:executeCommand", fail_handler
+    )
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert "enterprises/project-id1/devices/device-id1" == device.name
+
+    # Turn on event fetching
+    device.event_media_manager.cache_policy.fetch = True
+
+    ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": ts1.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": "enterprises/project-id1/devices/device-id1",
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+
+    event_media_manager = device.event_media_manager
+    events = await event_media_manager.async_events()
+    assert len(list(events)) == 1
