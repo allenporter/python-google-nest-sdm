@@ -83,12 +83,10 @@ class Stream(ABC):
     @abstractmethod
     async def extend_stream(self) -> Stream:
         """Extend the lifetime of the stream."""
-        raise NotImplementedError
 
     @abstractmethod
     async def stop_stream(self) -> None:
         """Invalidate the stream."""
-        raise NotImplementedError
 
 
 class RtspStream(Stream):

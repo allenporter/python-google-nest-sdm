@@ -534,7 +534,18 @@ async def test_camera_event_image(
     assert image.event_image_type == EventImageType.IMAGE
 
 
+@pytest.mark.parametrize(
+    "test_trait,test_event_trait",
+    [
+        ("sdm.devices.traits.CameraMotion", "sdm.devices.events.CameraMotion.Motion"),
+        ("sdm.devices.traits.CameraPerson", "sdm.devices.events.CameraPerson.Person"),
+        ("sdm.devices.traits.CameraSound", "sdm.devices.events.CameraSound.Sound"),
+        ("sdm.devices.traits.DoorbellChime", "sdm.devices.events.DoorbellChime.Chime"),
+    ],
+)
 async def test_camera_active_event_image(
+    test_trait: str,
+    test_event_trait: str,
     app: aiohttp.web.Application,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
@@ -547,7 +558,7 @@ async def test_camera_active_event_image(
                 "name": "enterprises/project-id1/devices/device-id1",
                 "traits": {
                     "sdm.devices.traits.CameraEventImage": {},
-                    "sdm.devices.traits.CameraMotion": {},
+                    test_trait: {},
                 },
             }
         ],
@@ -585,7 +596,7 @@ async def test_camera_active_event_image(
                 "resourceUpdate": {
                     "name": "enterprises/project-id1/devices/device-id1",
                     "events": {
-                        "sdm.devices.events.CameraMotion.Motion": {
+                        test_event_trait: {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
                             "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
                         },
@@ -596,7 +607,7 @@ async def test_camera_active_event_image(
         )
     )
 
-    trait = device.traits["sdm.devices.traits.CameraMotion"]
+    trait = device.traits[test_trait]
     assert trait.active_event is not None
     image = await trait.generate_active_event_image()
     expected_request = {
