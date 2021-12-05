@@ -1322,6 +1322,12 @@ async def test_event_manager_prefetch_image(
                     "token": "g.1.eventToken",
                 },
             },
+            {
+                "results": {
+                    "url": "image-url-2",
+                    "token": "g.2.eventToken",
+                },
+            },
         ],
     )
 
@@ -1331,6 +1337,9 @@ async def test_event_manager_prefetch_image(
     )
     app.router.add_get(
         "/image-url-1", NewImageHandler([b"image-bytes-1"], token="g.1.eventToken")
+    )
+    app.router.add_get(
+        "/image-url-2", NewImageHandler([b"image-bytes-2"], token="g.2.eventToken")
     )
 
     api = await api_client()
@@ -1361,8 +1370,11 @@ async def test_event_manager_prefetch_image(
             }
         )
     )
-
+    # Event is not fetched on event arrival since it was expired
     event_media_manager = device.event_media_manager
+    assert len(list(await event_media_manager.async_events())) == 0
+
+    # However, manually fetching it could still work
     event_media = await event_media_manager.get_media("FWWVQVUdGNUlTU2V4MGV2aTNXV...")
     assert event_media
     assert event_media.event_id == "FWWVQVUdGNUlTU2V4MGV2aTNXV..."
@@ -1372,6 +1384,40 @@ async def test_event_manager_prefetch_image(
     assert event_media.media.event_image_type.content_type == "image/jpeg"
 
     assert len(list(await event_media_manager.async_events())) == 1
+
+    # Publishing an active event is fetched immediately
+    ts2 = datetime.datetime.now(tz=datetime.timezone.utc)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": ts2.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": "enterprises/project-id1/devices/device-id1",
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "DkY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "GXQADVUdGNUlTU2V4MGV2aTNXV...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    assert len(list(await event_media_manager.async_events())) == 2
+
+    # However, manually fetching it could still work
+    event_media_manager = device.event_media_manager
+    event_media = await event_media_manager.get_media("GXQADVUdGNUlTU2V4MGV2aTNXV...")
+    assert event_media
+    assert event_media.event_id == "GXQADVUdGNUlTU2V4MGV2aTNXV..."
+    assert event_media.event_type == "sdm.devices.events.CameraMotion.Motion"
+    assert event_media.event_timestamp.isoformat(timespec="seconds") == ts2.isoformat(
+        timespec="seconds"
+    )
+    assert event_media.media.contents == b"image-bytes-2"
+    assert event_media.media.event_image_type.content_type == "image/jpeg"
 
 
 async def test_event_manager_event_expiration(

@@ -339,6 +339,10 @@ class EventMediaManager:
                     await self._cache_policy.store.async_remove_media(item.media_key)
             await self._async_update(event_data)
 
+            # We can't fetch media for expired events
+            if event.is_expired:
+                continue
+
             # Prefetch media, otherwise we may
             if self._cache_policy.fetch:
                 _LOGGER.debug("Fetching media for event_id=%s", event.event_id)
