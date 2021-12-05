@@ -7,7 +7,7 @@ import hashlib
 import logging
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Awaitable, Callable, Dict, Mapping, Optional, TypeVar
+from typing import Any, Awaitable, Callable, Dict, Mapping, Optional
 
 from .auth import AbstractAuth
 from .registry import Registry
@@ -99,6 +99,26 @@ class ImageEventBase(ABC):
         """Return true if the event expiration has passed."""
         now = datetime.datetime.now(tz=datetime.timezone.utc)
         return self.expires_at < now
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return as a dict form that can be serialized."""
+        return {
+            "event_id": self.event_id,
+            "event_type": self.event_type,
+            "event_data": self._data,
+            "timestamp": self._timestamp.isoformat(),
+        }
+
+    @staticmethod
+    def from_dict(data: dict[str, Any]) -> ImageEventBase | None:
+        """Parse from a serialized dictionary."""
+        event_type = data["event_type"]
+        event_data = data["event_data"]
+        timestamp = datetime.datetime.fromisoformat(data["timestamp"])
+        return _BuildEvent(event_type, event_data, timestamp)
+
+    def __repr__(self) -> str:
+        return "<ImageEventBase " + str(self.as_dict()) + ">"
 
 
 @EVENT_MAP.register()
@@ -216,22 +236,27 @@ class RelationUpdate:
         return cast_assert(str, self._raw_data[OBJECT])
 
 
-_T = TypeVar("_T")
-
-
 def _BuildEvents(
     events: Mapping[str, Any],
-    event_map: Mapping[str, _T],
     timestamp: datetime.datetime,
-) -> Dict[str, _T]:
+) -> Dict[str, ImageEventBase]:
     """Build a trait map out of a response dict."""
     result = {}
-    for (event, event_data) in events.items():
-        if event not in event_map:
+    for (event_type, event_data) in events.items():
+        image_event = _BuildEvent(event_type, event_data, timestamp)
+        if not image_event:
             continue
-        cls = event_map[event]
-        result[event] = cls(event_data, timestamp)  # type: ignore
+        result[event_type] = image_event
     return result
+
+
+def _BuildEvent(
+    event_type: str, event_data: Mapping[str, Any], timestamp: datetime.datetime
+) -> ImageEventBase | None:
+    if event_type not in EVENT_MAP:
+        return None
+    cls = EVENT_MAP[event_type]
+    return cls(event_data, timestamp)  # type: ignore
 
 
 class EventMessage:
@@ -268,7 +293,7 @@ class EventMessage:
             return None
         events = self._raw_data[RESOURCE_UPDATE].get(EVENTS, {})
         assert isinstance(events, dict)
-        return _BuildEvents(events, EVENT_MAP, self.timestamp)
+        return _BuildEvents(events, self.timestamp)
 
     @property
     def resource_update_traits(self) -> Optional[dict]:

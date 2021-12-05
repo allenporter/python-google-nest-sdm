@@ -58,7 +58,8 @@ class Device:
             self._relations[relation[PARENT]] = relation[DISPLAYNAME]
         self._callbacks: List[Callable[[EventMessage], Awaitable[None]]] = []
         event_trait_map = _MakeEventTraitMap(self._traits)
-        self._event_media_manager = EventMediaManager(event_trait_map)
+
+        self._event_media_manager = EventMediaManager(self.name, event_trait_map)
 
     @staticmethod
     def MakeDevice(raw_data: Mapping[str, Any], auth: AbstractAuth) -> Device:
