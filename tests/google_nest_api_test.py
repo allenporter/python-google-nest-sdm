@@ -1,4 +1,5 @@
 import datetime
+import itertools
 import json
 from typing import Any, Awaitable, Callable, Dict
 from unittest.mock import patch
@@ -9,7 +10,8 @@ import pytest
 from google_nest_sdm import google_nest_api
 from google_nest_sdm.auth import AbstractAuth
 from google_nest_sdm.camera_traits import EventImageType, StreamingProtocol
-from google_nest_sdm.event import EventMessage
+from google_nest_sdm.event import EventMessage, ImageEventBase
+from google_nest_sdm.event_media import InMemoryEventMediaStore
 from google_nest_sdm.exceptions import ApiException, AuthException
 
 from .conftest import (
@@ -1463,3 +1465,94 @@ async def test_event_manager_event_expiration(
 
     event_media_manager = device.event_media_manager
     assert len(list(await event_media_manager.async_events())) == 2
+
+
+async def test_event_manager_cache_expiration(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "enterprises/project-id1/devices/device-id1",
+                "traits": {
+                    "sdm.devices.traits.CameraEventImage": {},
+                    "sdm.devices.traits.CameraMotion": {},
+                },
+            }
+        ],
+    )
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+
+    RESPONSE = {
+        "results": {
+            "url": "image-url-1",
+            "token": "g.1.eventToken",
+        },
+    }
+    num_events = 10
+    post_handler = NewHandler(r, list(itertools.repeat(RESPONSE, num_events)))
+    app.router.add_post(
+        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
+    )
+    app.router.add_get(
+        "/image-url-1",
+        NewImageHandler(
+            list(itertools.repeat(b"image-bytes-1", num_events)), token="g.1.eventToken"
+        ),
+    )
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert "enterprises/project-id1/devices/device-id1" == device.name
+
+    # Turn on event fetching
+    device.event_media_manager.cache_policy.fetch = True
+    device.event_media_manager.cache_policy.event_cache_size = 8
+
+    class TestStore(InMemoryEventMediaStore):
+        def get_media_key(self, device_id: str, event: ImageEventBase) -> str:
+            """Return a predictable media key."""
+            return event.event_id
+
+    store = TestStore()
+    device.event_media_manager.cache_policy.store = store
+
+    for i in range(0, num_events):
+        ts = datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(
+            seconds=i
+        )
+        await device.async_handle_event(
+            await event_message(
+                {
+                    "eventId": f"0120ecc7-{i}",
+                    "timestamp": ts.isoformat(timespec="seconds"),
+                    "resourceUpdate": {
+                        "name": "enterprises/project-id1/devices/device-id1",
+                        "events": {
+                            "sdm.devices.events.CameraMotion.Motion": {
+                                "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                                "eventId": f"FWWVQVU..{i}...",
+                            },
+                        },
+                    },
+                    "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+                }
+            )
+        )
+
+    event_media_manager = device.event_media_manager
+    # All old items are evicted from the cache
+    assert len(list(await event_media_manager.async_events())) == 8
+
+    # Old items are evicted from the media store
+    assert await store.async_load_media("FWWVQVU..0...") is None
+    assert await store.async_load_media("FWWVQVU..1...") is None
+    for i in range(2, num_events):
+        assert await store.async_load_media(f"FWWVQVU..{i}...") == b"image-bytes-1"
