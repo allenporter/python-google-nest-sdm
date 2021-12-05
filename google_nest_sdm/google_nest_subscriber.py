@@ -393,11 +393,6 @@ class GoogleNestSubscriber:
                 await self.start_async()
             await asyncio.sleep(self._watchdog_check_interval_seconds)
 
-    def wait(self) -> None:
-        """Block on the subscriber."""
-        assert self._subscriber_future
-        self._subscriber_future.result()
-
     def stop_async(self) -> None:
         """Tell the subscriber to start shutting down."""
         if self._device_manager_task:
