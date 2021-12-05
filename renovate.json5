@@ -81,7 +81,7 @@
           "async-timeout",
       ],
       "groupSlug": "aiohttp",
-      "separateMajorMinor": true,
+      "matchUpdateTypes": ["minor", "major", "patch"],
     },
   ],
 }
