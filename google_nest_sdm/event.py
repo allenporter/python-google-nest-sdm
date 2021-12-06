@@ -60,6 +60,7 @@ class ImageEventBase(ABC):
         """Initialize EventBase."""
         self._data = data
         self._timestamp = timestamp
+        self._session_events: list[ImageEventBase] = []
 
     @property
     @abstractmethod
@@ -100,10 +101,17 @@ class ImageEventBase(ABC):
         now = datetime.datetime.now(tz=datetime.timezone.utc)
         return self.expires_at < now
 
+    @property
+    def session_events(self) -> list[ImageEventBase]:
+        return self._session_events
+
+    @session_events.setter
+    def session_events(self, value: list[ImageEventBase]) -> None:
+        self._session_events = value
+
     def as_dict(self) -> dict[str, Any]:
         """Return as a dict form that can be serialized."""
         return {
-            "event_id": self.event_id,
             "event_type": self.event_type,
             "event_data": self._data,
             "timestamp": self._timestamp.isoformat(),
@@ -118,7 +126,13 @@ class ImageEventBase(ABC):
         return _BuildEvent(event_type, event_data, timestamp)
 
     def __repr__(self) -> str:
-        return "<ImageEventBase " + str(self.as_dict()) + ">"
+        return (
+            "<ImageEventBase "
+            + str(self.as_dict())
+            + " sessions="
+            + str(len(self._session_events))
+            + ">"
+        )
 
 
 @EVENT_MAP.register()
@@ -294,6 +308,22 @@ class EventMessage:
         events = self._raw_data[RESOURCE_UPDATE].get(EVENTS, {})
         assert isinstance(events, dict)
         return _BuildEvents(events, self.timestamp)
+
+    @property
+    def event_sessions(self) -> Optional[dict[str, dict[str, ImageEventBase]]]:
+        events = self.resource_update_events
+        if not events:
+            return None
+        event_sessions: dict[str, dict[str, ImageEventBase]] = {}
+        for (event_name, event) in events.items():
+            d = event_sessions.get(event.event_session_id, {})
+            d[event_name] = event
+            event_sessions[event.event_session_id] = d
+        # Build associations between all events
+        for event_session_id, event_dict in event_sessions.items():
+            for event_type, event in event_dict.items():
+                event.session_events = list(event_dict.values())
+        return event_sessions
 
     @property
     def resource_update_traits(self) -> Optional[dict]:
