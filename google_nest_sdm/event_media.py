@@ -395,9 +395,18 @@ class EventMediaManager:
         _LOGGER.debug("Event Update %s", event_sessions.keys())
 
         # Notify traits to cache events
-        for event_dict in event_sessions.values():
+        pairs = list(event_sessions.items())
+        for event_session_id, event_dict in pairs:
+            supported = False
             for event_name, event in event_dict.items():
-                self._event_trait_map[event_name].handle_event(event)
+                if not (trait := self._event_trait_map.get(event_name)):
+                    continue
+                supported = True
+                trait.handle_event(event)
+
+            # Skip any entirely unsupported events
+            if not supported:
+                del event_sessions[event_session_id]
 
         # Update interal event media representation
         for event_session_id, event_dict in event_sessions.items():
