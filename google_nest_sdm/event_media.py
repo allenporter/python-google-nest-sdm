@@ -17,6 +17,7 @@ from .event import (
     DoorbellChimeEvent,
     EventMessage,
     ImageEventBase,
+    session_event_image_type,
 )
 from .exceptions import GoogleNestException
 
@@ -206,8 +207,10 @@ class EventMediaModelItem:
                 continue
             events[event_type] = event
         # Link events to other events in the session
+        event_image_type = session_event_image_type(events.values())
         for event in events.values():
             event.session_events = list(events.values())
+            event.event_image_type = event_image_type
         return EventMediaModelItem(
             data["event_session_id"], events, data.get("media_key")
         )

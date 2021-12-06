@@ -1947,6 +1947,7 @@ async def test_camera_active_clip_preview_threads(
     assert event.event_type == test_event_trait
     assert event.event_session_id == "CjY5Y3VKaTZwR3o4Y19YbTVfMF..."
     assert event.event_id == "n:1"
+    assert event.event_image_type.content_type == "video/mp4"
 
     event_media = await event_media_manager.get_media("CjY5Y3VKaTZwR3o4Y19YbTVfMF...")
     assert event_media
@@ -1956,7 +1957,7 @@ async def test_camera_active_clip_preview_threads(
         timespec="seconds"
     )
     assert event_media.media.contents == b"image-bytes-1"
-    assert event_media.media.event_image_type.content_type == "image/jpeg"
+    assert event_media.media.event_image_type.content_type == "video/mp4"
 
 
 async def test_unsupported_event_for_event_manager(
