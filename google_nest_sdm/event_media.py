@@ -341,11 +341,6 @@ class EventMediaManager:
                 event_session_id,
             )
             return None
-        if event.is_expired:
-            _LOGGER.debug(
-                "Skipping fetch; Event expired; event_session_id=%s", event_session_id
-            )
-            return None
         _LOGGER.debug("Fetching media for event_session_id=%s", event_session_id)
         if item.media_key:
             media_key = item.media_key
@@ -354,6 +349,12 @@ class EventMediaManager:
 
         contents = await self._cache_policy._store.async_load_media(media_key)
         if contents is None:
+            if event.is_expired:
+                _LOGGER.debug(
+                    "Skipping fetch; Event expired; event_session_id=%s",
+                    event_session_id,
+                )
+                return None
             if not (generator := self._event_trait_map.get(event.event_type)):
                 return None
             event_image = await generator.generate_event_image(event)
