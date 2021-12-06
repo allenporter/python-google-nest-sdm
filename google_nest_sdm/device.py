@@ -70,6 +70,18 @@ class Device:
         cmd = Command(device_id, auth)
         traits = raw_data.get(DEVICE_TRAITS, {})
         traits_dict = BuildTraits(traits, cmd, raw_data.get(DEVICE_TYPE))
+
+        # Hack to wire up camera traits to the event image generator
+        event_image_trait: camera_traits.EventImageCreator | None = None
+        if camera_traits.CameraEventImageTrait.NAME in traits_dict:
+            event_image_trait = traits_dict[camera_traits.CameraEventImageTrait.NAME]
+        elif camera_traits.CameraClipPreviewTrait.NAME in traits_dict:
+            event_image_trait = traits_dict[camera_traits.CameraClipPreviewTrait.NAME]
+        if event_image_trait:
+            for trait_class in traits_dict.values():
+                if hasattr(trait_class, "event_image_creator"):
+                    trait_class.event_image_creator = event_image_trait
+
         return Device(raw_data, traits_dict)
 
     @property
