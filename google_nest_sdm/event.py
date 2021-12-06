@@ -7,7 +7,7 @@ import hashlib
 import logging
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Awaitable, Callable, Dict, Mapping, Optional
+from typing import Any, Awaitable, Callable, Dict, Iterable, Mapping, Optional
 
 from .auth import AbstractAuth
 from .registry import Registry
@@ -56,6 +56,8 @@ class EventImageType(Enum):
 class ImageEventBase(ABC):
     """Base class for all image related event types."""
 
+    event_image_type: EventImageType
+
     def __init__(self, data: Mapping[str, Any], timestamp: datetime.datetime) -> None:
         """Initialize EventBase."""
         self._data = data
@@ -66,11 +68,6 @@ class ImageEventBase(ABC):
     @abstractmethod
     def event_type(self) -> str:
         """The type of event."""
-
-    @property
-    @abstractmethod
-    def event_image_type(self) -> EventImageType:
-        """The image type for this event."""
 
     @property
     def event_id(self) -> str:
@@ -273,6 +270,14 @@ def _BuildEvent(
     return cls(event_data, timestamp)  # type: ignore
 
 
+def session_event_image_type(events: Iterable[ImageEventBase]) -> EventImageType:
+    """Determine the event type to use based on the events in the session."""
+    for event in events:
+        if event.event_image_type == EventImageType.CLIP_PREVIEW:
+            return EventImageType.CLIP_PREVIEW
+    return EventImageType.IMAGE
+
+
 class EventMessage:
     """Event for a change in trait value or device action."""
 
@@ -321,8 +326,10 @@ class EventMessage:
             event_sessions[event.event_session_id] = d
         # Build associations between all events
         for event_session_id, event_dict in event_sessions.items():
+            event_image_type = session_event_image_type(events.values())
             for event_type, event in event_dict.items():
                 event.session_events = list(event_dict.values())
+                event.event_image_type = event_image_type
         return event_sessions
 
     @property
