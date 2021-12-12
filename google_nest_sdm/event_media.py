@@ -457,8 +457,8 @@ class EventMediaManager:
                         str(err),
                     )
 
+        # Notify any listeners about the arrival of a new event
         if self._callback and not suppress:
-            # event_message!
             await self._callback(event_message)
 
     def active_events(self, event_types: list) -> Dict[str, ImageEventBase]:
