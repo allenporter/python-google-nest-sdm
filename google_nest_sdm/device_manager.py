@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, Optional
+from typing import Awaitable, Callable, Dict, Optional
 
 from .device import Device
 from .event import EventMessage, RelationUpdate
@@ -18,6 +18,7 @@ class DeviceManager:
         self._devices: Dict[str, Device] = {}
         self._structures: Dict[str, Structure] = {}
         self._cache_policy = cache_policy if cache_policy else CachePolicy()
+        self._callback: Callable[[EventMessage], Awaitable[None]] | None = None
 
     @property
     def devices(self) -> Dict[str, Device]:
@@ -35,6 +36,8 @@ class DeviceManager:
         self._devices[device.name] = device
         # Share a single cache policy across all devices
         device.event_media_manager.cache_policy = self._cache_policy
+        if self._callback:
+            device.event_media_manager.set_update_callback(self._callback)
 
     def add_structure(self, structure: Structure) -> None:
         """Track the specified device."""
@@ -45,6 +48,14 @@ class DeviceManager:
     def cache_policy(self) -> CachePolicy:
         """Return cache policy shared by device EventMediaManager objects."""
         return self._cache_policy
+
+    def set_update_callback(
+        self, target: Callable[[EventMessage], Awaitable[None]]
+    ) -> None:
+        """Register a callback invoked when new messages are received."""
+        self._callback = target
+        for device in self._devices.values():
+            device.event_media_manager.set_update_callback(target)
 
     async def async_handle_event(self, event_message: EventMessage) -> None:
         """Handle a new message received."""

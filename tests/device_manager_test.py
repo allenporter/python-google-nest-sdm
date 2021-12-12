@@ -523,3 +523,54 @@ async def test_update_trait_ordering(
         event_message_with_time("2019-01-01T00:00:05Z", "ONLINE")
     )
     assert get_connectivity().status == "ONLINE"
+
+
+async def test_device_added_after_callback(
+    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+) -> None:
+    """Test event callback is registered before the device is added."""
+
+    class MyCallback:
+        def __init__(self) -> None:
+            self.invoked = False
+
+        async def async_handle_event(self, event_message: EventMessage) -> None:
+            self.invoked = True
+
+    callback = MyCallback()
+    mgr = DeviceManager()
+    mgr.set_update_callback(callback.async_handle_event)
+    assert not callback.invoked
+
+    device = fake_device(
+        {
+            "name": "my/device/name1",
+            "type": "sdm.devices.types.SomeDeviceType",
+            "traits": {
+                "sdm.devices.traits.CameraMotion": {},
+            },
+        }
+    )
+    mgr.add_device(device)
+    assert 1 == len(mgr.devices)
+
+    await mgr.async_handle_event(
+        fake_event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": "2019-01-01T00:00:01Z",
+                "resourceUpdate": {
+                    "name": "my/device/name1",
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "n:1",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    assert callback.invoked

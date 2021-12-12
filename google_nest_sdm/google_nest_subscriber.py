@@ -303,6 +303,8 @@ class GoogleNestSubscriber:
     ) -> None:
         """Register a callback invoked when new messages are received."""
         self._callback = target
+        if self._device_manager_task and self._device_manager_task.done():
+            self._device_manager_task.result().set_update_callback(target)
 
     async def create_subscription(self) -> None:
         """Create the subscription if it does not already exist."""
@@ -438,6 +440,8 @@ class GoogleNestSubscriber:
         devices = await self._api.async_get_devices()
         for device in devices:
             device_manager.add_device(device)
+        if self._callback:
+            device_manager.set_update_callback(self._callback)
         return device_manager
 
     def _done_callback(
@@ -461,6 +465,4 @@ class GoogleNestSubscriber:
         # will do a live read .
         if self._device_manager_task and self._device_manager_task.done():
             await self._device_manager_task.result().async_handle_event(event)
-        if self._callback:
-            await self._callback(event)
         message.ack()

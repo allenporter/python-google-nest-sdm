@@ -7,7 +7,7 @@ import logging
 from abc import ABC
 from collections import OrderedDict
 from collections.abc import Iterable
-from typing import Any, Dict, Optional
+from typing import Any, Awaitable, Callable, Dict, Optional
 
 from .camera_traits import EventImageGenerator, EventImageType
 from .event import (
@@ -284,6 +284,7 @@ class EventMediaManager:
         self._device_id = device_id
         self._event_trait_map = event_trait_map
         self._cache_policy = CachePolicy()
+        self._callback: Callable[[EventMessage], Awaitable[None]] | None = None
 
     @property
     def cache_policy(self) -> CachePolicy:
@@ -389,6 +390,12 @@ class EventMediaManager:
         event_result.sort(key=lambda x: x.timestamp, reverse=True)
         return event_result
 
+    def set_update_callback(
+        self, target: Callable[[EventMessage], Awaitable[None]]
+    ) -> None:
+        """Register a callback invoked when new messages are received."""
+        self._callback = target
+
     async def async_handle_events(self, event_message: EventMessage) -> None:
         """Handle the EventMessage."""
         event_sessions: dict[
@@ -398,7 +405,7 @@ class EventMediaManager:
             return
         _LOGGER.debug("Event Update %s", event_sessions.keys())
 
-        # Notify traits to cache events
+        # Notify traits to cache most recent event
         pairs = list(event_sessions.items())
         for event_session_id, event_dict in pairs:
             supported = False
@@ -412,17 +419,19 @@ class EventMediaManager:
             if not supported:
                 del event_sessions[event_session_id]
 
-        # Update interal event media representation
+        # Update interal event media representation. Events are only published
+        # to downstream subscribers the first time they are seen to avoid
+        # firing on updated event threads multiple times.
+        suppress = False
         for event_session_id, event_dict in event_sessions.items():
 
             # Track all related events together with the same session
             event_data = await self._async_load()
 
             if model_item := event_data.get(event_session_id):
-                model_item.events.update(event_dict)
                 # Update the existing event session with new/updated events
-                # for event_type, event in event_dict.items():
-                #    model_item.events[event_type] = event
+                model_item.events.update(event_dict)
+                suppress = True
             else:
                 # A new event session
                 model_item = EventMediaModelItem(event_session_id, event_dict)
@@ -447,6 +456,10 @@ class EventMediaManager:
                         event.event_id,
                         str(err),
                     )
+
+        # Notify any listeners about the arrival of a new event
+        if self._callback and not suppress:
+            await self._callback(event_message)
 
     def active_events(self, event_types: list) -> Dict[str, ImageEventBase]:
         """Return any active events for the specified trait names."""
