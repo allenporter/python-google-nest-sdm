@@ -353,6 +353,17 @@ class EventMessage:
         """Return raw data for the event."""
         return dict(self._raw_data)
 
+    def omit_events(self, omit_event_keys: Iterable[str]) -> EventMessage:
+        """Create a new EventMessage minus some existing events by key."""
+        raw_data = dict(self._raw_data)
+        events = raw_data[RESOURCE_UPDATE].get(EVENTS, {})
+        for key in omit_event_keys:
+            if key not in events:
+                continue
+            del events[key]
+        raw_data[RESOURCE_UPDATE][EVENTS] = events
+        return EventMessage(raw_data, self._auth)
+
 
 class EventTypeFilterCallback:
     """Invoke a delegate only for events that match the trait type."""

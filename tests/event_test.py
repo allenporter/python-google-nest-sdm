@@ -422,3 +422,65 @@ def test_event_serialization(
     assert "https://previewUrl/..." == e.preview_url
     expire_ts = datetime.datetime(2019, 1, 1, 0, 15, 1, tzinfo=datetime.timezone.utc)
     assert expire_ts == e.expires_at
+
+
+def test_update_from_events(
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+) -> None:
+    event = fake_event_message(
+        {
+            "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+            "timestamp": "2019-01-01T00:00:01Z",
+            "resourceUpdate": {
+                "name": "enterprises/project-id/devices/device-id",
+                "events": {
+                    "sdm.devices.events.CameraSound.Sound": {
+                        "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                        "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
+                    },
+                    "sdm.devices.events.CameraMotion.Motion": {
+                        "eventSessionId": "DkX5Y3VKaTZwR3o4Y19YbTVfMF...",
+                        "eventId": "EXXVQVUdGNUlTU2V4MGV2aTNXV...",
+                    },
+                    "sdm.devices.events.CameraPerson.Person": {
+                        "eventSessionId": "EjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                        "eventId": "FZZVQVUdGNUlTU2V4MGV2aTNXV...",
+                    },
+                },
+            },
+            "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+        }
+    )
+
+    event = event.omit_events(
+        [
+            "sdm.devices.events.CameraSound.Sound",
+            "sdm.devices.events.CameraPerson.Person",
+            "not-found",
+        ]
+    )
+
+    assert "0120ecc7-3b57-4eb4-9941-91609f189fb4" == event.event_id
+    ts = datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.timezone.utc)
+
+    assert ts == event.timestamp
+    assert "enterprises/project-id/devices/device-id" == event.resource_update_name
+    events = event.resource_update_events
+    assert events is not None
+    assert len(events) == 1
+    assert "sdm.devices.events.CameraMotion.Motion" in events
+    e = events["sdm.devices.events.CameraMotion.Motion"]
+    assert "EXXVQVUdGNUlTU2V4MGV2aTNXV..." == e.event_id
+    assert "DkX5Y3VKaTZwR3o4Y19YbTVfMF..." == e.event_session_id
+    assert ts == e.timestamp
+    expire_ts = datetime.datetime(2019, 1, 1, 0, 0, 31, tzinfo=datetime.timezone.utc)
+    assert expire_ts == e.expires_at
+
+    event = event.omit_events(["unknown"])
+    events = event.resource_update_events
+    assert events is not None
+    assert len(events) == 1
+
+    event = event.omit_events(["sdm.devices.events.CameraMotion.Motion"])
+    events = event.resource_update_events
+    assert not events

@@ -411,6 +411,7 @@ class EventMediaManager:
             supported = False
             for event_name, event in event_dict.items():
                 if not (trait := self._event_trait_map.get(event_name)):
+                    _LOGGER.debug("Unsupported event trait: %s", event_name)
                     continue
                 supported = True
                 trait.handle_event(event)
@@ -422,18 +423,24 @@ class EventMediaManager:
         # Update interal event media representation. Events are only published
         # to downstream subscribers the first time they are seen to avoid
         # firing on updated event threads multiple times.
-        suppress = False
+        suppress_keys: set[str] = set({})
+        valid_events = 0
         for event_session_id, event_dict in event_sessions.items():
 
             # Track all related events together with the same session
             event_data = await self._async_load()
 
             if model_item := event_data.get(event_session_id):
-                # Update the existing event session with new/updated events
+                # Update the existing event session with new/updated events. Only
+                # new events are published.
+                suppress_keys |= set(model_item.events.keys())
+                valid_events += len(
+                    set(event_dict.keys()) - set(model_item.events.keys())
+                )
                 model_item.events.update(event_dict)
-                suppress = True
             else:
                 # A new event session
+                valid_events += len(event_dict.keys())
                 model_item = EventMediaModelItem(event_session_id, event_dict)
                 event_data[event_session_id] = model_item
 
@@ -457,8 +464,12 @@ class EventMediaManager:
                         str(err),
                     )
 
+        if not self._callback:
+            return
         # Notify any listeners about the arrival of a new event
-        if self._callback and not suppress:
+        if suppress_keys:
+            event_message = event_message.omit_events(suppress_keys)
+        if valid_events > 0:
             await self._callback(event_message)
 
     def active_events(self, event_types: list) -> Dict[str, ImageEventBase]:
