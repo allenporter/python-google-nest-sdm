@@ -2145,3 +2145,66 @@ async def test_camera_active_clip_preview_threads_with_new_events(
     )
     assert event_media.media.contents == b"image-bytes-1"
     assert event_media.media.event_image_type.content_type == "video/mp4"
+
+
+@pytest.mark.parametrize(
+    "test_trait,test_event_trait",
+    [
+        ("sdm.devices.traits.CameraMotion", "sdm.devices.events.CameraMotion.Motion"),
+        ("sdm.devices.traits.CameraPerson", "sdm.devices.events.CameraPerson.Person"),
+        ("sdm.devices.traits.CameraSound", "sdm.devices.events.CameraSound.Sound"),
+        ("sdm.devices.traits.DoorbellChime", "sdm.devices.events.DoorbellChime.Chime"),
+    ],
+)
+async def test_events_without_media_support(
+    test_trait: str,
+    test_event_trait: str,
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "enterprises/project-id1/devices/device-id1",
+                "traits": {
+                    test_trait: {},
+                },
+            }
+        ],
+    )
+
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert "enterprises/project-id1/devices/device-id1" == device.name
+
+    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": now.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": "enterprises/project-id1/devices/device-id1",
+                    "events": {
+                        test_event_trait: {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    event_media_manager = device.event_media_manager
+
+    # No trait to fetch media
+    with pytest.raises(ValueError, match=r"Camera does not have trait"):
+        await event_media_manager.get_media("CjY5Y3VKaTZwR3o4Y19YbTVfMF...")
