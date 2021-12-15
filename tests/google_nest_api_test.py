@@ -2010,3 +2010,138 @@ async def test_unsupported_event_for_event_manager(
 
     event_media = await event_media_manager.get_media("CjY5Y3VKaTZwR3o4Y19YbTVfMF...")
     assert not event_media
+
+
+async def test_camera_active_clip_preview_threads_with_new_events(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+    """Test an update to an existing session that contains new events."""
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "enterprises/project-id1/devices/device-id1",
+                "traits": {
+                    "sdm.devices.traits.CameraClipPreview": {},
+                    "sdm.devices.traits.CameraMotion": {},
+                    "sdm.devices.traits.CameraPerson": {},
+                },
+            },
+        ],
+    )
+
+    async def img_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
+        return aiohttp.web.Response(body=b"image-bytes-1")
+
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+    app.router.add_get("/image-url-1", img_handler)
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert "enterprises/project-id1/devices/device-id1" == device.name
+
+    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": now.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": "enterprises/project-id1/devices/device-id1",
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "n:1",
+                        },
+                        "sdm.devices.events.CameraClipPreview.ClipPreview": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "previewUrl": "image-url-1",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+                "eventThreadId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                "resourcegroup": [
+                    "enterprises/project-id1/devices/device-id1",
+                ],
+                "eventThreadState": "STARTED",
+            }
+        )
+    )
+    # Updates the session with an additional event
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": now.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": "enterprises/project-id1/devices/device-id1",
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "n:1",
+                        },
+                        "sdm.devices.events.CameraPerson.Person": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "n:2",
+                        },
+                        "sdm.devices.events.CameraClipPreview.ClipPreview": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "previewUrl": "image-url-1",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+                "eventThreadId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                "resourcegroup": [
+                    "enterprises/project-id1/devices/device-id1",
+                ],
+                "eventThreadState": "ENDED",
+            }
+        )
+    )
+
+    # Verify active event traits
+    trait = device.traits.get("sdm.devices.traits.CameraMotion")
+    assert trait
+    assert trait.active_event is not None
+    image = await trait.generate_active_event_image()
+    assert image
+    assert image.event_image_type == EventImageType.CLIP_PREVIEW
+    assert "image-url-1" == image.url
+    assert image.token is None
+    trait = device.traits.get("sdm.devices.traits.CameraPerson")
+    assert trait
+    assert trait.active_event is not None
+    image = await trait.generate_active_event_image()
+    assert image
+    assert image.event_image_type == EventImageType.CLIP_PREVIEW
+    assert "image-url-1" == image.url
+    assert image.token is None
+
+    # Verify event manager view. Currently events are still collapsed into 1 event, but
+    # this may change in the future to represent it differently.
+    event_media_manager = devices[0].event_media_manager
+    events = list(await event_media_manager.async_events())
+    assert len(events) == 1
+    event = events[0]
+    assert event.event_type == "sdm.devices.events.CameraPerson.Person"
+    assert event.event_session_id == "CjY5Y3VKaTZwR3o4Y19YbTVfMF..."
+    assert event.event_id == "n:2"
+    assert event.event_image_type.content_type == "video/mp4"
+
+    event_media = await event_media_manager.get_media("CjY5Y3VKaTZwR3o4Y19YbTVfMF...")
+    assert event_media
+    assert event_media.event_session_id == "CjY5Y3VKaTZwR3o4Y19YbTVfMF..."
+    assert event_media.event_type == "sdm.devices.events.CameraPerson.Person"
+    assert event_media.event_timestamp.isoformat(timespec="seconds") == now.isoformat(
+        timespec="seconds"
+    )
+    assert event_media.media.contents == b"image-bytes-1"
+    assert event_media.media.event_image_type.content_type == "video/mp4"

@@ -625,8 +625,8 @@ async def test_subscribe_thread_update(
 
     # End the thread (resource update is identical)
     event = {
-        "eventId": "6f29332e-5537-47f6-a3f9-840c307340f5",
-        "timestamp": "2020-10-10T07:09:06.851Z",
+        "eventId": "7f29332e-5537-47f6-a3f9-840c307340f5",
+        "timestamp": "2020-10-10T07:09:07.851Z",
         "resourceUpdate": {
             "name": "enterprises/project-id1/devices/device-id1",
             "events": {
@@ -659,5 +659,132 @@ async def test_subscribe_thread_update(
     assert len(events) == 2
     assert "sdm.devices.events.CameraMotion.Motion" in events
     assert "sdm.devices.events.CameraClipPreview.ClipPreview" in events
+
+    subscriber.stop_async()
+
+
+async def test_subscribe_thread_update_new_events(
+    app: aiohttp.web.Application,
+    subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
+    subscriber_factory: FakeSubscriberFactory,
+) -> None:
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "enterprises/project-id1/devices/device-id1",
+                "type": "sdm.devices.types.device-type1",
+                "traits": {
+                    "sdm.devices.traits.CameraClipPreview": {},
+                    "sdm.devices.traits.CameraMotion": {},
+                    "sdm.devices.traits.CameraPerson": {},
+                },
+            }
+        ],
+    )
+
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+    app.router.add_get(
+        "/enterprises/project-id1/structures",
+        NewStructureHandler(
+            r,
+            [
+                {
+                    "name": "enterprises/project-id1/structures/structure-id1",
+                }
+            ],
+        ),
+    )
+
+    subscriber = await subscriber_client()
+    subscriber.cache_policy.event_cache_size = 5
+    await subscriber.start_async()
+    device_manager = await subscriber.async_get_device_manager()
+    devices = device_manager.devices
+    assert "enterprises/project-id1/devices/device-id1" in devices
+
+    messages: list[EventMessage] = []
+
+    async def receive_message(message: EventMessage) -> None:
+        assert isinstance(message, EventMessage)
+        messages.append(message)
+
+    subscriber.set_update_callback(receive_message)
+
+    event = {
+        "eventId": "6f29332e-5537-47f6-a3f9-840c307340f5",
+        "timestamp": "2020-10-10T07:09:06.851Z",
+        "resourceUpdate": {
+            "name": "enterprises/project-id1/devices/device-id1",
+            "events": {
+                "sdm.devices.events.CameraMotion.Motion": {
+                    "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                    "eventId": "n:1",
+                },
+                "sdm.devices.events.CameraClipPreview.ClipPreview": {
+                    "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                    "previewUrl": "image-url-1",
+                },
+            },
+        },
+        "userId": "AVPHwEv75jw4WFshx6-XhBLhotn3r8IXOzCusfSOn5QU",
+        "eventThreadId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+        "resourcegroup": [
+            "enterprises/project-id1/devices/device-id1",
+        ],
+        "eventThreadState": "STARTED",
+    }
+    await subscriber_factory.async_push_event(event)
+
+    # End the thread (resource update is identical)
+    event2 = {
+        "eventId": "7f29332e-5537-47f6-a3f9-840c307340f5",
+        "timestamp": "2020-10-10T07:09:07.851Z",
+        "resourceUpdate": {
+            "name": "enterprises/project-id1/devices/device-id1",
+            "events": {
+                "sdm.devices.events.CameraMotion.Motion": {
+                    "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                    "eventId": "n:1",
+                },
+                "sdm.devices.events.CameraPerson.Person": {
+                    "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                    "eventId": "n:2",
+                },
+                "sdm.devices.events.CameraClipPreview.ClipPreview": {
+                    "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                    "previewUrl": "image-url-1",
+                },
+            },
+        },
+        "userId": "AVPHwEv75jw4WFshx6-XhBLhotn3r8IXOzCusfSOn5QU",
+        "eventThreadId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+        "resourcegroup": [
+            "enterprises/project-id1/devices/device-id1",
+        ],
+        "eventThreadState": "ENDED",
+    }
+    await subscriber_factory.async_push_event(event2)
+
+    assert len(messages) == 2
+    message: EventMessage = messages[0]
+    assert message.event_id == "6f29332e-5537-47f6-a3f9-840c307340f5"
+    assert message.event_sessions
+    assert len(message.event_sessions) == 1
+    assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." in message.event_sessions
+    events = message.event_sessions["CjY5Y3VKaTZwR3o4Y19YbTVfMF..."]
+    assert len(events) == 2
+    assert "sdm.devices.events.CameraMotion.Motion" in events
+    assert "sdm.devices.events.CameraClipPreview.ClipPreview" in events
+
+    message = messages[1]
+    assert message.event_id == "7f29332e-5537-47f6-a3f9-840c307340f5"
+    assert message.event_sessions
+    assert len(message.event_sessions) == 1
+    assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." in message.event_sessions
+    events = message.event_sessions["CjY5Y3VKaTZwR3o4Y19YbTVfMF..."]
+    assert len(events) == 1
+    assert "sdm.devices.events.CameraPerson.Person" in events
 
     subscriber.stop_async()

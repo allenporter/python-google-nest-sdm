@@ -525,7 +525,18 @@ async def test_update_trait_ordering(
     assert get_connectivity().status == "ONLINE"
 
 
+@pytest.mark.parametrize(
+    "test_trait,test_event_trait",
+    [
+        ("sdm.devices.traits.CameraMotion", "sdm.devices.events.CameraMotion.Motion"),
+        ("sdm.devices.traits.CameraPerson", "sdm.devices.events.CameraPerson.Person"),
+        ("sdm.devices.traits.CameraSound", "sdm.devices.events.CameraSound.Sound"),
+        ("sdm.devices.traits.DoorbellChime", "sdm.devices.events.DoorbellChime.Chime"),
+    ],
+)
 async def test_device_added_after_callback(
+    test_trait: str,
+    test_event_trait: str,
     fake_device: Callable[[Dict[str, Any]], Device],
     fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> None:
@@ -548,7 +559,8 @@ async def test_device_added_after_callback(
             "name": "my/device/name1",
             "type": "sdm.devices.types.SomeDeviceType",
             "traits": {
-                "sdm.devices.traits.CameraMotion": {},
+                test_trait: {},
+                "sdm.devices.traits.CameraEventImage": {},
             },
         }
     )
@@ -563,7 +575,7 @@ async def test_device_added_after_callback(
                 "resourceUpdate": {
                     "name": "my/device/name1",
                     "events": {
-                        "sdm.devices.events.CameraMotion.Motion": {
+                        test_event_trait: {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
                             "eventId": "n:1",
                         },
