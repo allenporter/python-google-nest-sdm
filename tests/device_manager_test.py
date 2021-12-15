@@ -586,3 +586,65 @@ async def test_device_added_after_callback(
         )
     )
     assert callback.invoked
+
+
+@pytest.mark.parametrize(
+    "test_trait,test_event_trait",
+    [
+        ("sdm.devices.traits.CameraMotion", "sdm.devices.events.CameraMotion.Motion"),
+        ("sdm.devices.traits.CameraPerson", "sdm.devices.events.CameraPerson.Person"),
+        ("sdm.devices.traits.CameraSound", "sdm.devices.events.CameraSound.Sound"),
+        ("sdm.devices.traits.DoorbellChime", "sdm.devices.events.DoorbellChime.Chime"),
+    ],
+)
+async def test_publish_without_media(
+    test_trait: str,
+    test_event_trait: str,
+    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+) -> None:
+    """Test event callback is registered before the device is added."""
+
+    class MyCallback:
+        def __init__(self) -> None:
+            self.invoked = False
+
+        async def async_handle_event(self, event_message: EventMessage) -> None:
+            self.invoked = True
+
+    callback = MyCallback()
+    mgr = DeviceManager()
+    mgr.set_update_callback(callback.async_handle_event)
+    assert not callback.invoked
+
+    device = fake_device(
+        {
+            "name": "my/device/name1",
+            "type": "sdm.devices.types.SomeDeviceType",
+            "traits": {
+                test_trait: {},
+            },
+        }
+    )
+    mgr.add_device(device)
+    assert 1 == len(mgr.devices)
+
+    await mgr.async_handle_event(
+        fake_event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": "2019-01-01T00:00:01Z",
+                "resourceUpdate": {
+                    "name": "my/device/name1",
+                    "events": {
+                        test_event_trait: {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "n:1",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    assert callback.invoked
