@@ -2208,3 +2208,74 @@ async def test_events_without_media_support(
     # No trait to fetch media
     with pytest.raises(ValueError, match=r"Camera does not have trait"):
         await event_media_manager.get_media("CjY5Y3VKaTZwR3o4Y19YbTVfMF...")
+
+
+async def test_event_manager_no_media_support(
+    app: aiohttp.web.Application,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+
+    r = Recorder()
+    handler = NewDeviceHandler(
+        r,
+        [
+            {
+                "name": "enterprises/project-id1/devices/device-id1",
+                "traits": {
+                    "sdm.devices.traits.CameraMotion": {},
+                    "sdm.devices.traits.CameraPerson": {},
+                },
+            }
+        ],
+    )
+
+    app.router.add_get("/enterprises/project-id1/devices", handler)
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert "enterprises/project-id1/devices/device-id1" == device.name
+
+    # Turn on event fetching
+    device.event_media_manager.cache_policy.fetch = True
+
+    ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": ts1.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": "enterprises/project-id1/devices/device-id1",
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "DkY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "GXQADVUdGNUlTU2V4MGV2aTNXV...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+
+    # The device does not support media, so it does not show up in the media manager
+    event_media_manager = device.event_media_manager
+    assert len(list(await event_media_manager.async_events())) == 1
+
+    # Fetching media by event fails
+    with pytest.raises(ValueError):
+        await event_media_manager.get_media("DkY5Y3VKaTZwR3o4Y19YbTVfMF...")
+
+    # however, we should see an active event
+    trait = device.traits["sdm.devices.traits.CameraMotion"]
+    assert trait.active_event is not None
+
+    # Fetching the media fails since its not supported
+    with pytest.raises(ValueError):
+        await trait.generate_active_event_image()
+
+    trait = device.traits["sdm.devices.traits.CameraPerson"]
+    assert trait.active_event is None
