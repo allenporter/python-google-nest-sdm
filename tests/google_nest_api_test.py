@@ -37,6 +37,20 @@ async def api_client(
     return make_api
 
 
+async def test_get_device(
+    device_handler: DeviceHandler,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
+    device_id = device_handler.add_device(device_type="sdm.devices.types.device-type")
+
+    api = await api_client()
+
+    device = await api.async_get_device(device_id.split("/")[-1])
+    assert device
+    assert device.name == device_id
+    assert device.type == "sdm.devices.types.device-type"
+
+
 async def test_get_devices(
     device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
@@ -772,6 +786,26 @@ async def test_camera_active_clip_preview(
     assert image.url == "https://previewUrl/..."
     assert image.token is None
     assert image.event_image_type == EventImageType.CLIP_PREVIEW
+
+
+async def test_get_structure(
+    app: aiohttp.web.Application,
+    structure_handler: StructureHandler,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
+    structure_id = structure_handler.add_structure(
+        traits={
+            "sdm.structures.traits.Info": {
+                "customName": "some-name",
+            }
+        }
+    )
+
+    api = await api_client()
+    structure = await api.async_get_structure(structure_id.split("/")[-1])
+    assert structure
+    assert structure.name == structure_id
+    assert "sdm.structures.traits.Info" in structure.traits
 
 
 async def test_get_structures(
