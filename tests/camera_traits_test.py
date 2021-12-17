@@ -2,6 +2,8 @@
 
 from typing import Any, Callable, Dict
 
+import pytest
+
 from google_nest_sdm.camera_traits import StreamingProtocol
 from google_nest_sdm.device import Device
 
@@ -108,58 +110,24 @@ def test_camera_live_stream_unknown_protocols(
     ] == trait.supported_protocols
 
 
-def test_camera_event_image_traits(
-    fake_device: Callable[[Dict[str, Any]], Device]
+@pytest.mark.parametrize(
+    "trait",
+    [
+        "sdm.devices.traits.CameraMotion",
+        "sdm.devices.traits.CameraPerson",
+        "sdm.devices.traits.CameraSound",
+        "sdm.devices.traits.CameraClipPreview",
+        "sdm.devices.traits.CameraEventImage",
+    ],
+)
+def test_image_event_traits(
+    trait: str, fake_device: Callable[[Dict[str, Any]], Device]
 ) -> None:
     raw = {
         "name": "my/device/name",
         "traits": {
-            "sdm.devices.traits.CameraEventImage": {},
+            trait: {},
         },
     }
     device = fake_device(raw)
-    assert "sdm.devices.traits.CameraEventImage" in device.traits
-
-
-def test_camera_motion_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
-    raw = {
-        "name": "my/device/name",
-        "traits": {
-            "sdm.devices.traits.CameraMotion": {},
-        },
-    }
-    device = fake_device(raw)
-    assert "sdm.devices.traits.CameraMotion" in device.traits
-
-
-def test_camera_person_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
-    raw = {
-        "name": "my/device/name",
-        "traits": {
-            "sdm.devices.traits.CameraPerson": {},
-        },
-    }
-    device = fake_device(raw)
-    assert "sdm.devices.traits.CameraPerson" in device.traits
-
-
-def test_camera_sound_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
-    raw = {
-        "name": "my/device/name",
-        "traits": {
-            "sdm.devices.traits.CameraSound": {},
-        },
-    }
-    device = fake_device(raw)
-    assert "sdm.devices.traits.CameraSound" in device.traits
-
-
-def test_camera_clip_preview_traits(
-    fake_device: Callable[[Dict[str, Any]], Device]
-) -> None:
-    raw = {
-        "name": "my/device/name",
-        "traits": {"sdm.devices.traits.CameraClipPreview": {}},
-    }
-    device = fake_device(raw)
-    assert "sdm.devices.traits.CameraClipPreview" in device.traits
+    assert trait in device.traits

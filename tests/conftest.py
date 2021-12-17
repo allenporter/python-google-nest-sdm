@@ -1,5 +1,9 @@
 """Fixtures and libraries shared by tests."""
 
+from __future__ import annotations
+
+import uuid
+from abc import ABC
 from typing import Any, AsyncGenerator, Awaitable, Callable, Dict, List, Optional, cast
 
 import aiohttp
@@ -11,6 +15,7 @@ from google_nest_sdm.device import Device
 from google_nest_sdm.event import EventMessage
 
 FAKE_TOKEN = "some-token"
+PROJECT_ID = "project-id1"
 
 
 @pytest.fixture
@@ -122,16 +127,116 @@ class Recorder:
     request: Optional[Dict[str, Any]] = None
 
 
-def NewDeviceHandler(
-    r: Recorder, devices: List[Dict[str, Any]], token: str = FAKE_TOKEN
-) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
-    return NewHandler(r, [{"devices": devices}], token=token)
+class JsonHandler(ABC):
+    """Request handler that replays mocks."""
+
+    def __init__(self, recorder: Recorder) -> None:
+        """Initialize Handler."""
+        self.token: str = FAKE_TOKEN
+        self.recorder = recorder
+
+    def get_response(self) -> dict[str, Any]:
+        """Implemented by subclasses to return a response."""
+
+    async def handler(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
+        assert request.headers["Authorization"] == "Bearer %s" % self.token
+        s = await request.text()
+        self.recorder.request = await request.json() if s else {}
+        return aiohttp.web.json_response(self.get_response())
 
 
-def NewStructureHandler(
-    r: Recorder, structures: List[Dict[str, Any]], token: str = FAKE_TOKEN
-) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
-    return NewHandler(r, [{"structures": structures}], token=token)
+class ReplyHandler(JsonHandler):
+    def __init__(self, recorder: Recorder, responses: List[Dict[str, Any]]) -> None:
+        """Initialize ReplyHandler."""
+        super().__init__(recorder)
+        self.responses = responses
+
+    def get_response(self) -> dict[str, Any]:
+        """Return an API response."""
+        return self.responses.pop(0)
+
+
+def reply_handler(
+    app: aiohttp.web.Application,
+    path: str,
+    recorder: Recorder,
+    responses: List[Dict[str, Any]],
+) -> ReplyHandler:
+    """Create a new reply handler."""
+    handler = ReplyHandler(recorder, responses)
+    app.router.add_get(path, handler.handler)
+    return handler
+
+
+class DeviceHandler(JsonHandler):
+    """Handle requests to fetch devices."""
+
+    def __init__(
+        self, app: aiohttp.web.Application, project_id: str, recorder: Recorder
+    ) -> None:
+        """Initialize DeviceHandler."""
+        super().__init__(recorder)
+        self.app = app
+        self.project_id = project_id
+        self.devices: List[Dict[str, Any]] = []
+        app.router.add_get(f"/enterprises/{project_id}/devices", self.handler)
+
+    def add_device(
+        self,
+        device_type: str = "sdm.devices.types.device-type1",
+        traits: dict[str, Any] = {},
+        parentRelations: List[dict[str, Any]] = [],
+    ) -> str:
+        """Add a fake device reply."""
+        uid = uuid.uuid4().hex
+        device_id = f"enterprises/{self.project_id}/devices/device-id-{uid}"
+        device = {
+            "name": device_id,
+            "type": device_type,
+            "traits": traits,
+            "parentRelations": parentRelations,
+        }
+        # Setup device lookup reply
+        reply_handler(self.app, f"/{device_id}", self.recorder, [device])
+        # Setup device list reply
+        self.devices.append(device)
+        return device_id
+
+    def get_response(self) -> dict[str, Any]:
+        """Return devices API response."""
+        return {"devices": self.devices}
+
+
+class StructureHandler(JsonHandler):
+    """Handle requests to fetch structures."""
+
+    def __init__(
+        self, app: aiohttp.web.Application, project_id: str, recorder: Recorder
+    ) -> None:
+        """Initialize StructureHandler."""
+        super().__init__(recorder)
+        self.app = app
+        self.project_id = project_id
+        self.structures: List[Dict[str, Any]] = []
+        app.router.add_get(f"/enterprises/{project_id}/structures", self.handler)
+
+    def add_structure(self, traits: dict[str, Any] = {}) -> str:
+        """Add a structure to the response."""
+        uid = uuid.uuid4().hex
+        structure_id = f"enterprises/{self.project_id}/structures/structure-id-{uid}"
+        structure = {
+            "name": structure_id,
+            "traits": traits,
+        }
+        # Setup structure lookup reply
+        reply_handler(self.app, f"/{structure_id}", self.recorder, [structure])
+        # Setup structure list reply
+        self.structures.append(structure)
+        return structure_id
+
+    def get_response(self) -> dict[str, Any]:
+        """Return structure API response."""
+        return {"structures": self.structures}
 
 
 def NewHandler(
@@ -154,3 +259,27 @@ def NewImageHandler(
         return aiohttp.web.Response(body=response.pop(0))
 
     return handler
+
+
+@pytest.fixture
+def project_id() -> str:
+    return "project-id1"
+
+
+@pytest.fixture
+def recorder() -> Recorder:
+    return Recorder()
+
+
+@pytest.fixture
+def device_handler(
+    app: aiohttp.web.Application, project_id: str, recorder: Recorder
+) -> DeviceHandler:
+    return DeviceHandler(app, project_id, recorder)
+
+
+@pytest.fixture
+def structure_handler(
+    app: aiohttp.web.Application, project_id: str, recorder: Recorder
+) -> StructureHandler:
+    return StructureHandler(app, project_id, recorder)

@@ -15,14 +15,15 @@ from google_nest_sdm.event_media import InMemoryEventMediaStore
 from google_nest_sdm.exceptions import ApiException, AuthException
 
 from .conftest import (
-    NewDeviceHandler,
+    PROJECT_ID,
+    DeviceHandler,
     NewHandler,
     NewImageHandler,
-    NewStructureHandler,
     Recorder,
+    StructureHandler,
+    reply_handler,
 )
 
-PROJECT_ID = "project-id1"
 FAKE_TOKEN = "some-token"
 
 
@@ -37,245 +38,193 @@ async def api_client(
     return make_api
 
 
-async def test_get_devices(
-    app: aiohttp.web.Application,
+async def test_get_device(
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "type": "sdm.devices.types.device-type1",
-                "traits": {},
-                "parentRelations": [],
-            },
-            {
-                "name": "enterprises/project-id1/devices/device-id2",
-                "type": "sdm.devices.types.device-type2",
-                "traits": {},
-                "parentRelations": [],
-            },
-        ],
-    )
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
+    device_id = device_handler.add_device(device_type="sdm.devices.types.device-type")
 
     api = await api_client()
+
+    device = await api.async_get_device(device_id.split("/")[-1])
+    assert device
+    assert device.name == device_id
+    assert device.type == "sdm.devices.types.device-type"
+
+
+async def test_get_devices(
+    device_handler: DeviceHandler,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
+    device_id1 = device_handler.add_device(device_type="sdm.devices.types.device-type1")
+    device_id2 = device_handler.add_device(device_type="sdm.devices.types.device-type2")
+
+    api = await api_client()
+
     devices = await api.async_get_devices()
     assert len(devices) == 2
-    assert "enterprises/project-id1/devices/device-id1" == devices[0].name
-    assert "sdm.devices.types.device-type1" == devices[0].type
-    assert "enterprises/project-id1/devices/device-id2" == devices[1].name
-    assert "sdm.devices.types.device-type2" == devices[1].type
+    assert devices[0].name == device_id1
+    assert devices[0].type == "sdm.devices.types.device-type1"
+    assert devices[1].name == device_id2
+    assert devices[1].type == "sdm.devices.types.device-type2"
 
 
 async def test_fan_set_timer(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.Fan": {
-                        "timerMode": "OFF",
-                    },
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.Fan": {
+                "timerMode": "OFF",
+            },
+        }
     )
-    post_handler = NewHandler(r, [{}])
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
-    )
+    post_handler = NewHandler(recorder, [{}])
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device_id == device.name
     trait = device.traits["sdm.devices.traits.Fan"]
     assert trait.timer_mode == "OFF"
     await trait.set_timer("ON", 3600)
-    expected_request = {
+    assert recorder.request == {
         "command": "sdm.devices.commands.Fan.SetTimer",
         "params": {
             "timerMode": "ON",
             "duration": "3600s",
         },
     }
-    assert expected_request == r.request
 
 
 async def test_thermostat_eco_set_mode(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.ThermostatEco": {
-                        "availableModes": ["MANUAL_ECO", "OFF"],
-                        "mode": "MANUAL_ECO",
-                        "heatCelsius": 20.0,
-                        "coolCelsius": 22.0,
-                    },
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.ThermostatEco": {
+                "availableModes": ["MANUAL_ECO", "OFF"],
+                "mode": "MANUAL_ECO",
+                "heatCelsius": 20.0,
+                "coolCelsius": 22.0,
+            },
+        }
     )
-    post_handler = NewHandler(r, [{}])
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
-    )
+    post_handler = NewHandler(recorder, [{}])
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
     trait = device.traits["sdm.devices.traits.ThermostatEco"]
     assert trait.mode == "MANUAL_ECO"
     await trait.set_mode("OFF")
-    expected_request = {
+    assert recorder.request == {
         "command": "sdm.devices.commands.ThermostatEco.SetMode",
         "params": {"mode": "OFF"},
     }
-    assert expected_request == r.request
 
 
 async def test_thermostat_mode_set_mode(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.ThermostatMode": {
-                        "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
-                        "mode": "COOL",
-                    },
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.ThermostatMode": {
+                "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
+                "mode": "COOL",
+            },
+        }
     )
-    post_handler = NewHandler(r, [{}])
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
-    )
+    post_handler = NewHandler(recorder, [{}])
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
     trait = device.traits["sdm.devices.traits.ThermostatMode"]
     assert trait.mode == "COOL"
     await trait.set_mode("HEAT")
-    expected_request = {
+    assert recorder.request == {
         "command": "sdm.devices.commands.ThermostatMode.SetMode",
         "params": {"mode": "HEAT"},
     }
-    assert expected_request == r.request
 
 
 async def test_thermostat_temperature_set_point(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.ThermostatTemperatureSetpoint": {
-                        "heatCelsius": 23.0,
-                        "coolCelsius": 24.0,
-                    },
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.ThermostatTemperatureSetpoint": {
+                "heatCelsius": 23.0,
+                "coolCelsius": 24.0,
+            },
+        }
     )
-    post_handler = NewHandler(r, [{}, {}, {}])
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
-    )
+    post_handler = NewHandler(recorder, [{}, {}, {}])
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
     trait = device.traits["sdm.devices.traits.ThermostatTemperatureSetpoint"]
     assert trait.heat_celsius == 23.0
     assert trait.cool_celsius == 24.0
     await trait.set_heat(25.0)
-    expected_request = {
+    assert recorder.request == {
         "command": "sdm.devices.commands.ThermostatTemperatureSetpoint.SetHeat",
         "params": {"heatCelsius": 25.0},
     }
-    assert expected_request == r.request
 
     await trait.set_cool(26.0)
-    expected_request = {
+    assert recorder.request == {
         "command": "sdm.devices.commands.ThermostatTemperatureSetpoint.SetCool",
         "params": {"coolCelsius": 26.0},
     }
-    assert expected_request == r.request
 
     await trait.set_range(27.0, 28.0)
-    expected_request = {
+    assert recorder.request == {
         "command": "sdm.devices.commands.ThermostatTemperatureSetpoint.SetRange",
         "params": {
             "heatCelsius": 27.0,
             "coolCelsius": 28.0,
         },
     }
-    assert expected_request == r.request
 
 
 async def test_camera_live_stream_rtsp(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.CameraLiveStream": {},
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={"sdm.devices.traits.CameraLiveStream": {}}
     )
 
     post_handler = NewHandler(
-        r,
+        recorder,
         [
             {
                 "results": {
@@ -304,97 +253,82 @@ async def test_camera_live_stream_rtsp(
             {},
         ],
     )
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
-    )
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
     trait = device.traits["sdm.devices.traits.CameraLiveStream"]
     stream = await trait.generate_rtsp_stream()
-    expected_request = {
+    assert recorder.request == {
         "command": "sdm.devices.commands.CameraLiveStream.GenerateRtspStream",
         "params": {},
     }
-    assert expected_request == r.request
-    assert "g.0.token" == stream.stream_token
-    assert (
-        datetime.datetime(2018, 1, 4, 18, 30, tzinfo=datetime.timezone.utc)
-        == stream.expires_at
+    assert stream.stream_token == "g.0.token"
+    assert stream.expires_at == datetime.datetime(
+        2018, 1, 4, 18, 30, tzinfo=datetime.timezone.utc
     )
-    assert "rtsps://someurl.com/CjY5Y3VKaTfMF?auth=g.0.token" == stream.rtsp_stream_url
+    assert stream.rtsp_stream_url == "rtsps://someurl.com/CjY5Y3VKaTfMF?auth=g.0.token"
 
     stream = await stream.extend_rtsp_stream()
-    expected_request = {
+    assert recorder.request == {
         "command": "sdm.devices.commands.CameraLiveStream.ExtendRtspStream",
         "params": {
             "streamExtensionToken": "CjY5Y3VKaTfMF",
         },
     }
-    assert expected_request == r.request
-    assert "g.1.newStreamingToken" == stream.stream_token
-    assert (
-        datetime.datetime(2019, 1, 4, 18, 30, tzinfo=datetime.timezone.utc)
-        == stream.expires_at
+    assert stream.stream_token == "g.1.newStreamingToken"
+    assert stream.expires_at == datetime.datetime(
+        2019, 1, 4, 18, 30, tzinfo=datetime.timezone.utc
     )
     assert (
-        "rtsps://someurl.com/CjY5Y3VKaTfMF?auth=g.1.newStreamingToken"
-        == stream.rtsp_stream_url
+        stream.rtsp_stream_url
+        == "rtsps://someurl.com/CjY5Y3VKaTfMF?auth=g.1.newStreamingToken"
     )
 
     stream = await stream.extend_rtsp_stream()
-    expected_request = {
+    assert recorder.request == {
         "command": "sdm.devices.commands.CameraLiveStream.ExtendRtspStream",
         "params": {
             "streamExtensionToken": "dGNUlTU2CjY5Y3VKaTZwR3o4Y1...",
         },
     }
-    assert expected_request == r.request
-    assert "g.2.newStreamingToken" == stream.stream_token
-    assert (
-        datetime.datetime(2020, 1, 4, 18, 30, tzinfo=datetime.timezone.utc)
-        == stream.expires_at
+    assert stream.stream_token == "g.2.newStreamingToken"
+    assert stream.expires_at == datetime.datetime(
+        2020, 1, 4, 18, 30, tzinfo=datetime.timezone.utc
     )
     assert (
-        "rtsps://someurl.com/CjY5Y3VKaTfMF?auth=g.2.newStreamingToken"
-        == stream.rtsp_stream_url
+        stream.rtsp_stream_url
+        == "rtsps://someurl.com/CjY5Y3VKaTfMF?auth=g.2.newStreamingToken"
     )
 
     await stream.stop_rtsp_stream()
-    expected_request = {
+    assert recorder.request == {
         "command": "sdm.devices.commands.CameraLiveStream.StopRtspStream",
         "params": {
             "streamExtensionToken": "last-token...",
         },
     }
-    assert expected_request == r.request
 
 
 async def test_camera_live_stream_web_rtc(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.CameraLiveStream": {
-                        "supportedProtocols": ["WEB_RTC"],
-                    },
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraLiveStream": {
+                "supportedProtocols": ["WEB_RTC"],
+            },
+        }
     )
 
     post_handler = NewHandler(
-        r,
+        recorder,
         [
             {
                 "results": {
@@ -418,32 +352,27 @@ async def test_camera_live_stream_web_rtc(
             {},
         ],
     )
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
-    )
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
     trait = device.traits["sdm.devices.traits.CameraLiveStream"]
-    assert [StreamingProtocol.WEB_RTC] == trait.supported_protocols
+    assert trait.supported_protocols == [StreamingProtocol.WEB_RTC]
     stream = await trait.generate_web_rtc_stream("a=recvonly")
-    expected_request = {
+    assert recorder.request == {
         "command": "sdm.devices.commands.CameraLiveStream.GenerateWebRtcStream",
         "params": {
             "offerSdp": "a=recvonly",
         },
     }
-    assert expected_request == r.request
-    assert "some-answer" == stream.answer_sdp
-    assert (
-        datetime.datetime(2018, 1, 4, 18, 30, tzinfo=datetime.timezone.utc)
-        == stream.expires_at
+    assert stream.answer_sdp == "some-answer"
+    assert stream.expires_at == datetime.datetime(
+        2018, 1, 4, 18, 30, tzinfo=datetime.timezone.utc
     )
-    assert "JxdTxkkatHk4kVnXlKzQICbfVR..." == stream.media_session_id
+    assert stream.media_session_id == "JxdTxkkatHk4kVnXlKzQICbfVR..."
 
     stream = await stream.extend_stream()
     expected_request = {
@@ -452,7 +381,7 @@ async def test_camera_live_stream_web_rtc(
             "mediaSessionId": "JxdTxkkatHk4kVnXlKzQICbfVR...",
         },
     }
-    assert expected_request == r.request
+    assert expected_request == recorder.request
     assert "some-answer" == stream.answer_sdp
     assert (
         datetime.datetime(2019, 1, 4, 18, 30, tzinfo=datetime.timezone.utc)
@@ -461,49 +390,39 @@ async def test_camera_live_stream_web_rtc(
     assert "JxdTxkkatHk4kVnXlKzQICbfVR..." == stream.media_session_id
 
     stream = await stream.extend_stream()
-    expected_request = {
+    assert recorder.request == {
         "command": "sdm.devices.commands.CameraLiveStream.ExtendWebRtcStream",
         "params": {
             "mediaSessionId": "JxdTxkkatHk4kVnXlKzQICbfVR...",
         },
     }
-    assert expected_request == r.request
-    assert "some-answer" == stream.answer_sdp
-    assert (
-        datetime.datetime(2020, 1, 4, 18, 30, tzinfo=datetime.timezone.utc)
-        == stream.expires_at
+    assert stream.answer_sdp == "some-answer"
+    assert stream.expires_at == datetime.datetime(
+        2020, 1, 4, 18, 30, tzinfo=datetime.timezone.utc
     )
     assert "JxdTxkkatHk4kVnXlKzQICbfVR..." == stream.media_session_id
 
     await stream.stop_stream()
-    expected_request = {
+    assert recorder.request == {
         "command": "sdm.devices.commands.CameraLiveStream.StopWebRtcStream",
         "params": {
             "mediaSessionId": "JxdTxkkatHk4kVnXlKzQICbfVR...",
         },
     }
-    assert expected_request == r.request
 
 
 async def test_camera_event_image(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.CameraEventImage": {},
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={"sdm.devices.traits.CameraEventImage": {}}
     )
 
     post_handler = NewHandler(
-        r,
+        recorder,
         [
             {
                 "results": {
@@ -513,26 +432,21 @@ async def test_camera_event_image(
             }
         ],
     )
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
-    )
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
     trait = device.traits["sdm.devices.traits.CameraEventImage"]
     image = await trait.generate_image("some-eventId")
-    expected_request = {
+    assert recorder.request == {
         "command": "sdm.devices.commands.CameraEventImage.GenerateImage",
         "params": {"eventId": "some-eventId"},
     }
-    assert expected_request == r.request
-    assert "https://domain/sdm_event/dGNUlTU2CjY5Y3VKaTZwR3o4Y" == image.url
-    assert "g.0.eventToken" == image.token
+    assert image.url == "https://domain/sdm_event/dGNUlTU2CjY5Y3VKaTZwR3o4Y"
+    assert image.token == "g.0.eventToken"
     assert image.event_image_type == EventImageType.IMAGE
 
 
@@ -549,25 +463,20 @@ async def test_camera_active_event_image(
     test_trait: str,
     test_event_trait: str,
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.CameraEventImage": {},
-                    test_trait: {},
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraEventImage": {},
+            test_trait: {},
+        }
     )
 
     post_handler = NewHandler(
-        r,
+        recorder,
         [
             {
                 "results": {
@@ -577,17 +486,13 @@ async def test_camera_active_event_image(
             }
         ],
     )
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
-    )
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
 
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     await device.async_handle_event(
@@ -596,7 +501,7 @@ async def test_camera_active_event_image(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": now.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         test_event_trait: {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -612,37 +517,31 @@ async def test_camera_active_event_image(
     trait = device.traits[test_trait]
     assert trait.active_event is not None
     image = await trait.generate_active_event_image()
-    expected_request = {
+    assert recorder.request == {
         "command": "sdm.devices.commands.CameraEventImage.GenerateImage",
         "params": {"eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV..."},
     }
-    assert expected_request == r.request
-    assert "https://domain/sdm_event/dGNUlTU2CjY5Y3VKaTZwR3o4Y" == image.url
-    assert "g.0.eventToken" == image.token
+    assert image.url == "https://domain/sdm_event/dGNUlTU2CjY5Y3VKaTZwR3o4Y"
+    assert image.token == "g.0.eventToken"
     assert image.event_image_type == EventImageType.IMAGE
 
 
 async def test_camera_active_event_image_contents(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.CameraEventImage": {},
-                    "sdm.devices.traits.CameraMotion": {},
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraEventImage": {},
+            "sdm.devices.traits.CameraMotion": {},
+        }
     )
 
     post_handler = NewHandler(
-        r,
+        recorder,
         [
             {
                 "results": {
@@ -658,11 +557,7 @@ async def test_camera_active_event_image_contents(
             },
         ],
     )
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
-    )
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
     app.router.add_get(
         "/image-url-1", NewImageHandler([b"image-bytes-1"], token="g.1.eventToken")
     )
@@ -674,7 +569,7 @@ async def test_camera_active_event_image_contents(
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
 
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     await device.async_handle_event(
@@ -683,7 +578,7 @@ async def test_camera_active_event_image_contents(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": now.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -712,7 +607,7 @@ async def test_camera_active_event_image_contents(
                 "eventId": "a94b2115-3b57-4eb4-8830-80519f188ec9",
                 "timestamp": now.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -732,26 +627,21 @@ async def test_camera_active_event_image_contents(
 
 async def test_camera_last_active_event_image(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.CameraEventImage": {},
-                    "sdm.devices.traits.CameraMotion": {},
-                    "sdm.devices.traits.CameraSound": {},
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraEventImage": {},
+            "sdm.devices.traits.CameraMotion": {},
+            "sdm.devices.traits.CameraSound": {},
+        }
     )
 
     post_handler = NewHandler(
-        r,
+        recorder,
         [
             {
                 "results": {
@@ -761,17 +651,13 @@ async def test_camera_last_active_event_image(
             }
         ],
     )
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
-    )
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
 
     # Later message arrives first
     t2 = datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(seconds=5)
@@ -781,7 +667,7 @@ async def test_camera_last_active_event_image(
                 "eventId": "4bf981f90619-1499-4be4-75b3-7cce0210",
                 "timestamp": t2.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         "sdm.devices.events.CameraSound.Sound": {
                             "eventSessionId": "FMfVTbY91Y4o3RwZTaKV3Y5jC...",
@@ -800,7 +686,7 @@ async def test_camera_last_active_event_image(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": t1.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -823,23 +709,16 @@ async def test_camera_last_active_event_image(
 
 async def test_camera_event_image_bytes(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.CameraEventImage": {},
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={"sdm.devices.traits.CameraEventImage": {}}
     )
 
     post_handler = NewHandler(
-        r,
+        recorder,
         [
             {
                 "results": {
@@ -851,17 +730,14 @@ async def test_camera_event_image_bytes(
     )
     image_handler = NewImageHandler([b"image-bytes"], token="g.0.eventToken")
 
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
-    )
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
     app.router.add_get("/image-url", image_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
     trait = device.traits["sdm.devices.traits.CameraEventImage"]
     event_image = await trait.generate_image("some-eventId")
     image_bytes = await event_image.contents()
@@ -870,29 +746,20 @@ async def test_camera_event_image_bytes(
 
 async def test_camera_active_clip_preview(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.CameraClipPreview": {},
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={"sdm.devices.traits.CameraClipPreview": {}}
     )
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
 
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     await device.async_handle_event(
@@ -901,7 +768,7 @@ async def test_camera_active_clip_preview(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": now.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         "sdm.devices.events.CameraClipPreview.ClipPreview": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -917,46 +784,57 @@ async def test_camera_active_clip_preview(
     trait = device.traits["sdm.devices.traits.CameraClipPreview"]
     assert trait.active_event is not None
     image = await trait.generate_active_event_image()
-    assert "https://previewUrl/..." == image.url
+    assert image.url == "https://previewUrl/..."
     assert image.token is None
     assert image.event_image_type == EventImageType.CLIP_PREVIEW
 
 
-async def test_get_structures(
+async def test_get_structure(
     app: aiohttp.web.Application,
+    structure_handler: StructureHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    handler = NewStructureHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/structures/structure-id1",
-                "traits": {
-                    "sdm.structures.traits.Info": {
-                        "customName": "some-name1",
-                    }
-                },
-            },
-            {
-                "name": "enterprises/project-id1/structures/structure-id2",
-                "traits": {
-                    "sdm.structures.traits.Info": {
-                        "customName": "some-name2",
-                    }
-                },
-            },
-        ],
+    structure_id = structure_handler.add_structure(
+        traits={
+            "sdm.structures.traits.Info": {
+                "customName": "some-name",
+            }
+        }
     )
 
-    app.router.add_get("/enterprises/project-id1/structures", handler)
+    api = await api_client()
+    structure = await api.async_get_structure(structure_id.split("/")[-1])
+    assert structure
+    assert structure.name == structure_id
+    assert "sdm.structures.traits.Info" in structure.traits
+
+
+async def test_get_structures(
+    app: aiohttp.web.Application,
+    structure_handler: StructureHandler,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
+    structure_id1 = structure_handler.add_structure(
+        traits={
+            "sdm.structures.traits.Info": {
+                "customName": "some-name1",
+            }
+        }
+    )
+    structure_id2 = structure_handler.add_structure(
+        {
+            "sdm.structures.traits.Info": {
+                "customName": "some-name2",
+            }
+        }
+    )
 
     api = await api_client()
     structures = await api.async_get_structures()
     assert len(structures) == 2
-    assert "enterprises/project-id1/structures/structure-id1" == structures[0].name
+    assert structures[0].name == structure_id1
     assert "sdm.structures.traits.Info" in structures[0].traits
-    assert "enterprises/project-id1/structures/structure-id2" == structures[1].name
+    assert structures[1].name == structure_id2
     assert "sdm.structures.traits.Info" in structures[1].traits
 
 
@@ -985,38 +863,30 @@ async def test_api_get_error(
 
 async def test_api_post_error(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.ThermostatTemperatureSetpoint": {
-                        "heatCelsius": 23.0,
-                        "coolCelsius": 24.0,
-                    },
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.ThermostatTemperatureSetpoint": {
+                "heatCelsius": 23.0,
+                "coolCelsius": 24.0,
+            },
+        }
     )
 
     async def fail_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
         return aiohttp.web.Response(status=502)
 
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", fail_handler
-    )
+    app.router.add_post(f"/{device_id}:executeCommand", fail_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
     trait = device.traits["sdm.devices.traits.ThermostatTemperatureSetpoint"]
     assert trait.heat_celsius == 23.0
     assert trait.cool_celsius == 24.0
@@ -1027,26 +897,16 @@ async def test_api_post_error(
 
 async def test_auth_refresh(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     refreshing_auth_client: Callable[[], Awaitable[AbstractAuth]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "type": "sdm.devices.types.device-type1",
-                "traits": {},
-                "parentRelations": [],
-            },
-        ],
-        token="updated-token",
-    )
+    device_handler.token = "updated-token"
+    device_id = device_handler.add_device(traits={})
 
     async def auth_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         return aiohttp.web.json_response({"token": "updated-token"})
 
-    app.router.add_get("/enterprises/project-id1/devices", handler)
     app.router.add_get("/refresh-auth", auth_handler)
 
     auth = await refreshing_auth_client()
@@ -1054,20 +914,18 @@ async def test_auth_refresh(
 
     devices = await api.async_get_devices()
     assert len(devices) == 1
-    assert "enterprises/project-id1/devices/device-id1" == devices[0].name
-    assert "sdm.devices.types.device-type1" == devices[0].type
+    assert devices[0].name == device_id
+    assert devices[0].type == "sdm.devices.types.device-type1"
 
 
 async def test_auth_refresh_error(
     app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
     refreshing_auth_client: Callable[[], Awaitable[AbstractAuth]],
 ) -> None:
-    r = Recorder()
-
     async def auth_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         return aiohttp.web.Response(status=401)
 
-    app.router.add_get("/enterprises/project-id1/devices", NewDeviceHandler(r, []))
     app.router.add_get("/refresh-auth", auth_handler)
 
     auth = await refreshing_auth_client()
@@ -1078,22 +936,35 @@ async def test_auth_refresh_error(
 
 async def test_no_devices(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    app.router.add_get("/enterprises/project-id1/devices", NewHandler(r, [{}]))
-
     api = await api_client()
     devices = await api.async_get_devices()
-    assert len(devices) == 0
+    assert devices == []
 
 
-async def test_missing_device(
+async def test_get_devices_missing_devices(
     app: aiohttp.web.Application,
+    project_id: str,
+    recorder: Recorder,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    app.router.add_get("/enterprises/project-id1/devices/abc", NewHandler(r, [{}]))
+    reply_handler(app, f"/enterprises/{project_id}/devices", recorder, [{}])
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert devices == []
+
+
+async def test_get_device_missing_devices(
+    app: aiohttp.web.Application,
+    recorder: Recorder,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
+    app.router.add_get(
+        "/enterprises/project-id1/devices/abc", NewHandler(recorder, [{}])
+    )
     api = await api_client()
     device = await api.async_get_device("abc")
     assert device is None
@@ -1101,23 +972,34 @@ async def test_missing_device(
 
 async def test_no_structures(
     app: aiohttp.web.Application,
+    structure_handler: StructureHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    app.router.add_get("/enterprises/project-id1/structures", NewHandler(r, [{}]))
-
     api = await api_client()
     structures = await api.async_get_structures()
-    assert len(structures) == 0
+    assert structures == []
 
 
-async def test_missing_structures(
+async def test_get_structures_missing_structures(
     app: aiohttp.web.Application,
+    project_id: str,
+    recorder: Recorder,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    app.router.add_get("/enterprises/project-id1/structures/abc", NewHandler(r, [{}]))
+    reply_handler(app, "/enterprises/{project_id}/structures", recorder, [{}])
+    api = await api_client()
+    structures = await api.async_get_structures()
+    assert structures == []
 
+
+async def test_get_structure_missing_structures(
+    app: aiohttp.web.Application,
+    recorder: Recorder,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
+    app.router.add_get(
+        "/enterprises/project-id1/structures/abc", NewHandler(recorder, [{}])
+    )
     api = await api_client()
     structure = await api.async_get_structure("abc")
     assert structure is None
@@ -1125,22 +1007,16 @@ async def test_missing_structures(
 
 async def test_api_post_error_with_json_response(
     app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.ThermostatTemperatureSetpoint": {
-                        "heatCelsius": 23.0,
-                        "coolCelsius": 24.0,
-                    },
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.ThermostatTemperatureSetpoint": {
+                "heatCelsius": 23.0,
+                "coolCelsius": 24.0,
+            },
+        }
     )
 
     json_response = {
@@ -1157,16 +1033,13 @@ async def test_api_post_error_with_json_response(
             status=400, body=json.dumps(json_response), content_type="application/json"
         )
 
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", fail_handler
-    )
+    app.router.add_post(f"/{device_id}:executeCommand", fail_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
     trait = device.traits["sdm.devices.traits.ThermostatTemperatureSetpoint"]
 
     with pytest.raises(
@@ -1177,25 +1050,20 @@ async def test_api_post_error_with_json_response(
 
 async def test_event_manager_image(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.CameraEventImage": {},
-                    "sdm.devices.traits.CameraMotion": {},
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraEventImage": {},
+            "sdm.devices.traits.CameraMotion": {},
+        }
     )
 
     post_handler = NewHandler(
-        r,
+        recorder,
         [
             {
                 "results": {
@@ -1211,11 +1079,7 @@ async def test_event_manager_image(
             },
         ],
     )
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
-    )
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
     app.router.add_get(
         "/image-url-1", NewImageHandler([b"image-bytes-1"], token="g.1.eventToken")
     )
@@ -1227,7 +1091,7 @@ async def test_event_manager_image(
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
 
     ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
     await device.async_handle_event(
@@ -1236,7 +1100,7 @@ async def test_event_manager_image(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": ts1.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -1255,7 +1119,7 @@ async def test_event_manager_image(
                 "eventId": "a94b2115-3b57-4eb4-8830-80519f188ec9",
                 "timestamp": ts2.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "QjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -1295,26 +1159,20 @@ async def test_event_manager_image(
 
 async def test_event_manager_prefetch_image(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.CameraEventImage": {},
-                    "sdm.devices.traits.CameraMotion": {},
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraEventImage": {},
+            "sdm.devices.traits.CameraMotion": {},
+        }
     )
 
     post_handler = NewHandler(
-        r,
+        recorder,
         [
             {
                 "results": {
@@ -1324,11 +1182,7 @@ async def test_event_manager_prefetch_image(
             },
         ],
     )
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
-    )
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
     app.router.add_get(
         "/image-url-1", NewImageHandler([b"image-bytes-1"], token="g.1.eventToken")
     )
@@ -1337,7 +1191,7 @@ async def test_event_manager_prefetch_image(
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
 
     # Turn on event fetching
     device.event_media_manager.cache_policy.fetch = True
@@ -1349,7 +1203,7 @@ async def test_event_manager_prefetch_image(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": ts1.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -1378,7 +1232,7 @@ async def test_event_manager_prefetch_image(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": ts2.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "DkY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -1407,30 +1261,22 @@ async def test_event_manager_prefetch_image(
 
 async def test_event_manager_event_expiration(
     app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.CameraEventImage": {},
-                    "sdm.devices.traits.CameraMotion": {},
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraEventImage": {},
+            "sdm.devices.traits.CameraMotion": {},
+        }
     )
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
 
     device.event_media_manager.cache_policy.event_cache_size = 10
 
@@ -1441,7 +1287,7 @@ async def test_event_manager_event_expiration(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": ts1.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -1460,7 +1306,7 @@ async def test_event_manager_event_expiration(
                 "eventId": "a94b2115-3b57-4eb4-8830-80519f188ec9",
                 "timestamp": ts2.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "DgY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -1481,7 +1327,7 @@ async def test_event_manager_event_expiration(
                 "eventId": "b83c2115-3b57-4eb4-8830-80519f167fa8",
                 "timestamp": ts3.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "EkY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -1500,36 +1346,27 @@ async def test_event_manager_event_expiration(
 
 async def test_event_manager_cache_expiration(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.CameraEventImage": {},
-                    "sdm.devices.traits.CameraMotion": {},
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraEventImage": {},
+            "sdm.devices.traits.CameraMotion": {},
+        }
     )
-    app.router.add_get("/enterprises/project-id1/devices", handler)
 
-    RESPONSE = {
+    response = {
         "results": {
             "url": "image-url-1",
             "token": "g.1.eventToken",
         },
     }
     num_events = 10
-    post_handler = NewHandler(r, list(itertools.repeat(RESPONSE, num_events)))
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
-    )
+    post_handler = NewHandler(recorder, list(itertools.repeat(response, num_events)))
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
     app.router.add_get(
         "/image-url-1",
         NewImageHandler(
@@ -1541,7 +1378,7 @@ async def test_event_manager_cache_expiration(
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
 
     # Turn on event fetching
     device.event_media_manager.cache_policy.fetch = True
@@ -1565,7 +1402,7 @@ async def test_event_manager_cache_expiration(
                     "eventId": f"0120ecc7-{i}",
                     "timestamp": ts.isoformat(timespec="seconds"),
                     "resourceUpdate": {
-                        "name": "enterprises/project-id1/devices/device-id1",
+                        "name": device_id,
                         "events": {
                             "sdm.devices.events.CameraMotion.Motion": {
                                 "eventSessionId": f"CjY5Y3VK..{i}...",
@@ -1591,26 +1428,20 @@ async def test_event_manager_cache_expiration(
 
 async def test_event_manager_prefetch_image_failure(
     app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraEventImage": {},
+            "sdm.devices.traits.CameraMotion": {},
+        }
+    )
 
     # Send one failure response, then 3 other valid responses. The cache size
     # is too so we're exercising events dropping out of the cache.
     responses = [
-        aiohttp.web.json_response(
-            {
-                "devices": [
-                    {
-                        "name": "enterprises/project-id1/devices/device-id1",
-                        "traits": {
-                            "sdm.devices.traits.CameraEventImage": {},
-                            "sdm.devices.traits.CameraMotion": {},
-                        },
-                    }
-                ],
-            }
-        ),
         aiohttp.web.json_response(
             {
                 "results": {
@@ -1650,10 +1481,7 @@ async def test_event_manager_prefetch_image_failure(
         assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
         return responses.pop(0)
 
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", handler
-    )
+    app.router.add_post(f"/{device_id}:executeCommand", handler)
     app.router.add_get(
         "/image-url-1",
         NewImageHandler(
@@ -1665,7 +1493,7 @@ async def test_event_manager_prefetch_image_failure(
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
 
     # Turn on event fetching
     device.event_media_manager.cache_policy.fetch = True
@@ -1680,7 +1508,7 @@ async def test_event_manager_prefetch_image_failure(
                     "eventId": f"0120ecc7-{i}",
                     "timestamp": ts.isoformat(timespec="seconds"),
                     "resourceUpdate": {
-                        "name": "enterprises/project-id1/devices/device-id1",
+                        "name": device_id,
                         "events": {
                             "sdm.devices.events.CameraMotion.Motion": {
                                 "eventSessionId": f"CjY5Y...{i}...",
@@ -1716,43 +1544,34 @@ async def test_event_manager_prefetch_image_failure(
 
 async def test_multi_device_events(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
 
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "device-id1",
-                "traits": {
-                    "sdm.devices.traits.CameraEventImage": {},
-                    "sdm.devices.traits.CameraMotion": {},
-                },
-            },
-            {
-                "name": "device-id2",
-                "traits": {
-                    "sdm.devices.traits.CameraEventImage": {},
-                    "sdm.devices.traits.CameraMotion": {},
-                },
-            },
-        ],
+    device_id1 = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraEventImage": {},
+            "sdm.devices.traits.CameraMotion": {},
+        }
     )
-    app.router.add_get("/enterprises/project-id1/devices", handler)
+    device_id2 = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraEventImage": {},
+            "sdm.devices.traits.CameraMotion": {},
+        }
+    )
 
-    RESPONSE = {
+    response = {
         "results": {
             "url": "image-url-1",
             "token": "g.1.eventToken",
         },
     }
     num_events = 4
-    post_handler = NewHandler(r, list(itertools.repeat(RESPONSE, num_events)))
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
-    )
+    post_handler = NewHandler(recorder, list(itertools.repeat(response, num_events)))
+    app.router.add_post(f"/{device_id1}:executeCommand", post_handler)
     app.router.add_get(
         "/image-url-1",
         NewImageHandler(
@@ -1764,9 +1583,9 @@ async def test_multi_device_events(
     devices = await api.async_get_devices()
     assert len(devices) == 2
     device = devices[0]
-    assert "device-id1" == device.name
+    assert device.name == device_id1
     device = devices[1]
-    assert "device-id2" == device.name
+    assert device.name == device_id2
 
     # Use shared event store for all devices
     store = InMemoryEventMediaStore()
@@ -1786,7 +1605,7 @@ async def test_multi_device_events(
                 "eventId": "0120ecc7-1",
                 "timestamp": ts.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "device-id1",
+                    "name": device_id1,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -1811,7 +1630,7 @@ async def test_multi_device_events(
                 "eventId": "0120ecc7-2",
                 "timestamp": ts.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "device-id2",
+                    "name": device_id2,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -1844,35 +1663,28 @@ async def test_camera_active_clip_preview_threads(
     test_trait: str,
     test_event_trait: str,
     app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.CameraClipPreview": {},
-                    test_trait: {},
-                },
-            },
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraClipPreview": {},
+            test_trait: {},
+        }
     )
 
     async def img_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
         return aiohttp.web.Response(body=b"image-bytes-1")
 
-    app.router.add_get("/enterprises/project-id1/devices", handler)
     app.router.add_get("/image-url-1", img_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
 
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     await device.async_handle_event(
@@ -1881,7 +1693,7 @@ async def test_camera_active_clip_preview_threads(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": now.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         test_event_trait: {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -1908,7 +1720,7 @@ async def test_camera_active_clip_preview_threads(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": now.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         test_event_trait: {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -1936,7 +1748,7 @@ async def test_camera_active_clip_preview_threads(
     image = await trait.generate_active_event_image()
     assert image
     assert image.event_image_type == EventImageType.CLIP_PREVIEW
-    assert "image-url-1" == image.url
+    assert image.url == "image-url-1"
     assert image.token is None
 
     # Verify event manager view
@@ -1962,29 +1774,22 @@ async def test_camera_active_clip_preview_threads(
 
 async def test_unsupported_event_for_event_manager(
     app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.CameraEventImage": {},
-                    "sdm.devices.traits.CameraMotion": {},
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraEventImage": {},
+            "sdm.devices.traits.CameraMotion": {},
+        }
     )
-    app.router.add_get("/enterprises/project-id1/devices", handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
 
     ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
     await device.async_handle_event(
@@ -1993,7 +1798,7 @@ async def test_unsupported_event_for_event_manager(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": ts1.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         "sdm.devices.events.DoorbellChime.Chime": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -2014,37 +1819,30 @@ async def test_unsupported_event_for_event_manager(
 
 async def test_camera_active_clip_preview_threads_with_new_events(
     app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
     """Test an update to an existing session that contains new events."""
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.CameraClipPreview": {},
-                    "sdm.devices.traits.CameraMotion": {},
-                    "sdm.devices.traits.CameraPerson": {},
-                },
-            },
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraClipPreview": {},
+            "sdm.devices.traits.CameraMotion": {},
+            "sdm.devices.traits.CameraPerson": {},
+        }
     )
 
     async def img_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
         return aiohttp.web.Response(body=b"image-bytes-1")
 
-    app.router.add_get("/enterprises/project-id1/devices", handler)
     app.router.add_get("/image-url-1", img_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
 
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     await device.async_handle_event(
@@ -2053,7 +1851,7 @@ async def test_camera_active_clip_preview_threads_with_new_events(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": now.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -2081,7 +1879,7 @@ async def test_camera_active_clip_preview_threads_with_new_events(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": now.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -2160,29 +1958,18 @@ async def test_events_without_media_support(
     test_trait: str,
     test_event_trait: str,
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    test_trait: {},
-                },
-            }
-        ],
-    )
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
+    device_id = device_handler.add_device(traits={test_trait: {}})
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
 
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     await device.async_handle_event(
@@ -2191,7 +1978,7 @@ async def test_events_without_media_support(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": now.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         test_event_trait: {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -2212,31 +1999,22 @@ async def test_events_without_media_support(
 
 async def test_event_manager_no_media_support(
     app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.CameraMotion": {},
-                    "sdm.devices.traits.CameraPerson": {},
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraMotion": {},
+            "sdm.devices.traits.CameraPerson": {},
+        }
     )
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
 
     # Turn on event fetching
     device.event_media_manager.cache_policy.fetch = True
@@ -2248,7 +2026,7 @@ async def test_event_manager_no_media_support(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": ts1.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "DkY5Y3VKaTZwR3o4Y19YbTVfMF...",
