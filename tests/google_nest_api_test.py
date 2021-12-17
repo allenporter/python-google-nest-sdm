@@ -15,6 +15,8 @@ from google_nest_sdm.event_media import InMemoryEventMediaStore
 from google_nest_sdm.exceptions import ApiException, AuthException
 
 from .conftest import (
+    PROJECT_ID,
+    DeviceHandler,
     NewDeviceHandler,
     NewHandler,
     NewImageHandler,
@@ -22,7 +24,6 @@ from .conftest import (
     Recorder,
 )
 
-PROJECT_ID = "project-id1"
 FAKE_TOKEN = "some-token"
 
 
@@ -38,69 +39,43 @@ async def api_client(
 
 
 async def test_get_devices(
-    app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "type": "sdm.devices.types.device-type1",
-                "traits": {},
-                "parentRelations": [],
-            },
-            {
-                "name": "enterprises/project-id1/devices/device-id2",
-                "type": "sdm.devices.types.device-type2",
-                "traits": {},
-                "parentRelations": [],
-            },
-        ],
-    )
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
+    device_id1 = device_handler.add_device(device_type="sdm.devices.types.device-type1")
+    device_id2 = device_handler.add_device(device_type="sdm.devices.types.device-type2")
 
     api = await api_client()
+
     devices = await api.async_get_devices()
     assert len(devices) == 2
-    assert "enterprises/project-id1/devices/device-id1" == devices[0].name
-    assert "sdm.devices.types.device-type1" == devices[0].type
-    assert "enterprises/project-id1/devices/device-id2" == devices[1].name
-    assert "sdm.devices.types.device-type2" == devices[1].type
+    assert devices[0].name == device_id1
+    assert devices[0].type == "sdm.devices.types.device-type1"
+    assert devices[1].name == device_id2
+    assert devices[1].type == "sdm.devices.types.device-type2"
 
 
 async def test_fan_set_timer(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.Fan": {
-                        "timerMode": "OFF",
-                    },
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.Fan": {
+                "timerMode": "OFF",
+            },
+        }
     )
-    post_handler = NewHandler(r, [{}])
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
-    )
+    post_handler = NewHandler(recorder, [{}])
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device_id == device.name
     trait = device.traits["sdm.devices.traits.Fan"]
     assert trait.timer_mode == "OFF"
     await trait.set_timer("ON", 3600)
@@ -111,42 +86,33 @@ async def test_fan_set_timer(
             "duration": "3600s",
         },
     }
-    assert expected_request == r.request
+    assert recorder.request == expected_request
 
 
 async def test_thermostat_eco_set_mode(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.ThermostatEco": {
-                        "availableModes": ["MANUAL_ECO", "OFF"],
-                        "mode": "MANUAL_ECO",
-                        "heatCelsius": 20.0,
-                        "coolCelsius": 22.0,
-                    },
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.ThermostatEco": {
+                "availableModes": ["MANUAL_ECO", "OFF"],
+                "mode": "MANUAL_ECO",
+                "heatCelsius": 20.0,
+                "coolCelsius": 22.0,
+            },
+        }
     )
-    post_handler = NewHandler(r, [{}])
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
-    )
+    post_handler = NewHandler(recorder, [{}])
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
     trait = device.traits["sdm.devices.traits.ThermostatEco"]
     assert trait.mode == "MANUAL_ECO"
     await trait.set_mode("OFF")
@@ -154,40 +120,31 @@ async def test_thermostat_eco_set_mode(
         "command": "sdm.devices.commands.ThermostatEco.SetMode",
         "params": {"mode": "OFF"},
     }
-    assert expected_request == r.request
+    assert recorder.request == expected_request
 
 
 async def test_thermostat_mode_set_mode(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.ThermostatMode": {
-                        "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
-                        "mode": "COOL",
-                    },
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.ThermostatMode": {
+                "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
+                "mode": "COOL",
+            },
+        }
     )
-    post_handler = NewHandler(r, [{}])
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
-    )
+    post_handler = NewHandler(recorder, [{}])
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
     trait = device.traits["sdm.devices.traits.ThermostatMode"]
     assert trait.mode == "COOL"
     await trait.set_mode("HEAT")
@@ -195,40 +152,31 @@ async def test_thermostat_mode_set_mode(
         "command": "sdm.devices.commands.ThermostatMode.SetMode",
         "params": {"mode": "HEAT"},
     }
-    assert expected_request == r.request
+    assert recorder.request == expected_request
 
 
 async def test_thermostat_temperature_set_point(
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.ThermostatTemperatureSetpoint": {
-                        "heatCelsius": 23.0,
-                        "coolCelsius": 24.0,
-                    },
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.ThermostatTemperatureSetpoint": {
+                "heatCelsius": 23.0,
+                "coolCelsius": 24.0,
+            },
+        }
     )
-    post_handler = NewHandler(r, [{}, {}, {}])
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_post(
-        "/enterprises/project-id1/devices/device-id1:executeCommand", post_handler
-    )
+    post_handler = NewHandler(recorder, [{}, {}, {}])
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
     trait = device.traits["sdm.devices.traits.ThermostatTemperatureSetpoint"]
     assert trait.heat_celsius == 23.0
     assert trait.cool_celsius == 24.0
@@ -237,14 +185,14 @@ async def test_thermostat_temperature_set_point(
         "command": "sdm.devices.commands.ThermostatTemperatureSetpoint.SetHeat",
         "params": {"heatCelsius": 25.0},
     }
-    assert expected_request == r.request
+    assert recorder.request == expected_request
 
     await trait.set_cool(26.0)
     expected_request = {
         "command": "sdm.devices.commands.ThermostatTemperatureSetpoint.SetCool",
         "params": {"coolCelsius": 26.0},
     }
-    assert expected_request == r.request
+    assert recorder.request == expected_request
 
     await trait.set_range(27.0, 28.0)
     expected_request = {
@@ -254,7 +202,7 @@ async def test_thermostat_temperature_set_point(
             "coolCelsius": 28.0,
         },
     }
-    assert expected_request == r.request
+    assert recorder.request == expected_request
 
 
 async def test_camera_live_stream_rtsp(
@@ -2014,37 +1962,30 @@ async def test_unsupported_event_for_event_manager(
 
 async def test_camera_active_clip_preview_threads_with_new_events(
     app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
     """Test an update to an existing session that contains new events."""
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    "sdm.devices.traits.CameraClipPreview": {},
-                    "sdm.devices.traits.CameraMotion": {},
-                    "sdm.devices.traits.CameraPerson": {},
-                },
-            },
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraClipPreview": {},
+            "sdm.devices.traits.CameraMotion": {},
+            "sdm.devices.traits.CameraPerson": {},
+        }
     )
 
     async def img_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
         return aiohttp.web.Response(body=b"image-bytes-1")
 
-    app.router.add_get("/enterprises/project-id1/devices", handler)
     app.router.add_get("/image-url-1", img_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
 
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     await device.async_handle_event(
@@ -2053,7 +1994,7 @@ async def test_camera_active_clip_preview_threads_with_new_events(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": now.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -2081,7 +2022,7 @@ async def test_camera_active_clip_preview_threads_with_new_events(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": now.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -2160,29 +2101,18 @@ async def test_events_without_media_support(
     test_trait: str,
     test_event_trait: str,
     app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "traits": {
-                    test_trait: {},
-                },
-            }
-        ],
-    )
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
+    device_id = device_handler.add_device(traits={test_trait: {}})
 
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
-    assert "enterprises/project-id1/devices/device-id1" == device.name
+    assert device.name == device_id
 
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     await device.async_handle_event(
@@ -2191,7 +2121,7 @@ async def test_events_without_media_support(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": now.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": "enterprises/project-id1/devices/device-id1",
+                    "name": device_id,
                     "events": {
                         test_event_trait: {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
