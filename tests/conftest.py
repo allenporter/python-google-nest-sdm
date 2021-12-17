@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from abc import ABC
 from typing import Any, AsyncGenerator, Awaitable, Callable, Dict, List, Optional, cast
 
@@ -162,7 +163,6 @@ class DeviceHandler(JsonHandler):
         """Initialize DeviceHandler."""
         super().__init__()
         self.project_id = PROJECT_ID
-        self.next_id = 0
         self.devices: List[Dict[str, Any]] = []
 
     def add_device(
@@ -172,15 +172,16 @@ class DeviceHandler(JsonHandler):
         parentRelations: List[dict[str, Any]] = [],
     ) -> str:
         """Add a fake device reply."""
-        self.next_id += 1
-        device_id = f"enterprises/{self.project_id}/devices/device-id-{self.next_id}"
-        device = {
-            "name": device_id,
-            "type": device_type,
-            "traits": traits,
-            "parentRelations": parentRelations,
-        }
-        self.devices.append(device)
+        uid = uuid.uuid4().hex
+        device_id = f"enterprises/{self.project_id}/devices/device-id-{uid}"
+        self.devices.append(
+            {
+                "name": device_id,
+                "type": device_type,
+                "traits": traits,
+                "parentRelations": parentRelations,
+            }
+        )
         return device_id
 
     def get_response(self) -> dict[str, Any]:
@@ -194,27 +195,24 @@ class StructureHandler(JsonHandler):
     def __init__(self) -> None:
         """Initialize StructureHandler."""
         super().__init__()
+        self.project_id = PROJECT_ID
         self.structures: List[Dict[str, Any]] = []
+
+    def add_structure(self, traits: dict[str, Any] = {}) -> str:
+        """Add a structure to the response."""
+        uid = uuid.uuid4().hex
+        structure_id = f"enterprises/{self.project_id}/structures/structure-id-{uid}"
+        self.structures.append(
+            {
+                "name": structure_id,
+                "traits": traits,
+            }
+        )
+        return structure_id
 
     def get_response(self) -> dict[str, Any]:
         """Return structure API response."""
         return {"structures": self.structures}
-
-
-def NewDeviceHandler(
-    r: Recorder, devices: List[Dict[str, Any]], token: str = FAKE_TOKEN
-) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
-    d = DeviceHandler()
-    d.token = token
-    d.recorder = r
-    d.devices = devices
-    return d.handler
-
-
-def NewStructureHandler(
-    r: Recorder, structures: List[Dict[str, Any]], token: str = FAKE_TOKEN
-) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
-    return NewHandler(r, [{"structures": structures}], token=token)
 
 
 def NewHandler(
@@ -253,8 +251,19 @@ def recorder() -> Recorder:
 def device_handler(
     app: aiohttp.web.Application, project_id: str, recorder: Recorder
 ) -> DeviceHandler:
-    d = DeviceHandler()
-    d.project_id = project_id
-    d.recorder = recorder
-    app.router.add_get(f"/enterprises/{project_id}/devices", d.handler)
-    return d
+    handler = DeviceHandler()
+    handler.project_id = project_id
+    handler.recorder = recorder
+    app.router.add_get(f"/enterprises/{project_id}/devices", handler.handler)
+    return handler
+
+
+@pytest.fixture
+def structure_handler(
+    app: aiohttp.web.Application, project_id: str, recorder: Recorder
+) -> StructureHandler:
+    handler = StructureHandler()
+    handler.project_id = project_id
+    handler.recorder = recorder
+    app.router.add_get(f"/enterprises/{project_id}/structures", handler.handler)
+    return handler

@@ -23,7 +23,7 @@ from google_nest_sdm.google_nest_subscriber import (
     GoogleNestSubscriber,
 )
 
-from .conftest import NewDeviceHandler, NewStructureHandler, Recorder
+from .conftest import DeviceHandler, StructureHandler
 
 PROJECT_ID = "project-id1"
 SUBSCRIBER_ID = "projects/some-project-id/subscriptions/subscriber-id1"
@@ -92,153 +92,69 @@ def subscriber_client(
 
 
 async def test_subscribe_no_events(
-    app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    structure_handler: StructureHandler,
     subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "type": "sdm.devices.types.device-type1",
-                "traits": {},
-                "parentRelations": [],
-            },
-            {
-                "name": "enterprises/project-id1/devices/device-id2",
-                "type": "sdm.devices.types.device-type2",
-                "traits": {},
-                "parentRelations": [],
-            },
-        ],
-    )
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_get(
-        "/enterprises/project-id1/structures",
-        NewStructureHandler(
-            r,
-            [
-                {
-                    "name": "enterprises/project-id1/structures/structure-id1",
-                }
-            ],
-        ),
-    )
+    device_id1 = device_handler.add_device(device_type="sdm.devices.types.device-type1")
+    device_id2 = device_handler.add_device(device_type="sdm.devices.types.device-type2")
+    structure_handler.add_structure()
 
     subscriber = await subscriber_client()
     await subscriber.start_async()
     device_manager = await subscriber.async_get_device_manager()
     devices = device_manager.devices
-    assert "enterprises/project-id1/devices/device-id1" in devices
-    assert (
-        "sdm.devices.types.device-type1"
-        == devices["enterprises/project-id1/devices/device-id1"].type
-    )
-    assert "enterprises/project-id1/devices/device-id2" in devices
-    assert (
-        "sdm.devices.types.device-type2"
-        == devices["enterprises/project-id1/devices/device-id2"].type
-    )
+    assert device_id1 in devices
+    assert devices[device_id1].type == "sdm.devices.types.device-type1"
+    assert device_id2 in devices
+    assert devices[device_id2].type == "sdm.devices.types.device-type2"
     subscriber.stop_async()
 
 
 async def test_subscribe_device_manager(
     app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    structure_handler: StructureHandler,
     subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "type": "sdm.devices.types.device-type1",
-                "traits": {},
-                "parentRelations": [],
-            },
-            {
-                "name": "enterprises/project-id1/devices/device-id2",
-                "type": "sdm.devices.types.device-type2",
-                "traits": {},
-                "parentRelations": [],
-            },
-        ],
-    )
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_get(
-        "/enterprises/project-id1/structures",
-        NewStructureHandler(
-            r,
-            [
-                {
-                    "name": "enterprises/project-id1/structures/structure-id1",
-                }
-            ],
-        ),
-    )
+    device_id1 = device_handler.add_device(device_type="sdm.devices.types.device-type1")
+    device_id2 = device_handler.add_device(device_type="sdm.devices.types.device-type2")
+    structure_handler.add_structure()
 
     subscriber = await subscriber_client()
     await subscriber.start_async()
     device_manager = await subscriber.async_get_device_manager()
     devices = device_manager.devices
-    assert "enterprises/project-id1/devices/device-id1" in devices
-    assert (
-        "sdm.devices.types.device-type1"
-        == devices["enterprises/project-id1/devices/device-id1"].type
-    )
-    assert "enterprises/project-id1/devices/device-id2" in devices
-    assert (
-        "sdm.devices.types.device-type2"
-        == devices["enterprises/project-id1/devices/device-id2"].type
-    )
+    assert device_id1 in devices
+    assert devices[device_id1].type == "sdm.devices.types.device-type1"
+    assert device_id2 in devices
+    assert devices[device_id2].type == "sdm.devices.types.device-type2"
     subscriber.stop_async()
 
 
 async def test_subscribe_update_trait(
     app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    structure_handler: StructureHandler,
     subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
     subscriber_factory: FakeSubscriberFactory,
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "type": "sdm.devices.types.device-type1",
-                "traits": {
-                    "sdm.devices.traits.Connectivity": {
-                        "status": "ONLINE",
-                    },
-                },
-                "parentRelations": [],
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.Connectivity": {
+                "status": "ONLINE",
+            },
+        }
     )
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_get(
-        "/enterprises/project-id1/structures",
-        NewStructureHandler(
-            r,
-            [
-                {
-                    "name": "enterprises/project-id1/structures/structure-id1",
-                }
-            ],
-        ),
-    )
+    structure_handler.add_structure()
 
     subscriber = await subscriber_client()
     subscriber.cache_policy.event_cache_size = 5
     await subscriber.start_async()
     device_manager = await subscriber.async_get_device_manager()
     devices = device_manager.devices
-    assert "enterprises/project-id1/devices/device-id1" in devices
-    device = devices["enterprises/project-id1/devices/device-id1"]
+    assert device_id in devices
+    device = devices[device_id]
     trait = device.traits["sdm.devices.traits.Connectivity"]
     assert "ONLINE" == trait.status
 
@@ -246,7 +162,7 @@ async def test_subscribe_update_trait(
         "eventId": "6f29332e-5537-47f6-a3f9-840c307340f5",
         "timestamp": "2020-10-10T07:09:06.851Z",
         "resourceUpdate": {
-            "name": "enterprises/project-id1/devices/device-id1",
+            "name": device_id,
             "traits": {
                 "sdm.devices.traits.Connectivity": {
                     "status": "OFFLINE",
@@ -258,8 +174,8 @@ async def test_subscribe_update_trait(
     await subscriber_factory.async_push_event(event)
 
     devices = device_manager.devices
-    assert "enterprises/project-id1/devices/device-id1" in devices
-    device = devices["enterprises/project-id1/devices/device-id1"]
+    assert device_id in devices
+    device = devices[device_id]
     trait = device.traits["sdm.devices.traits.Connectivity"]
     assert "OFFLINE" == trait.status
     subscriber.stop_async()
@@ -267,60 +183,30 @@ async def test_subscribe_update_trait(
 
 async def test_subscribe_device_manager_init(
     app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    structure_handler: StructureHandler,
     subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "type": "sdm.devices.types.device-type1",
-                "traits": {},
-                "parentRelations": [],
-            },
-            {
-                "name": "enterprises/project-id1/devices/device-id2",
-                "type": "sdm.devices.types.device-type2",
-                "traits": {},
-                "parentRelations": [],
-            },
-        ],
-    )
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_get(
-        "/enterprises/project-id1/structures",
-        NewStructureHandler(
-            r,
-            [
-                {
-                    "name": "enterprises/project-id1/structures/structure-id1",
-                }
-            ],
-        ),
-    )
+    device_id1 = device_handler.add_device(device_type="sdm.devices.types.device-type1")
+    device_id2 = device_handler.add_device(device_type="sdm.devices.types.device-type2")
+    structure_handler.add_structure()
 
     subscriber = await subscriber_client()
     start_async = subscriber.start_async()
     device_manager = await subscriber.async_get_device_manager()
     await start_async
     devices = device_manager.devices
-    assert "enterprises/project-id1/devices/device-id1" in devices
-    assert (
-        "sdm.devices.types.device-type1"
-        == devices["enterprises/project-id1/devices/device-id1"].type
-    )
-    assert "enterprises/project-id1/devices/device-id2" in devices
-    assert (
-        "sdm.devices.types.device-type2"
-        == devices["enterprises/project-id1/devices/device-id2"].type
-    )
+    assert device_id1 in devices
+    assert devices[device_id1].type == "sdm.devices.types.device-type1"
+    assert device_id2 in devices
+    assert devices[device_id2].type == "sdm.devices.types.device-type2"
     subscriber.stop_async()
 
 
 async def test_subscriber_watchdog(
     app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    structure_handler: StructureHandler,
     auth_client: Callable[[], Awaitable[AbstractAuth]],
     subscriber_factory: FakeSubscriberFactory,
 ) -> None:
@@ -336,12 +222,6 @@ async def test_subscriber_watchdog(
         event2.set()
 
     subscriber_factory.tasks = [task1, task2]
-    r = Recorder()
-    app.router.add_get("/enterprises/project-id1/devices", NewDeviceHandler(r, []))
-    app.router.add_get(
-        "/enterprises/project-id1/structures",
-        NewStructureHandler(r, []),
-    )
 
     auth = await auth_client()
     subscriber = GoogleNestSubscriber(
@@ -365,6 +245,8 @@ async def test_subscriber_watchdog(
 
 async def test_subscriber_error(
     app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    structure_handler: StructureHandler,
     subscriber_client: Callable[
         [Optional[AbstractSubscriberFactory]], Awaitable[GoogleNestSubscriber]
     ],
@@ -381,13 +263,6 @@ async def test_subscriber_error(
         ) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
             raise ClientError("Some error")  # type: ignore
 
-    r = Recorder()
-    app.router.add_get("/enterprises/project-id1/devices", NewDeviceHandler(r, []))
-    app.router.add_get(
-        "/enterprises/project-id1/structures",
-        NewStructureHandler(r, []),
-    )
-
     subscriber = await subscriber_client(FailingFactory())
 
     with pytest.raises(SubscriberException):
@@ -397,6 +272,8 @@ async def test_subscriber_error(
 
 async def test_subscriber_auth_error(
     app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    structure_handler: StructureHandler,
     subscriber_client: Callable[
         [Optional[AbstractSubscriberFactory]], Awaitable[GoogleNestSubscriber]
     ],
@@ -413,12 +290,6 @@ async def test_subscriber_auth_error(
         ) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
             raise Unauthenticated("Auth failure")  # type: ignore
 
-    r = Recorder()
-    app.router.add_get("/enterprises/project-id1/devices", NewDeviceHandler(r, []))
-    app.router.add_get(
-        "/enterprises/project-id1/structures",
-        NewStructureHandler(r, []),
-    )
     subscriber = await subscriber_client(FailingFactory())
     with pytest.raises(AuthException):
         await subscriber.start_async()
@@ -427,41 +298,20 @@ async def test_subscriber_auth_error(
 
 async def test_auth_refresh(
     app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    structure_handler: StructureHandler,
     refreshing_auth_client: Callable[[], Awaitable[AbstractAuth]],
     subscriber_factory: FakeSubscriberFactory,
 ) -> None:
-    r = Recorder()
-
     async def auth_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         return aiohttp.web.json_response({"token": "updated-token"})
 
-    app.router.add_get(
-        "/enterprises/project-id1/devices",
-        NewDeviceHandler(
-            r,
-            [
-                {
-                    "name": "enterprises/project-id1/devices/device-id1",
-                    "type": "sdm.devices.types.device-type1",
-                    "traits": {},
-                    "parentRelations": [],
-                },
-            ],
-            token="updated-token",
-        ),
-    )
-    app.router.add_get(
-        "/enterprises/project-id1/structures",
-        NewStructureHandler(
-            r,
-            [
-                {
-                    "name": "enterprises/project-id1/structures/structure-id1",
-                }
-            ],
-            token="updated-token",
-        ),
-    )
+    device_handler.token = "updated-token"
+    device_id = device_handler.add_device(device_type="sdm.devices.types.device-type1")
+
+    structure_handler.token = "updated-token"
+    structure_handler.add_structure()
+
     app.router.add_get("/refresh-auth", auth_handler)
 
     auth = await refreshing_auth_client()
@@ -471,51 +321,26 @@ async def test_auth_refresh(
     await subscriber.start_async()
     device_manager = await subscriber.async_get_device_manager()
     devices = device_manager.devices
-    assert "enterprises/project-id1/devices/device-id1" in devices
-    assert (
-        "sdm.devices.types.device-type1"
-        == devices["enterprises/project-id1/devices/device-id1"].type
-    )
+    assert device_id in devices
+    assert devices[device_id].type == "sdm.devices.types.device-type1"
     subscriber.stop_async()
 
 
 async def test_auth_refresh_error(
     app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    structure_handler: StructureHandler,
     refreshing_auth_client: Callable[[], Awaitable[AbstractAuth]],
     subscriber_factory: FakeSubscriberFactory,
 ) -> None:
-    r = Recorder()
-
     async def auth_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         return aiohttp.web.Response(status=401)
 
-    app.router.add_get(
-        "/enterprises/project-id1/devices",
-        NewDeviceHandler(
-            r,
-            [
-                {
-                    "name": "enterprises/project-id1/devices/device-id1",
-                    "type": "sdm.devices.types.device-type1",
-                    "traits": {},
-                    "parentRelations": [],
-                },
-            ],
-            token="updated-token",
-        ),
-    )
-    app.router.add_get(
-        "/enterprises/project-id1/structures",
-        NewStructureHandler(
-            r,
-            [
-                {
-                    "name": "enterprises/project-id1/structures/structure-id1",
-                }
-            ],
-            token="updated-token",
-        ),
-    )
+    device_handler.token = "updated-token"
+    device_handler.add_device()
+    structure_handler.token = "updated-token"
+    structure_handler.add_structure()
+
     app.router.add_get("/refresh-auth", auth_handler)
 
     auth = await refreshing_auth_client()
@@ -530,16 +355,11 @@ async def test_auth_refresh_error(
 
 async def test_subscriber_id_error(
     app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    structure_handler: StructureHandler,
     auth_client: Callable[[], Awaitable[AbstractAuth]],
     subscriber_factory: FakeSubscriberFactory,
 ) -> None:
-    r = Recorder()
-    app.router.add_get("/enterprises/project-id1/devices", NewDeviceHandler(r, []))
-    app.router.add_get(
-        "/enterprises/project-id1/structures",
-        NewStructureHandler(r, []),
-    )
-
     auth = await auth_client()
 
     subscriber = GoogleNestSubscriber(
@@ -552,43 +372,26 @@ async def test_subscriber_id_error(
 
 async def test_subscribe_thread_update(
     app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    structure_handler: StructureHandler,
     subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
     subscriber_factory: FakeSubscriberFactory,
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "type": "sdm.devices.types.device-type1",
-                "traits": {
-                    "sdm.devices.traits.CameraClipPreview": {},
-                    "sdm.devices.traits.CameraMotion": {},
-                },
-            }
-        ],
-    )
 
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_get(
-        "/enterprises/project-id1/structures",
-        NewStructureHandler(
-            r,
-            [
-                {
-                    "name": "enterprises/project-id1/structures/structure-id1",
-                }
-            ],
-        ),
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraClipPreview": {},
+            "sdm.devices.traits.CameraMotion": {},
+        }
     )
+    structure_handler.add_structure()
 
     subscriber = await subscriber_client()
     subscriber.cache_policy.event_cache_size = 5
     await subscriber.start_async()
     device_manager = await subscriber.async_get_device_manager()
     devices = device_manager.devices
-    assert "enterprises/project-id1/devices/device-id1" in devices
+    assert device_id in devices
 
     messages: list[EventMessage] = []
 
@@ -602,7 +405,7 @@ async def test_subscribe_thread_update(
         "eventId": "6f29332e-5537-47f6-a3f9-840c307340f5",
         "timestamp": "2020-10-10T07:09:06.851Z",
         "resourceUpdate": {
-            "name": "enterprises/project-id1/devices/device-id1",
+            "name": device_id,
             "events": {
                 "sdm.devices.events.CameraMotion.Motion": {
                     "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -628,7 +431,7 @@ async def test_subscribe_thread_update(
         "eventId": "7f29332e-5537-47f6-a3f9-840c307340f5",
         "timestamp": "2020-10-10T07:09:07.851Z",
         "resourceUpdate": {
-            "name": "enterprises/project-id1/devices/device-id1",
+            "name": device_id,
             "events": {
                 "sdm.devices.events.CameraMotion.Motion": {
                     "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -665,44 +468,26 @@ async def test_subscribe_thread_update(
 
 async def test_subscribe_thread_update_new_events(
     app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    structure_handler: StructureHandler,
     subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
     subscriber_factory: FakeSubscriberFactory,
 ) -> None:
-    r = Recorder()
-    handler = NewDeviceHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/devices/device-id1",
-                "type": "sdm.devices.types.device-type1",
-                "traits": {
-                    "sdm.devices.traits.CameraClipPreview": {},
-                    "sdm.devices.traits.CameraMotion": {},
-                    "sdm.devices.traits.CameraPerson": {},
-                },
-            }
-        ],
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraClipPreview": {},
+            "sdm.devices.traits.CameraMotion": {},
+            "sdm.devices.traits.CameraPerson": {},
+        }
     )
-
-    app.router.add_get("/enterprises/project-id1/devices", handler)
-    app.router.add_get(
-        "/enterprises/project-id1/structures",
-        NewStructureHandler(
-            r,
-            [
-                {
-                    "name": "enterprises/project-id1/structures/structure-id1",
-                }
-            ],
-        ),
-    )
+    structure_handler.add_structure()
 
     subscriber = await subscriber_client()
     subscriber.cache_policy.event_cache_size = 5
     await subscriber.start_async()
     device_manager = await subscriber.async_get_device_manager()
     devices = device_manager.devices
-    assert "enterprises/project-id1/devices/device-id1" in devices
+    assert device_id in devices
 
     messages: list[EventMessage] = []
 
@@ -716,7 +501,7 @@ async def test_subscribe_thread_update_new_events(
         "eventId": "6f29332e-5537-47f6-a3f9-840c307340f5",
         "timestamp": "2020-10-10T07:09:06.851Z",
         "resourceUpdate": {
-            "name": "enterprises/project-id1/devices/device-id1",
+            "name": device_id,
             "events": {
                 "sdm.devices.events.CameraMotion.Motion": {
                     "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -742,7 +527,7 @@ async def test_subscribe_thread_update_new_events(
         "eventId": "7f29332e-5537-47f6-a3f9-840c307340f5",
         "timestamp": "2020-10-10T07:09:07.851Z",
         "resourceUpdate": {
-            "name": "enterprises/project-id1/devices/device-id1",
+            "name": device_id,
             "events": {
                 "sdm.devices.events.CameraMotion.Motion": {
                     "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",

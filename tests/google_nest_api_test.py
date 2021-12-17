@@ -19,8 +19,8 @@ from .conftest import (
     DeviceHandler,
     NewHandler,
     NewImageHandler,
-    NewStructureHandler,
     Recorder,
+    StructureHandler,
 )
 
 FAKE_TOKEN = "some-token"
@@ -776,39 +776,30 @@ async def test_camera_active_clip_preview(
 
 async def test_get_structures(
     app: aiohttp.web.Application,
+    structure_handler: StructureHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    handler = NewStructureHandler(
-        r,
-        [
-            {
-                "name": "enterprises/project-id1/structures/structure-id1",
-                "traits": {
-                    "sdm.structures.traits.Info": {
-                        "customName": "some-name1",
-                    }
-                },
-            },
-            {
-                "name": "enterprises/project-id1/structures/structure-id2",
-                "traits": {
-                    "sdm.structures.traits.Info": {
-                        "customName": "some-name2",
-                    }
-                },
-            },
-        ],
+    structure_id1 = structure_handler.add_structure(
+        traits={
+            "sdm.structures.traits.Info": {
+                "customName": "some-name1",
+            }
+        }
     )
-
-    app.router.add_get("/enterprises/project-id1/structures", handler)
+    structure_id2 = structure_handler.add_structure(
+        {
+            "sdm.structures.traits.Info": {
+                "customName": "some-name2",
+            }
+        }
+    )
 
     api = await api_client()
     structures = await api.async_get_structures()
     assert len(structures) == 2
-    assert "enterprises/project-id1/structures/structure-id1" == structures[0].name
+    assert structures[0].name == structure_id1
     assert "sdm.structures.traits.Info" in structures[0].traits
-    assert "enterprises/project-id1/structures/structure-id2" == structures[1].name
+    assert structures[1].name == structure_id2
     assert "sdm.structures.traits.Info" in structures[1].traits
 
 
@@ -934,11 +925,10 @@ async def test_missing_device(
 
 async def test_no_structures(
     app: aiohttp.web.Application,
+    structure_handler: StructureHandler,
+    recorder: Recorder,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    app.router.add_get("/enterprises/project-id1/structures", NewHandler(r, [{}]))
-
     api = await api_client()
     structures = await api.async_get_structures()
     assert len(structures) == 0
@@ -946,11 +936,9 @@ async def test_no_structures(
 
 async def test_missing_structures(
     app: aiohttp.web.Application,
+    structure_handler: StructureHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
-    r = Recorder()
-    app.router.add_get("/enterprises/project-id1/structures/abc", NewHandler(r, [{}]))
-
     api = await api_client()
     structure = await api.async_get_structure("abc")
     assert structure is None
