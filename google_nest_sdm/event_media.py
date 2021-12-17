@@ -278,13 +278,17 @@ class EventMediaManager:
     """Responsible for handling recent events and fetching associated media."""
 
     def __init__(
-        self, device_id: str, event_trait_map: Dict[str, EventImageGenerator]
+        self,
+        device_id: str,
+        event_trait_map: Dict[str, EventImageGenerator],
+        support_fetch: bool,
     ) -> None:
         """Initialize DeviceEventMediaManager."""
         self._device_id = device_id
         self._event_trait_map = event_trait_map
         self._cache_policy = CachePolicy()
         self._callback: Callable[[EventMessage], Awaitable[None]] | None = None
+        self._support_fetch = support_fetch
 
     @property
     def cache_policy(self) -> CachePolicy:
@@ -453,8 +457,7 @@ class EventMediaManager:
 
             await self._async_update(event_data)
 
-            # Prefetch media, otherwise we may
-            if self._cache_policy.fetch:
+            if self._support_fetch and self._cache_policy.fetch:
                 try:
                     await self.get_media(event_session_id)
                 except GoogleNestException as err:

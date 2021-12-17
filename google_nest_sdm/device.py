@@ -41,7 +41,12 @@ def _MakeEventTraitMap(
 class Device:
     """Class that represents a device object in the Google Nest SDM API."""
 
-    def __init__(self, raw_data: Mapping[str, Any], traits: Dict[str, Any]):
+    def __init__(
+        self,
+        raw_data: Mapping[str, Any],
+        traits: Dict[str, Any],
+        event_media_manager: EventMediaManager,
+    ) -> None:
         """Initialize a device."""
         self._raw_data = raw_data
         self._traits = traits
@@ -52,9 +57,7 @@ class Device:
                 continue
             self._relations[relation[PARENT]] = relation[DISPLAYNAME]
         self._callbacks: List[Callable[[EventMessage], Awaitable[None]]] = []
-        event_trait_map = _MakeEventTraitMap(self._traits)
-
-        self._event_media_manager = EventMediaManager(self.name, event_trait_map)
+        self._event_media_manager = event_media_manager
 
     @staticmethod
     def MakeDevice(raw_data: Mapping[str, Any], auth: AbstractAuth) -> Device:
@@ -76,8 +79,11 @@ class Device:
             for trait_class in traits_dict.values():
                 if hasattr(trait_class, "event_image_creator"):
                     trait_class.event_image_creator = event_image_trait
-
-        return Device(raw_data, traits_dict)
+        event_trait_map = _MakeEventTraitMap(traits_dict)
+        event_media_manager = EventMediaManager(
+            device_id, event_trait_map, support_fetch=(event_image_trait is not None)
+        )
+        return Device(raw_data, traits_dict, event_media_manager)
 
     @property
     def name(self) -> str:
