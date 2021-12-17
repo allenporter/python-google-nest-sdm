@@ -926,7 +926,6 @@ async def test_missing_device(
 async def test_no_structures(
     app: aiohttp.web.Application,
     structure_handler: StructureHandler,
-    recorder: Recorder,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
     api = await api_client()
@@ -936,9 +935,12 @@ async def test_no_structures(
 
 async def test_missing_structures(
     app: aiohttp.web.Application,
-    structure_handler: StructureHandler,
+    recorder: Recorder,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
+    app.router.add_get(
+        "/enterprises/project-id1/structures/abc", NewHandler(recorder, [{}])
+    )
     api = await api_client()
     structure = await api.async_get_structure("abc")
     assert structure is None
