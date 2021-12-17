@@ -44,6 +44,8 @@
       "automergeType": "branch",
       "matchUpdateTypes": ["minor", "patch"],
       "excludePackagePrefixes": [
+        "grpcio",
+        "google",
         "flake8",
         "pyflakes",
         "mccabe",
