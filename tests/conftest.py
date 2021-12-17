@@ -157,11 +157,15 @@ class ReplyHandler(JsonHandler):
 
 
 def reply_handler(
-    recorder: Recorder, responses: List[Dict[str, Any]]
-) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
+    app: aiohttp.web.Application,
+    path: str,
+    recorder: Recorder,
+    responses: List[Dict[str, Any]],
+) -> ReplyHandler:
     """Create a new reply handler."""
     handler = ReplyHandler(recorder, responses)
-    return handler.handler
+    app.router.add_get(path, handler.handler)
+    return handler
 
 
 class DeviceHandler(JsonHandler):
@@ -193,7 +197,7 @@ class DeviceHandler(JsonHandler):
             "parentRelations": parentRelations,
         }
         # Setup device lookup reply
-        self.app.router.add_get(f"/{device_id}", reply_handler(self.recorder, [device]))
+        reply_handler(self.app, f"/{device_id}", self.recorder, [device])
         # Setup device list reply
         self.devices.append(device)
         return device_id
@@ -225,9 +229,7 @@ class StructureHandler(JsonHandler):
             "traits": traits,
         }
         # Setup structure lookup reply
-        self.app.router.add_get(
-            f"/{structure_id}", reply_handler(self.recorder, [structure])
-        )
+        reply_handler(self.app, f"/{structure_id}", self.recorder, [structure])
         # Setup structure list reply
         self.structures.append(structure)
         return structure_id

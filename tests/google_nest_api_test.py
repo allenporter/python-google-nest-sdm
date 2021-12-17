@@ -21,6 +21,7 @@ from .conftest import (
     NewImageHandler,
     Recorder,
     StructureHandler,
+    reply_handler,
 )
 
 FAKE_TOKEN = "some-token"
@@ -941,10 +942,22 @@ async def test_no_devices(
 ) -> None:
     api = await api_client()
     devices = await api.async_get_devices()
-    assert len(devices) == 0
+    assert devices == []
 
 
-async def test_missing_device(
+async def test_get_devices_missing_devices(
+    app: aiohttp.web.Application,
+    project_id: str,
+    recorder: Recorder,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
+    reply_handler(app, f"/enterprises/{project_id}/devices", recorder, [{}])
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert devices == []
+
+
+async def test_get_device_missing_devices(
     app: aiohttp.web.Application,
     recorder: Recorder,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
@@ -964,10 +977,22 @@ async def test_no_structures(
 ) -> None:
     api = await api_client()
     structures = await api.async_get_structures()
-    assert len(structures) == 0
+    assert structures == []
 
 
-async def test_missing_structures(
+async def test_get_structures_missing_structures(
+    app: aiohttp.web.Application,
+    project_id: str,
+    recorder: Recorder,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
+    reply_handler(app, "/enterprises/{project_id}/structures", recorder, [{}])
+    api = await api_client()
+    structures = await api.async_get_structures()
+    assert structures == []
+
+
+async def test_get_structure_missing_structures(
     app: aiohttp.web.Application,
     recorder: Recorder,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
