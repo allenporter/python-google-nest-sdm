@@ -133,7 +133,7 @@ class EventMediaStore(ABC):
     async def async_load(self) -> dict | None:
         """Load data."""
 
-    async def async_save(self, data: dict | None) -> None:
+    async def async_save(self, data: dict) -> None:
         """Save data."""
 
     def get_media_key(self, device_id: str, event: ImageEventBase) -> str:
@@ -160,7 +160,7 @@ class InMemoryEventMediaStore(EventMediaStore):
         """Load data."""
         return self._data
 
-    async def async_save(self, data: dict | None) -> None:
+    async def async_save(self, data: dict) -> None:
         """Save data."""
         self._data = data
 
