@@ -161,7 +161,7 @@ class Device:
         traits = event_message.resource_update_traits
         if not traits:
             return
-        _LOGGER.debug("Trait update %s", traits.keys())
+        _LOGGER.debug("Trait update %s", traits)
         for (trait_name, trait) in traits.items():
             # Discard updates older than prior events
             # Note: There is still a race where traits read from the API on

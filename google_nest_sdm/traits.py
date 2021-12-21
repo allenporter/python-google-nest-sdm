@@ -1,5 +1,7 @@
 """Base library for all traits."""
 
+from __future__ import annotations
+
 from typing import Any, Dict, Mapping, Optional
 
 import aiohttp
@@ -24,6 +26,13 @@ class Command:
         """Run the command."""
         assert self._auth
         return await self._auth.post(f"{self._device_id}:executeCommand", json=data)
+
+    async def execute_json(self, data: Mapping[str, Any]) -> dict[str, Any]:
+        """Run the command and return a json result."""
+        assert self._auth
+        return await self._auth.post_json(
+            f"{self._device_id}:executeCommand", json=data
+        )
 
     async def fetch_image(self, url: str, basic_auth: Optional[str] = None) -> bytes:
         """Fetch an image at the specified url."""

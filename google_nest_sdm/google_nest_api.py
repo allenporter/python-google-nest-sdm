@@ -24,8 +24,7 @@ class GoogleNestAPI:
 
     async def async_get_structures(self) -> List[Structure]:
         """Return the structures."""
-        resp = await self._auth.get(self._structures_url)
-        response_data = await resp.json()
+        response_data = await self._auth.get_json(self._structures_url)
         if STRUCTURES not in response_data:
             return []
         structures = response_data[STRUCTURES]
@@ -35,8 +34,7 @@ class GoogleNestAPI:
 
     async def async_get_structure(self, structure_id: str) -> Optional[Structure]:
         """Return a structure device."""
-        resp = await self._auth.get(f"{self._structures_url}/{structure_id}")
-        data = await resp.json()
+        data = await self._auth.get_json(f"{self._structures_url}/{structure_id}")
         if NAME not in data:
             return None
         return Structure.MakeStructure(data)
@@ -47,8 +45,7 @@ class GoogleNestAPI:
 
     async def async_get_devices(self) -> List[Device]:
         """Return the devices."""
-        resp = await self._auth.get(self._devices_url)
-        response_data = await resp.json()
+        response_data = await self._auth.get_json(self._devices_url)
         if DEVICES not in response_data:
             return []
         devices = response_data[DEVICES]
@@ -56,8 +53,7 @@ class GoogleNestAPI:
 
     async def async_get_device(self, device_id: str) -> Optional[Device]:
         """Return a specific device."""
-        resp = await self._auth.get(f"{self._devices_url}/{device_id}")
-        data = await resp.json()
+        data = await self._auth.get_json(f"{self._devices_url}/{device_id}")
         if NAME not in data:
             return None
         return Device.MakeDevice(data, self._auth)
