@@ -107,3 +107,40 @@ async def test_full_url(
     resp.raise_for_status()
     data = await resp.json()
     assert data["some-key"] == "some-value"
+
+
+async def test_get_json_response(
+    app: aiohttp.web.Application, auth_client: Callable[[str], Awaitable[AbstractAuth]]
+) -> None:
+    async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        assert request.query["client_id"] == "some-client-id"
+        return aiohttp.web.json_response(
+            {
+                "some-key": "some-value",
+            }
+        )
+
+    app.router.add_get("/path-prefix/some-path", handler)
+
+    auth = await auth_client("/path-prefix")
+    data = await auth.get_json("some-path", params={"client_id": "some-client-id"})
+    assert data == {"some-key": "some-value"}
+
+
+async def test_post_json_response(
+    app: aiohttp.web.Application, auth_client: Callable[[str], Awaitable[AbstractAuth]]
+) -> None:
+    async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        body = await request.json()
+        assert body == {"client_id": "some-client-id"}
+        return aiohttp.web.json_response(
+            {
+                "some-key": "some-value",
+            }
+        )
+
+    app.router.add_post("/path-prefix/some-path", handler)
+
+    auth = await auth_client("/path-prefix")
+    data = await auth.post_json("some-path", json={"client_id": "some-client-id"})
+    assert data == {"some-key": "some-value"}
