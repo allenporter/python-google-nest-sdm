@@ -1,8 +1,13 @@
 """Tests for thermostat traits."""
 
-from typing import Any, Callable, Dict
+from typing import Any, Awaitable, Callable, Dict
 
+import aiohttp
+
+from google_nest_sdm import google_nest_api
 from google_nest_sdm.device import Device
+
+from .conftest import DeviceHandler, NewHandler, Recorder
 
 
 def test_thermostat_eco_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
@@ -129,3 +134,118 @@ def test_thermostat_multiple_traits(
     trait = device.traits["sdm.devices.traits.ThermostatTemperatureSetpoint"]
     assert 23.0 == trait.heat_celsius
     assert 24.0 == trait.cool_celsius
+
+
+async def test_fan_set_timer(
+    app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.Fan": {
+                "timerMode": "OFF",
+            },
+        }
+    )
+    post_handler = NewHandler(recorder, [{}])
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert device_id == device.name
+    trait = device.traits["sdm.devices.traits.Fan"]
+    assert trait.timer_mode == "OFF"
+    await trait.set_timer("ON", 3600)
+    assert recorder.request == {
+        "command": "sdm.devices.commands.Fan.SetTimer",
+        "params": {
+            "timerMode": "ON",
+            "duration": "3600s",
+        },
+    }
+
+
+async def test_thermostat_eco_set_mode(
+    app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.ThermostatEco": {
+                "availableModes": ["MANUAL_ECO", "OFF"],
+                "mode": "MANUAL_ECO",
+                "heatCelsius": 20.0,
+                "coolCelsius": 22.0,
+            },
+        }
+    )
+    post_handler = NewHandler(recorder, [{}])
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert device.name == device_id
+    trait = device.traits["sdm.devices.traits.ThermostatEco"]
+    assert trait.mode == "MANUAL_ECO"
+    await trait.set_mode("OFF")
+    assert recorder.request == {
+        "command": "sdm.devices.commands.ThermostatEco.SetMode",
+        "params": {"mode": "OFF"},
+    }
+
+
+async def test_thermostat_mode_set_mode(
+    app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.ThermostatMode": {
+                "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
+                "mode": "COOL",
+            },
+        }
+    )
+    post_handler = NewHandler(recorder, [{}])
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert device.name == device_id
+    trait = device.traits["sdm.devices.traits.ThermostatMode"]
+    assert trait.mode == "COOL"
+    await trait.set_mode("HEAT")
+    assert recorder.request == {
+        "command": "sdm.devices.commands.ThermostatMode.SetMode",
+        "params": {"mode": "HEAT"},
+    }
+
+
+async def test_thermostat_temperature_set_point(
+    app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> None:
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.ThermostatTemperatureSetpoint": {
+                "heatCelsius": 23.0,
+                "coolCelsius": 24.0,
+            },
+        }
+    )
+    post_handler = NewHandler(recorder, [{}, {}, {}])
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
