@@ -27,7 +27,6 @@ from .conftest import DeviceHandler, StructureHandler
 
 PROJECT_ID = "project-id1"
 SUBSCRIBER_ID = "projects/some-project-id/subscriptions/subscriber-id1"
-FAKE_TOKEN = "some-token"
 
 
 class FakeSubscriberFactory(AbstractSubscriberFactory):

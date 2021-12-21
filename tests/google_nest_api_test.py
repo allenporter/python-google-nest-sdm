@@ -15,6 +15,7 @@ from google_nest_sdm.event_media import InMemoryEventMediaStore
 from google_nest_sdm.exceptions import ApiException, AuthException
 
 from .conftest import (
+    FAKE_TOKEN,
     PROJECT_ID,
     DeviceHandler,
     NewHandler,
@@ -23,8 +24,6 @@ from .conftest import (
     StructureHandler,
     reply_handler,
 )
-
-FAKE_TOKEN = "some-token"
 
 
 @pytest.fixture
@@ -526,17 +525,28 @@ async def test_camera_active_event_image(
     assert image.event_image_type == EventImageType.IMAGE
 
 
+@pytest.mark.parametrize(
+    "test_trait,test_event_trait",
+    [
+        ("sdm.devices.traits.CameraMotion", "sdm.devices.events.CameraMotion.Motion"),
+        ("sdm.devices.traits.CameraPerson", "sdm.devices.events.CameraPerson.Person"),
+        ("sdm.devices.traits.CameraSound", "sdm.devices.events.CameraSound.Sound"),
+        ("sdm.devices.traits.DoorbellChime", "sdm.devices.events.DoorbellChime.Chime"),
+    ],
+)
 async def test_camera_active_event_image_contents(
     app: aiohttp.web.Application,
     recorder: Recorder,
     device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+    test_trait: str,
+    test_event_trait: str,
 ) -> None:
     device_id = device_handler.add_device(
         traits={
             "sdm.devices.traits.CameraEventImage": {},
-            "sdm.devices.traits.CameraMotion": {},
+            test_trait: {},
         }
     )
 
@@ -580,7 +590,7 @@ async def test_camera_active_event_image_contents(
                 "resourceUpdate": {
                     "name": device_id,
                     "events": {
-                        "sdm.devices.events.CameraMotion.Motion": {
+                        test_event_trait: {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
                             "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
                         },
@@ -591,7 +601,7 @@ async def test_camera_active_event_image_contents(
         )
     )
 
-    trait = device.traits["sdm.devices.traits.CameraMotion"]
+    trait = device.traits[test_trait]
     assert trait.active_event is not None
     event_image = await trait.active_event_image_contents()
     assert event_image.event_id == "FWWVQVUdGNUlTU2V4MGV2aTNXV..."
@@ -609,7 +619,7 @@ async def test_camera_active_event_image_contents(
                 "resourceUpdate": {
                     "name": device_id,
                     "events": {
-                        "sdm.devices.events.CameraMotion.Motion": {
+                        test_event_trait: {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
                             "eventId": "ABCZQRUdGNUlTU2V4MGV3bRZ23...",
                         },
@@ -1048,17 +1058,28 @@ async def test_api_post_error_with_json_response(
         await trait.set_heat(25.0)
 
 
+@pytest.mark.parametrize(
+    "test_trait,test_event_trait",
+    [
+        ("sdm.devices.traits.CameraMotion", "sdm.devices.events.CameraMotion.Motion"),
+        ("sdm.devices.traits.CameraPerson", "sdm.devices.events.CameraPerson.Person"),
+        ("sdm.devices.traits.CameraSound", "sdm.devices.events.CameraSound.Sound"),
+        ("sdm.devices.traits.DoorbellChime", "sdm.devices.events.DoorbellChime.Chime"),
+    ],
+)
 async def test_event_manager_image(
     app: aiohttp.web.Application,
     recorder: Recorder,
     device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+    test_trait: str,
+    test_event_trait: str,
 ) -> None:
     device_id = device_handler.add_device(
         traits={
             "sdm.devices.traits.CameraEventImage": {},
-            "sdm.devices.traits.CameraMotion": {},
+            test_trait: {},
         }
     )
 
@@ -1102,7 +1123,7 @@ async def test_event_manager_image(
                 "resourceUpdate": {
                     "name": device_id,
                     "events": {
-                        "sdm.devices.events.CameraMotion.Motion": {
+                        test_event_trait: {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
                             "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
                         },
@@ -1121,7 +1142,7 @@ async def test_event_manager_image(
                 "resourceUpdate": {
                     "name": device_id,
                     "events": {
-                        "sdm.devices.events.CameraMotion.Motion": {
+                        test_event_trait: {
                             "eventSessionId": "QjY5Y3VKaTZwR3o4Y19YbTVfMF...",
                             "eventId": "ABCZQRUdGNUlTU2V4MGV3bRZ23...",
                         },
@@ -1137,7 +1158,7 @@ async def test_event_manager_image(
     event_media = await event_media_manager.get_media("CjY5Y3VKaTZwR3o4Y19YbTVfMF...")
     assert event_media
     assert event_media.event_session_id == "CjY5Y3VKaTZwR3o4Y19YbTVfMF..."
-    assert event_media.event_type == "sdm.devices.events.CameraMotion.Motion"
+    assert event_media.event_type == test_event_trait
     assert event_media.event_timestamp.isoformat(timespec="seconds") == ts1.isoformat(
         timespec="seconds"
     )
@@ -1147,7 +1168,7 @@ async def test_event_manager_image(
     event_media = await event_media_manager.get_media("QjY5Y3VKaTZwR3o4Y19YbTVfMF...")
     assert event_media
     assert event_media.event_session_id == "QjY5Y3VKaTZwR3o4Y19YbTVfMF..."
-    assert event_media.event_type == "sdm.devices.events.CameraMotion.Motion"
+    assert event_media.event_type == test_event_trait
     assert event_media.event_timestamp.isoformat(timespec="seconds") == ts2.isoformat(
         timespec="seconds"
     )
@@ -1997,16 +2018,44 @@ async def test_events_without_media_support(
         await event_media_manager.get_media("CjY5Y3VKaTZwR3o4Y19YbTVfMF...")
 
 
+@pytest.mark.parametrize(
+    "test_trait,test_event_trait,other_trait",
+    [
+        (
+            "sdm.devices.traits.CameraMotion",
+            "sdm.devices.events.CameraMotion.Motion",
+            "sdm.devices.traits.CameraPerson",
+        ),
+        (
+            "sdm.devices.traits.CameraPerson",
+            "sdm.devices.events.CameraPerson.Person",
+            "sdm.devices.traits.CameraSound",
+        ),
+        (
+            "sdm.devices.traits.CameraSound",
+            "sdm.devices.events.CameraSound.Sound",
+            "sdm.devices.traits.DoorbellChime",
+        ),
+        (
+            "sdm.devices.traits.DoorbellChime",
+            "sdm.devices.events.DoorbellChime.Chime",
+            "sdm.devices.traits.CameraMotion",
+        ),
+    ],
+)
 async def test_event_manager_no_media_support(
     app: aiohttp.web.Application,
     device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+    test_trait: str,
+    test_event_trait: str,
+    other_trait: str,
 ) -> None:
     device_id = device_handler.add_device(
         traits={
-            "sdm.devices.traits.CameraMotion": {},
-            "sdm.devices.traits.CameraPerson": {},
+            test_trait: {},
+            other_trait: {},
         }
     )
 
@@ -2028,7 +2077,7 @@ async def test_event_manager_no_media_support(
                 "resourceUpdate": {
                     "name": device_id,
                     "events": {
-                        "sdm.devices.events.CameraMotion.Motion": {
+                        test_event_trait: {
                             "eventSessionId": "DkY5Y3VKaTZwR3o4Y19YbTVfMF...",
                             "eventId": "GXQADVUdGNUlTU2V4MGV2aTNXV...",
                         },
@@ -2048,12 +2097,12 @@ async def test_event_manager_no_media_support(
         await event_media_manager.get_media("DkY5Y3VKaTZwR3o4Y19YbTVfMF...")
 
     # however, we should see an active event
-    trait = device.traits["sdm.devices.traits.CameraMotion"]
+    trait = device.traits[test_trait]
     assert trait.active_event is not None
 
     # Fetching the media fails since its not supported
     with pytest.raises(ValueError):
         await trait.generate_active_event_image()
 
-    trait = device.traits["sdm.devices.traits.CameraPerson"]
+    trait = device.traits[other_trait]
     assert trait.active_event is None
