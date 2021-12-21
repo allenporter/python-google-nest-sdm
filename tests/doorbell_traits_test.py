@@ -14,7 +14,7 @@ def test_doorbell_chime(fake_device: Callable[[Dict[str, Any]], Device]) -> None
             },
         }
     )
-    assert "sdm.devices.traits.DoorbellChime" in device.traits
+    assert device.traits.keys() == {"sdm.devices.traits.DoorbellChime"}
 
 
 def test_doorbell_chime_trait_hack(
@@ -28,7 +28,8 @@ def test_doorbell_chime_trait_hack(
             "traits": {},
         }
     )
-    assert "sdm.devices.traits.DoorbellChime" in device.traits
+    assert device.type == "sdm.devices.types.DOORBELL"
+    assert device.traits.keys() == {"sdm.devices.traits.DoorbellChime"}
 
 
 def test_doorbell_chime_trait_hack_not_applied(
@@ -42,4 +43,5 @@ def test_doorbell_chime_trait_hack_not_applied(
             "traits": {},
         }
     )
-    assert "sdm.devices.traits.DoorbellChime" not in device.traits
+    assert device.type == "sdm.devices.types.CAMERA"
+    assert device.traits.keys() == set()
