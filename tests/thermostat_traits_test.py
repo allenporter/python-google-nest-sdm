@@ -249,3 +249,32 @@ async def test_thermostat_temperature_set_point(
     )
     post_handler = NewHandler(recorder, [{}, {}, {}])
     app.router.add_post(f"/{device_id}:executeCommand", post_handler)
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert device.name == device_id
+    trait = device.traits["sdm.devices.traits.ThermostatTemperatureSetpoint"]
+    assert trait.heat_celsius == 23.0
+    assert trait.cool_celsius == 24.0
+    await trait.set_heat(25.0)
+    assert recorder.request == {
+        "command": "sdm.devices.commands.ThermostatTemperatureSetpoint.SetHeat",
+        "params": {"heatCelsius": 25.0},
+    }
+
+    await trait.set_cool(26.0)
+    assert recorder.request == {
+        "command": "sdm.devices.commands.ThermostatTemperatureSetpoint.SetCool",
+        "params": {"coolCelsius": 26.0},
+    }
+
+    await trait.set_range(27.0, 28.0)
+    assert recorder.request == {
+        "command": "sdm.devices.commands.ThermostatTemperatureSetpoint.SetRange",
+        "params": {
+            "heatCelsius": 27.0,
+            "coolCelsius": 28.0,
+        },
+    }
