@@ -23,8 +23,8 @@ def test_camera_image_traits(fake_device: Callable[[Dict[str, Any]], Device]) ->
     device = fake_device(raw)
     assert "sdm.devices.traits.CameraImage" in device.traits
     trait = device.traits["sdm.devices.traits.CameraImage"]
-    assert 500 == trait.max_image_resolution.width
-    assert 300 == trait.max_image_resolution.height
+    assert trait.max_image_resolution.width == 500
+    assert trait.max_image_resolution.height == 300
 
 
 def test_camera_live_stream_traits(
@@ -46,12 +46,12 @@ def test_camera_live_stream_traits(
     device = fake_device(raw)
     assert "sdm.devices.traits.CameraLiveStream" in device.traits
     trait = device.traits["sdm.devices.traits.CameraLiveStream"]
-    assert 500 == trait.max_video_resolution.width
-    assert 300 == trait.max_video_resolution.height
-    assert ["H264"] == trait.video_codecs
-    assert ["AAC"] == trait.audio_codecs
+    assert trait.max_video_resolution.width == 500
+    assert trait.max_video_resolution.height == 300
+    assert trait.video_codecs == ["H264"]
+    assert trait.audio_codecs == ["AAC"]
     # Default value
-    assert [StreamingProtocol.RTSP] == trait.supported_protocols
+    assert trait.supported_protocols == [StreamingProtocol.RTSP]
 
 
 def test_camera_live_stream_webrtc_protocol(
@@ -68,7 +68,7 @@ def test_camera_live_stream_webrtc_protocol(
     device = fake_device(raw)
     assert "sdm.devices.traits.CameraLiveStream" in device.traits
     trait = device.traits["sdm.devices.traits.CameraLiveStream"]
-    assert [StreamingProtocol.WEB_RTC] == trait.supported_protocols
+    assert trait.supported_protocols == [StreamingProtocol.WEB_RTC]
 
 
 def test_camera_live_stream_multiple_protocols(
@@ -85,10 +85,10 @@ def test_camera_live_stream_multiple_protocols(
     device = fake_device(raw)
     assert "sdm.devices.traits.CameraLiveStream" in device.traits
     trait = device.traits["sdm.devices.traits.CameraLiveStream"]
-    assert [
+    assert trait.supported_protocols == [
         StreamingProtocol.WEB_RTC,
         StreamingProtocol.RTSP,
-    ] == trait.supported_protocols
+    ]
 
 
 def test_camera_live_stream_unknown_protocols(
@@ -105,9 +105,7 @@ def test_camera_live_stream_unknown_protocols(
     device = fake_device(raw)
     assert "sdm.devices.traits.CameraLiveStream" in device.traits
     trait = device.traits["sdm.devices.traits.CameraLiveStream"]
-    assert [
-        StreamingProtocol.WEB_RTC,
-    ] == trait.supported_protocols
+    assert trait.supported_protocols == [StreamingProtocol.WEB_RTC]
 
 
 @pytest.mark.parametrize(

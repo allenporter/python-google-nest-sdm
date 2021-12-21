@@ -18,7 +18,7 @@ async def test_request(
         assert request.path == "/path-prefix/some-path"
         assert request.headers["header-1"] == "value-1"
         assert request.headers["Authorization"] == "Bearer some-token"
-        assert request.query["client_id"] == "some-client-id"
+        assert request.query == {"client_id": "some-client-id"}
         return aiohttp.web.json_response(
             {
                 "some-key": "some-value",
@@ -36,7 +36,7 @@ async def test_request(
     )
     resp.raise_for_status()
     data = await resp.json()
-    assert data["some-key"] == "some-value"
+    assert data == {"some-key": "some-value"}
 
 
 async def test_auth_header(
@@ -66,7 +66,7 @@ async def test_auth_header(
     )
     resp.raise_for_status()
     data = await resp.json()
-    assert data["some-key"] == "some-value"
+    assert data == {"some-key": "some-value"}
 
 
 async def test_full_url(
@@ -108,7 +108,7 @@ async def test_full_url(
     )
     resp.raise_for_status()
     data = await resp.json()
-    assert data["some-key"] == "some-value"
+    assert data == {"some-key": "some-value"}
 
 
 async def test_get_json_response(
