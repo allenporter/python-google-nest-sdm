@@ -10,6 +10,7 @@ import aiohttp
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
+from google_nest_sdm import google_nest_api
 from google_nest_sdm.auth import AbstractAuth
 from google_nest_sdm.device import Device
 from google_nest_sdm.event import EventMessage
@@ -55,6 +56,18 @@ async def client(
         return cached_client
 
     return _make_client
+
+
+@pytest.fixture
+async def api_client(
+    project_id: str,
+    auth_client: Callable[[], Awaitable[AbstractAuth]],
+) -> Callable[[], Awaitable[google_nest_api.GoogleNestAPI]]:
+    async def make_api() -> google_nest_api.GoogleNestAPI:
+        auth = await auth_client()
+        return google_nest_api.GoogleNestAPI(auth, project_id)
+
+    return make_api
 
 
 class FakeAuth(AbstractAuth):
