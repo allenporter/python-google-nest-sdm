@@ -41,6 +41,7 @@ class CachePolicy:
         self._event_cache_size = event_cache_size
         self._fetch = fetch
         self._store: EventMediaStore = InMemoryEventMediaStore()
+        self._transoder: MediaTranscoder = DefaultTranscoder()
 
     @property
     def event_cache_size(self) -> int:
@@ -72,14 +73,27 @@ class CachePolicy:
         """Update the EventMediaStore."""
         self._store = value
 
+    @property
+    def transcoder(self) -> MediaTranscoder:
+        """Return the MediaTransocderobject."""
+        return self._transcoder
+
+    @transcoder.setter
+    def transcoder(self, value: MediaTranscoder) -> None:
+        """Update the MediaTrancoder."""
+        self._transcoder = value
+
 
 class Media:
     """Represents media related to an event."""
 
-    def __init__(self, contents: bytes, event_image_type: EventImageType) -> None:
+    def __init__(
+        self, contents: bytes, event_image_type: EventImageType, content_type: str
+    ) -> None:
         """Initialize Media."""
         self._contents = contents
         self._event_image_type = event_image_type
+        self._content_type = content_type
 
     @property
     def contents(self) -> bytes:
@@ -90,6 +104,26 @@ class Media:
     def event_image_type(self) -> EventImageType:
         """Content event image type of the media."""
         return self._event_image_type
+
+    @property
+    def content_type(self) -> str:
+        """Content type of the media."""
+        return self._content_type
+
+
+class MediaTranscoder(ABC):
+    """Transforms media from one format to another."""
+
+    async def transcode(self, media: Media) -> Media:
+        """Transform the media type from one format to another."""
+
+
+class DefaultTranscoder(MediaTranscoder):
+    """Transcoder that does nothing."""
+
+    async def transcode(self, media: Media) -> Media:
+        """Pass the media through."""
+        return media
 
 
 class EventMedia:
@@ -191,11 +225,13 @@ class EventMediaModelItem:
         event_session_id: str,
         events: dict[str, ImageEventBase],
         media_key: str | None = None,
+        media_content_type: str | None = None,
     ) -> None:
         """Initialize EventMediaModelItem."""
         self._event_session_id = event_session_id
         self._events = events
         self._media_key = media_key
+        self._media_content_type = media_content_type
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> EventMediaModelItem:
@@ -212,7 +248,10 @@ class EventMediaModelItem:
             event.session_events = list(events.values())
             event.event_image_type = event_image_type
         return EventMediaModelItem(
-            data["event_session_id"], events, data.get("media_key")
+            data["event_session_id"],
+            events,
+            data.get("media_key"),
+            data.get("media_content_type", event_image_type.content_type),
         )
 
     @property
@@ -241,9 +280,26 @@ class EventMediaModelItem:
         """Update the media_key."""
         self._media_key = value
 
+    @property
+    def media_content_type(self) -> str | None:
+        """Get the content type for the primary event media."""
+        if self._media_content_type:
+            return self._media_content_type
+        if self.visible_event:
+            return self.visible_event.event_image_type.content_type
+        return None
+
+    @media_content_type.setter
+    def media_content_type(self, value: str) -> None:
+        """Update the media content type."""
+        self._media_content_type = value
+
     def get_media(self, content: bytes) -> Media:
         assert self.visible_event
-        return Media(content, self.visible_event.event_image_type)
+        assert self.media_content_type
+        return Media(
+            content, self.visible_event.event_image_type, self.media_content_type
+        )
 
     def get_event_media(self, content: bytes) -> EventMedia:
         assert self.visible_event
