@@ -1,4 +1,7 @@
 """Authentication library, implemented by users of the API."""
+
+from __future__ import annotations
+
 import logging
 from abc import ABC, abstractmethod
 from typing import Any, List, Mapping, Optional
@@ -70,6 +73,18 @@ class AbstractAuth(ABC):
             raise ApiException(f"Error connecting to API: {err}") from err
         return await AbstractAuth._raise_for_status(resp)
 
+    async def get_json(self, url: str, **kwargs: Mapping[str, Any]) -> dict[str, Any]:
+        """Make a get request and return json response."""
+        resp = await self.get(url, **kwargs)
+        try:
+            result = await resp.json()
+        except ClientError as err:
+            raise ApiException("Server returned malformed response") from err
+        if not isinstance(result, dict):
+            raise ApiException("Server return malformed response: %s" % result)
+        _LOGGER.debug("response=%s", result)
+        return result
+
     async def post(
         self, url: str, **kwargs: Mapping[str, Any]
     ) -> aiohttp.ClientResponse:
@@ -79,6 +94,18 @@ class AbstractAuth(ABC):
         except ClientError as err:
             raise ApiException(f"Error connecting to API: {err}") from err
         return await AbstractAuth._raise_for_status(resp)
+
+    async def post_json(self, url: str, **kwargs: Mapping[str, Any]) -> dict[str, Any]:
+        """Make a post request and return a json response."""
+        resp = await self.post(url, **kwargs)
+        try:
+            result = await resp.json()
+        except ClientError as err:
+            raise ApiException("Server returned malformed response") from err
+        if not isinstance(result, dict):
+            raise ApiException("Server returned malformed response: %s" % result)
+        _LOGGER.debug("response=%s", result)
+        return result
 
     @staticmethod
     async def _raise_for_status(resp: aiohttp.ClientResponse) -> aiohttp.ClientResponse:

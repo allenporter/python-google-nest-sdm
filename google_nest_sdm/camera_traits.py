@@ -129,8 +129,7 @@ class RtspStream(Stream):
             "command": "sdm.devices.commands.CameraLiveStream.ExtendRtspStream",
             "params": {"streamExtensionToken": self.stream_extension_token},
         }
-        resp = await self._cmd.execute(data)
-        response_data = await resp.json()
+        response_data = await self._cmd.execute_json(data)
         results = response_data[RESULTS]
         # Update the stream url with the new token
         stream_token = results[STREAM_TOKEN]
@@ -182,8 +181,7 @@ class WebRtcStream(Stream):
             "command": "sdm.devices.commands.CameraLiveStream.ExtendWebRtcStream",
             "params": {MEDIA_SESSION_ID: self.media_session_id},
         }
-        resp = await self._cmd.execute(data)
-        response_data = await resp.json()
+        response_data = await self._cmd.execute_json(data)
         # Preserve original answerSdp, and merge with response that contains
         # the other fields (expiresAt, and mediaSessionId.
         results = response_data[RESULTS]
@@ -253,8 +251,7 @@ class CameraLiveStreamTrait:
             "command": "sdm.devices.commands.CameraLiveStream.GenerateRtspStream",
             "params": {},
         }
-        resp = await self._cmd.execute(data)
-        response_data = await resp.json()
+        response_data = await self._cmd.execute_json(data)
         results = response_data[RESULTS]
         return RtspStream(results, self._cmd)
 
@@ -266,8 +263,7 @@ class CameraLiveStreamTrait:
             "command": "sdm.devices.commands.CameraLiveStream.GenerateWebRtcStream",
             "params": {"offerSdp": offer_sdp},
         }
-        resp = await self._cmd.execute(data)
-        response_data = await resp.json()
+        response_data = await self._cmd.execute_json(data)
         results = response_data[RESULTS]
         return WebRtcStream(results, self._cmd)
 
@@ -387,8 +383,7 @@ class CameraEventImageTrait(EventImageCreator):
                 "eventId": event_id,
             },
         }
-        resp = await self._cmd.execute(data)
-        response_data = await resp.json()
+        response_data = await self._cmd.execute_json(data)
         results = response_data[RESULTS]
         return EventImage(results, self._cmd, EventImageType.IMAGE)
 
