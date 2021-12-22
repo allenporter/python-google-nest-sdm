@@ -19,7 +19,7 @@ from .event import (
     ImageEventBase,
     session_event_image_type,
 )
-from .exceptions import GoogleNestException
+from .exceptions import GoogleNestException, TranscodeException
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ class CachePolicy:
         self._event_cache_size = event_cache_size
         self._fetch = fetch
         self._store: EventMediaStore = InMemoryEventMediaStore()
-        self._transoder: MediaTranscoder = DefaultTranscoder()
+        self._transcoder: MediaTranscoder = DefaultTranscoder()
 
     @property
     def event_cache_size(self) -> int:
@@ -422,7 +422,17 @@ class EventMediaManager:
             if not event_image:
                 return None
             contents = await event_image.contents(width=width, height=height)
-            await self._cache_policy._store.async_save_media(media_key, contents)
+            media = Media(
+                contents, event.event_image_type, event.event_image_type.content_type
+            )
+            try:
+                updated_media = await self._cache_policy._transcoder.transcode(media)
+            except TranscodeException as err:
+                _LOGGER.warning("Unable to transcode media: %s", err)
+                updated_media = media
+            await self._cache_policy._store.async_save_media(
+                media_key, updated_media.contents
+            )
 
         if not item.media_key:
             item.media_key = media_key
