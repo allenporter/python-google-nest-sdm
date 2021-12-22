@@ -1124,7 +1124,7 @@ async def test_transcoder(
 
     class FakeTranscoder(MediaTranscoder):
         async def transcode(self, media: Media) -> Media:
-            return Media(b"new-bytes-2", EventImageType.from_string("image/gif"))
+            return Media(b"new-bytes-2", EventImageType.IMAGE_PREVIEW)
 
     device.event_media_manager.cache_policy.fetch = True
     device.event_media_manager.cache_policy.transcoder = FakeTranscoder()
