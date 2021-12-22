@@ -496,3 +496,8 @@ def test_event_image_type() -> None:
     assert EventImageType.from_string(str(EventImageType.IMAGE)) == EventImageType.IMAGE
     assert EventImageType.from_string("video/mp4") == EventImageType.CLIP_PREVIEW
     assert EventImageType.from_string("image/jpeg") == EventImageType.IMAGE
+
+    assert EventImageType.from_string("image/gif") != EventImageType.IMAGE
+    assert EventImageType.from_string("image/gif") == EventImageType.IMAGE_PREVIEW
+    assert EventImageType.from_string("image/gif").content_type == "image/gif"
+    assert EventImageType.from_string("other").content_type == "other"

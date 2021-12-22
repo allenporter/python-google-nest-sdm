@@ -6,7 +6,6 @@ import datetime
 import hashlib
 import logging
 from abc import ABC, abstractmethod
-from enum import Enum
 from typing import Any, Awaitable, Callable, Dict, Iterable, Mapping, Optional
 
 from .auth import AbstractAuth
@@ -43,32 +42,48 @@ class EventProcessingError(Exception):
     """Raised when there was an error handling an event."""
 
 
-class EventImageType(Enum):
-    """Event image type."""
-
-    IMAGE = "image/jpeg"  # "An image generated from the event.
-    CLIP_PREVIEW = "video/mp4"  # A 10 frame video file in mp4 format.
+class EventImageContentType:
+    """Event image content type."""
 
     def __init__(self, content_type: str) -> None:
-        self.content_type = content_type
+        """Initialize EventImageContentType."""
+        self._content_type = content_type
 
     def __str__(self) -> str:
         """Return a string representation of the event image type."""
-        return self.content_type
+        return self._content_type
+
+    def __repr__(self) -> str:
+        return "<EventImageContentType %s>" % self._content_type
+
+    @property
+    def content_type(self) -> str:
+        """Return the content type of the image."""
+        return self._content_type
+
+
+class EventImageType:
+    IMAGE = EventImageContentType("image/jpeg")
+    CLIP_PREVIEW = EventImageContentType("video/mp4")
+    IMAGE_PREVIEW = EventImageContentType("image/gif")
 
     @staticmethod
-    def from_string(content_type: str) -> EventImageType:
+    def from_string(content_type: str) -> EventImageContentType:
         """Parse an EventImageType from a string representation."""
         if content_type == EventImageType.CLIP_PREVIEW.content_type:
             return EventImageType.CLIP_PREVIEW
-        else:
+        elif content_type == EventImageType.IMAGE.content_type:
             return EventImageType.IMAGE
+        elif content_type == EventImageType.IMAGE_PREVIEW.content_type:
+            return EventImageType.IMAGE_PREVIEW
+        else:
+            return EventImageContentType(content_type)
 
 
 class ImageEventBase(ABC):
     """Base class for all image related event types."""
 
-    event_image_type: EventImageType
+    event_image_type: EventImageContentType
 
     def __init__(self, data: Mapping[str, Any], timestamp: datetime.datetime) -> None:
         """Initialize EventBase."""
@@ -288,11 +303,11 @@ def _BuildEvent(
     return cls(event_data, timestamp)  # type: ignore
 
 
-def session_event_image_type(events: Iterable[ImageEventBase]) -> EventImageType:
+def session_event_image_type(events: Iterable[ImageEventBase]) -> EventImageContentType:
     """Determine the event type to use based on the events in the session."""
     for event in events:
-        if event.event_image_type == EventImageType.CLIP_PREVIEW:
-            return EventImageType.CLIP_PREVIEW
+        if event.event_image_type != EventImageType.IMAGE:
+            return event.event_image_type
     return EventImageType.IMAGE
 
 

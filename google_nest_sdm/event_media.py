@@ -9,7 +9,7 @@ from collections import OrderedDict
 from collections.abc import Iterable
 from typing import Any, Awaitable, Callable, Dict, Optional
 
-from .camera_traits import EventImageGenerator, EventImageType
+from .camera_traits import EventImageContentType, EventImageGenerator, EventImageType
 from .event import (
     CameraMotionEvent,
     CameraPersonEvent,
@@ -87,7 +87,9 @@ class CachePolicy:
 class Media:
     """Represents media related to an event."""
 
-    def __init__(self, contents: bytes, event_image_type: EventImageType) -> None:
+    def __init__(
+        self, contents: bytes, event_image_type: EventImageContentType
+    ) -> None:
         """Initialize Media."""
         self._contents = contents
         self._event_image_type = event_image_type
@@ -98,7 +100,7 @@ class Media:
         return self._contents
 
     @property
-    def event_image_type(self) -> EventImageType:
+    def event_image_type(self) -> EventImageContentType:
         """Content event image type of the media."""
         return self._event_image_type
 

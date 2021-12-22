@@ -1124,7 +1124,7 @@ async def test_transcoder(
 
     class FakeTranscoder(MediaTranscoder):
         async def transcode(self, media: Media) -> Media:
-            return Media(b"new-bytes-2", EventImageType.CLIP_PREVIEW)
+            return Media(b"new-bytes-2", EventImageType.from_string("image/gif"))
 
     device.event_media_manager.cache_policy.fetch = True
     device.event_media_manager.cache_policy.transcoder = FakeTranscoder()
@@ -1159,7 +1159,7 @@ async def test_transcoder(
         timespec="seconds"
     )
     assert event_media.media.contents == b"new-bytes-2"
-    assert event_media.media.event_image_type.content_type == "video/mp4"
+    assert event_media.media.event_image_type.content_type == "image/gif"
 
     # Verify that metadata has been transformed
     event_media_manager = devices[0].event_media_manager
@@ -1169,4 +1169,4 @@ async def test_transcoder(
     assert event.event_type == test_event_trait
     assert event.event_session_id == "DkY5Y3VKaTZwR3o4Y19YbTVfMF..."
     assert event.event_id == "GXQADVUdGNUlTU2V4MGV2aTNXV..."
-    assert event.event_image_type.content_type == "video/mp4"
+    assert event.event_image_type.content_type == "image/gif"
