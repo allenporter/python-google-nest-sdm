@@ -9,7 +9,7 @@ from collections import OrderedDict
 from collections.abc import Iterable
 from typing import Any, Awaitable, Callable, Dict, Optional
 
-from .camera_traits import EventImageGenerator, EventImageType
+from .camera_traits import EventImageContentType, EventImageGenerator, EventImageType
 from .event import (
     CameraMotionEvent,
     CameraPersonEvent,
@@ -19,7 +19,7 @@ from .event import (
     ImageEventBase,
     session_event_image_type,
 )
-from .exceptions import GoogleNestException
+from .exceptions import GoogleNestException, TranscodeException
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -41,6 +41,7 @@ class CachePolicy:
         self._event_cache_size = event_cache_size
         self._fetch = fetch
         self._store: EventMediaStore = InMemoryEventMediaStore()
+        self._transcoder: MediaTranscoder = DefaultTranscoder()
 
     @property
     def event_cache_size(self) -> int:
@@ -72,11 +73,23 @@ class CachePolicy:
         """Update the EventMediaStore."""
         self._store = value
 
+    @property
+    def transcoder(self) -> MediaTranscoder:
+        """Return the MediaTransocderobject."""
+        return self._transcoder
+
+    @transcoder.setter
+    def transcoder(self, value: MediaTranscoder) -> None:
+        """Update the MediaTrancoder."""
+        self._transcoder = value
+
 
 class Media:
     """Represents media related to an event."""
 
-    def __init__(self, contents: bytes, event_image_type: EventImageType) -> None:
+    def __init__(
+        self, contents: bytes, event_image_type: EventImageContentType
+    ) -> None:
         """Initialize Media."""
         self._contents = contents
         self._event_image_type = event_image_type
@@ -87,9 +100,24 @@ class Media:
         return self._contents
 
     @property
-    def event_image_type(self) -> EventImageType:
+    def event_image_type(self) -> EventImageContentType:
         """Content event image type of the media."""
         return self._event_image_type
+
+
+class MediaTranscoder(ABC):
+    """Transforms media from one format to another."""
+
+    async def transcode(self, media: Media) -> Media:
+        """Transform the media type from one format to another."""
+
+
+class DefaultTranscoder(MediaTranscoder):
+    """Transcoder that does nothing."""
+
+    async def transcode(self, media: Media) -> Media:
+        """Pass the media through."""
+        return media
 
 
 class EventMedia:
@@ -212,7 +240,9 @@ class EventMediaModelItem:
             event.session_events = list(events.values())
             event.event_image_type = event_image_type
         return EventMediaModelItem(
-            data["event_session_id"], events, data.get("media_key")
+            data["event_session_id"],
+            events,
+            data.get("media_key"),
         )
 
     @property
@@ -348,31 +378,34 @@ class EventMediaManager:
             return None
         _LOGGER.debug("Fetching media for event_session_id=%s", event_session_id)
         if item.media_key:
-            media_key = item.media_key
-        else:
-            media_key = self._cache_policy._store.get_media_key(self._device_id, event)
+            contents = await self._cache_policy._store.async_load_media(item.media_key)
+            if contents:
+                return item.get_event_media(contents)
 
-        contents = await self._cache_policy._store.async_load_media(media_key)
-        if contents is None:
-            if event.is_expired:
-                _LOGGER.debug(
-                    "Skipping fetch; Event expired; event_session_id=%s",
-                    event_session_id,
-                )
-                return None
-            if not (generator := self._event_trait_map.get(event.event_type)):
-                return None
-            event_image = await generator.generate_event_image(event)
-            if not event_image:
-                return None
-            contents = await event_image.contents(width=width, height=height)
-            await self._cache_policy._store.async_save_media(media_key, contents)
-
-        if not item.media_key:
-            item.media_key = media_key
-            await self._async_update(event_data)
-
-        return item.get_event_media(contents)
+        if event.is_expired:
+            _LOGGER.debug(
+                "Skipping fetch; Event expired; event_session_id=%s",
+                event_session_id,
+            )
+            return None
+        if not (generator := self._event_trait_map.get(event.event_type)):
+            return None
+        event_image = await generator.generate_event_image(event)
+        if not event_image:
+            return None
+        contents = await event_image.contents(width=width, height=height)
+        media = Media(contents, event.event_image_type)
+        try:
+            media = await self._cache_policy.transcoder.transcode(media)
+        except TranscodeException as err:
+            _LOGGER.warning("Unable to transcode media: %s", err)
+        # Update image type in case it changed during transcoding
+        event.event_image_type = media.event_image_type
+        media_key = self._cache_policy._store.get_media_key(self._device_id, event)
+        await self._cache_policy.store.async_save_media(media_key, media.contents)
+        item.media_key = media_key
+        await self._async_update(event_data)
+        return item.get_event_media(media.contents)
 
     async def async_events(self) -> Iterable[ImageEventBase]:
         """Return revent events."""

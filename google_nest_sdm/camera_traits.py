@@ -14,6 +14,7 @@ from .event import (
     CameraMotionEvent,
     CameraPersonEvent,
     CameraSoundEvent,
+    EventImageContentType,
     EventImageType,
     EventTrait,
     ImageEventBase,
@@ -281,7 +282,10 @@ class EventImage:
     """
 
     def __init__(
-        self, data: Mapping[str, Any], cmd: Command, event_image_type: EventImageType
+        self,
+        data: Mapping[str, Any],
+        cmd: Command,
+        event_image_type: EventImageContentType,
     ):
         """Initialize the EventImage."""
         self._data = data
@@ -289,7 +293,7 @@ class EventImage:
         self._event_image_type = event_image_type
 
     @property
-    def event_image_type(self) -> EventImageType:
+    def event_image_type(self) -> EventImageContentType:
         """Return the type of event image."""
         return self._event_image_type
 
@@ -327,7 +331,7 @@ class EventImageContents:
     def __init__(
         self,
         event_id: str,
-        event_image_type: EventImageType,
+        event_image_type: EventImageContentType,
         expires_at: datetime.datetime,
         contents: bytes,
     ) -> None:
@@ -343,7 +347,7 @@ class EventImageContents:
         return self._event_id
 
     @property
-    def event_image_type(self) -> EventImageType:
+    def event_image_type(self) -> EventImageContentType:
         return self._event_image_type
 
     @property
