@@ -1124,7 +1124,7 @@ async def test_transcoder(
 
     class FakeTranscoder(MediaTranscoder):
         async def transcode(self, media: Media) -> Media:
-            return Media(b"new-bytes-2", EventImageType.IMAGE, "image/jpeg")
+            return Media(b"new-bytes-2", EventImageType.CLIP_PREVIEW)
 
     device.event_media_manager.cache_policy.fetch = True
     device.event_media_manager.cache_policy.transcoder = FakeTranscoder()
@@ -1159,10 +1159,9 @@ async def test_transcoder(
         timespec="seconds"
     )
     assert event_media.media.contents == b"new-bytes-2"
-    assert event_media.media.event_image_type.content_type == "image/jpeg"
+    assert event_media.media.event_image_type.content_type == "video/mp4"
 
     # Verify that metadata has been transformed
-    # TODO: This does not work properly yet
     event_media_manager = devices[0].event_media_manager
     events = list(await event_media_manager.async_events())
     assert len(events) == 1
@@ -1170,4 +1169,4 @@ async def test_transcoder(
     assert event.event_type == test_event_trait
     assert event.event_session_id == "DkY5Y3VKaTZwR3o4Y19YbTVfMF..."
     assert event.event_id == "GXQADVUdGNUlTU2V4MGV2aTNXV..."
-    assert event.event_image_type.content_type == "image/jpeg"
+    assert event.event_image_type.content_type == "video/mp4"

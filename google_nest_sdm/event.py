@@ -52,6 +52,18 @@ class EventImageType(Enum):
     def __init__(self, content_type: str) -> None:
         self.content_type = content_type
 
+    def __str__(self) -> str:
+        """Return a string representation of the event image type."""
+        return self.content_type
+
+    @staticmethod
+    def from_string(content_type: str) -> EventImageType:
+        """Parse an EventImageType from a string representation."""
+        if content_type == EventImageType.CLIP_PREVIEW.content_type:
+            return EventImageType.CLIP_PREVIEW
+        else:
+            return EventImageType.IMAGE
+
 
 class ImageEventBase(ABC):
     """Base class for all image related event types."""
@@ -112,6 +124,7 @@ class ImageEventBase(ABC):
             "event_type": self.event_type,
             "event_data": self._data,
             "timestamp": self._timestamp.isoformat(),
+            "event_image_type": str(self.event_image_type),
         }
 
     @staticmethod
@@ -120,7 +133,12 @@ class ImageEventBase(ABC):
         event_type = data["event_type"]
         event_data = data["event_data"]
         timestamp = datetime.datetime.fromisoformat(data["timestamp"])
-        return _BuildEvent(event_type, event_data, timestamp)
+        event = _BuildEvent(event_type, event_data, timestamp)
+        if event and "event_image_type" in data:
+            event.event_image_type = EventImageType.from_string(
+                data["event_image_type"]
+            )
+        return event
 
     def __repr__(self) -> str:
         return (

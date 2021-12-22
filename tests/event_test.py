@@ -6,6 +6,7 @@ from typing import Any, Callable, Dict, Optional
 
 from google_nest_sdm.event import (
     CameraClipPreviewEvent,
+    EventImageType,
     EventMessage,
     EventTypeFilterCallback,
     ImageEventBase,
@@ -484,3 +485,14 @@ def test_update_from_events(
     event = event.omit_events(["sdm.devices.events.CameraMotion.Motion"])
     events = event.resource_update_events
     assert not events
+
+
+def test_event_image_type() -> None:
+    """Test for EventImageType."""
+    assert (
+        EventImageType.from_string(str(EventImageType.CLIP_PREVIEW))
+        == EventImageType.CLIP_PREVIEW
+    )
+    assert EventImageType.from_string(str(EventImageType.IMAGE)) == EventImageType.IMAGE
+    assert EventImageType.from_string("video/mp4") == EventImageType.CLIP_PREVIEW
+    assert EventImageType.from_string("image/jpeg") == EventImageType.IMAGE
