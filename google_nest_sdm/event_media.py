@@ -396,13 +396,13 @@ class EventMediaManager:
         contents = await event_image.contents(width=width, height=height)
         media = Media(contents, event.event_image_type)
         try:
-            media = await self._cache_policy._transcoder.transcode(media)
+            media = await self._cache_policy.transcoder.transcode(media)
         except TranscodeException as err:
             _LOGGER.warning("Unable to transcode media: %s", err)
         # Update image type in case it changed during transcoding
         event.event_image_type = media.event_image_type
         media_key = self._cache_policy._store.get_media_key(self._device_id, event)
-        await self._cache_policy._store.async_save_media(media_key, media.contents)
+        await self._cache_policy.store.async_save_media(media_key, media.contents)
         item.media_key = media_key
         await self._async_update(event_data)
         return item.get_event_media(media.contents)
