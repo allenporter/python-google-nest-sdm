@@ -6,6 +6,7 @@ import datetime
 import hashlib
 import logging
 from abc import ABC, abstractmethod
+from enum import Enum
 from typing import Any, Awaitable, Callable, Dict, Iterable, Mapping, Optional
 
 from .auth import AbstractAuth
@@ -396,46 +397,3 @@ class EventMessage:
             del events[key]
         raw_data[RESOURCE_UPDATE][EVENTS] = events
         return EventMessage(raw_data, self._auth)
-
-
-class EventTypeFilterCallback:
-    """Invoke a delegate only for events that match the trait type."""
-
-    def __init__(
-        self, event_name: str, delegate: Callable[[EventMessage], Awaitable[None]]
-    ) -> None:
-        """Initialize EventTypeFilterCallback."""
-        self._event_name = event_name
-        self._delegate = delegate
-
-    async def async_handle_event(self, event_message: EventMessage) -> None:
-        """Process an incoming EventMessage."""
-        events = event_message.resource_update_events
-        if events and self._event_name in events:
-            await self._delegate(event_message)
-
-
-class RecentEventFilterCallback:
-    """Invokes a delegate only for recent events."""
-
-    def __init__(
-        self,
-        cutoff_timedelta: datetime.timedelta,
-        delegate: Callable[[EventMessage], Awaitable[None]],
-    ):
-        """Initialize RecentEventFilterCallback."""
-        self._cutoff_timedelta = cutoff_timedelta
-        self._delegate = delegate
-
-    async def async_handle_event(self, event_message: EventMessage) -> None:
-        """Process an incoming EventMessage."""
-        if not event_message.timestamp:
-            return
-        now = datetime.datetime.now(tz=datetime.timezone.utc)
-        oldest_allowed = now - self._cutoff_timedelta
-        if event_message.timestamp < oldest_allowed:
-            _LOGGER.debug(
-                "Ignoring event that is too old (%s)", event_message.timestamp
-            )
-            return
-        await self._delegate(event_message)
