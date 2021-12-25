@@ -5,7 +5,7 @@ async-timeout==3.0.1
 attrs==21.2.0
 backports.entry-points-selectable==1.1.1
 black==20.8b1
-cachetools==4.2.4
+cachetools==5.0.0
 certifi==2021.10.8
 cfgv==3.3.1
 chardet==4.0.0
