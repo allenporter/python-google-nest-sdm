@@ -194,6 +194,7 @@ async def test_event_manager_prefetch_image(
     # Event is not fetched on event arrival since it was expired
     event_media_manager = device.event_media_manager
     assert len(list(await event_media_manager.async_events())) == 0
+    assert not event_media_manager.get_active_event_media()
 
     # And we won't fetch it when asked either
     event_media = await event_media_manager.get_media("CjY5Y3VKaTZwR3o4Y19YbTVfMF...")
