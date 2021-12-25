@@ -178,10 +178,6 @@ class Device:
     def event_media_manager(self) -> EventMediaManager:
         return self._event_media_manager
 
-    def active_events(self, event_types: list) -> dict:
-        """Return any active events for the specified trait names."""
-        return self._event_media_manager.active_events(event_types)
-
     @property
     def active_event_trait(self) -> Optional[EventTrait]:
         """Return trait with the most recently received active event."""

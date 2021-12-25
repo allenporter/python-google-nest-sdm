@@ -456,25 +456,7 @@ async def test_event_image_tracking(
     trait = device.traits["sdm.devices.traits.CameraMotion"]
     assert trait.active_event is not None
 
-    event = trait.active_event
-    assert "FWWVQVUdGNUlTU2V4MGV2aTNXV..." == event.event_id
-    assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." == event.event_session_id
-
-    # Verify active event functionality works
-    assert len(device.active_events([])) == 0
-    assert len(device.active_events(["unknown"])) == 0
-    assert len(device.active_events(["sdm.devices.events.CameraMotion.Motion"])) == 1
-    assert (
-        len(
-            device.active_events(
-                [
-                    "sdm.devices.events.CameraMotion.Motion",
-                    "sdm.devices.traits.CameraSound",
-                ]
-            )
-        )
-        == 1
-    )
+    assert device.active_event_trait == trait
 
 
 async def test_update_trait_ordering(

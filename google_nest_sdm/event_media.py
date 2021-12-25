@@ -508,16 +508,6 @@ class EventMediaManager:
         if valid_events > 0:
             await self._callback(event_message)
 
-    def active_events(self, event_types: list) -> Dict[str, ImageEventBase]:
-        """Return any active events for the specified trait names."""
-        active_events = {}
-        for event_type in event_types:
-            trait = self._event_trait_map.get(event_type)
-            if not trait or not trait.active_event:
-                continue
-            active_events[event_type] = trait.active_event
-        return active_events
-
     @property
     def active_event_trait(self) -> Optional[EventImageGenerator]:
         """Return trait with the most recently received active event."""

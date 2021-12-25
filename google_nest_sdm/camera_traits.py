@@ -321,46 +321,6 @@ class EventImage:
         return await self._cmd.fetch_image(fetch_url, basic_auth=self.token)
 
 
-class EventImageContents:
-    """Holds image contents and the associated event.
-
-    This object is used to represent the event image contents and associated
-    data needed for providing a lightweight cache (an id and expiration).
-    """
-
-    def __init__(
-        self,
-        event_id: str,
-        event_image_type: EventImageContentType,
-        expires_at: datetime.datetime,
-        contents: bytes,
-    ) -> None:
-        """Initialize ImageEventContent."""
-        self._event_id = event_id
-        self._event_image_type = event_image_type
-        self._expires_at = expires_at
-        self._contents = contents
-
-    @property
-    def event_id(self) -> str:
-        """A unique id associated with this event."""
-        return self._event_id
-
-    @property
-    def event_image_type(self) -> EventImageContentType:
-        return self._event_image_type
-
-    @property
-    def expires_at(self) -> datetime.datetime:
-        """Timestamp when the message expires."""
-        return self._expires_at
-
-    @property
-    def contents(self) -> bytes:
-        """Image contents captured during the event."""
-        return self._contents
-
-
 class EventImageCreator(ABC):
     """Responsible for turning events into an EventImage."""
 
@@ -411,21 +371,6 @@ class EventImageGenerator(EventTrait, EventImageCreator, ABC):
             _LOGGER.debug("No active event")
             return None
         return await self.generate_event_image(event)
-
-    async def active_event_image_contents(
-        self, width: Optional[int] = None, height: Optional[int] = None
-    ) -> Optional[EventImageContents]:
-        """Downloads camera image for the active event."""
-        event = self.active_event
-        if not event:
-            return None
-        event_image = await self.generate_event_image(event)
-        if not event_image:
-            return None
-        contents = await event_image.contents(width, height)
-        return EventImageContents(
-            event.event_id, event_image.event_image_type, event.expires_at, contents
-        )
 
 
 @TRAIT_MAP.register()
