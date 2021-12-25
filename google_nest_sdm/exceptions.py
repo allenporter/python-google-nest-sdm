@@ -19,7 +19,3 @@ class AuthException(GoogleNestException):
 
 class ConfigurationException(GoogleNestException):
     """Raised due to misconfiguration problems."""
-
-
-class TranscodeException(GoogleNestException):
-    """Raised due to an error during transcoding."""
