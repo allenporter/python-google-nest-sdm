@@ -19,7 +19,7 @@ from .event import (
     ImageEventBase,
     session_event_image_type,
 )
-from .exceptions import GoogleNestException, TranscodeException
+from .exceptions import GoogleNestException
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -41,7 +41,6 @@ class CachePolicy:
         self._event_cache_size = event_cache_size
         self._fetch = fetch
         self._store: EventMediaStore = InMemoryEventMediaStore()
-        self._transcoder: MediaTranscoder = DefaultTranscoder()
 
     @property
     def event_cache_size(self) -> int:
@@ -73,16 +72,6 @@ class CachePolicy:
         """Update the EventMediaStore."""
         self._store = value
 
-    @property
-    def transcoder(self) -> MediaTranscoder:
-        """Return the MediaTransocderobject."""
-        return self._transcoder
-
-    @transcoder.setter
-    def transcoder(self, value: MediaTranscoder) -> None:
-        """Update the MediaTrancoder."""
-        self._transcoder = value
-
 
 class Media:
     """Represents media related to an event."""
@@ -103,21 +92,6 @@ class Media:
     def event_image_type(self) -> EventImageContentType:
         """Content event image type of the media."""
         return self._event_image_type
-
-
-class MediaTranscoder(ABC):
-    """Transforms media from one format to another."""
-
-    async def transcode(self, media: Media) -> Media:
-        """Transform the media type from one format to another."""
-
-
-class DefaultTranscoder(MediaTranscoder):
-    """Transcoder that does nothing."""
-
-    async def transcode(self, media: Media) -> Media:
-        """Pass the media through."""
-        return media
 
 
 class EventMedia:
@@ -391,18 +365,11 @@ class EventMediaManager:
         if not event_image:
             return None
         contents = await event_image.contents(width=width, height=height)
-        media = Media(contents, event.event_image_type)
-        try:
-            media = await self._cache_policy.transcoder.transcode(media)
-        except TranscodeException as err:
-            _LOGGER.warning("Unable to transcode media: %s", err)
-        # Update image type in case it changed during transcoding
-        event.event_image_type = media.event_image_type
         media_key = self._cache_policy._store.get_media_key(self._device_id, event)
-        await self._cache_policy.store.async_save_media(media_key, media.contents)
+        await self._cache_policy.store.async_save_media(media_key, contents)
         item.media_key = media_key
         await self._async_update(event_data)
-        return item.get_event_media(media.contents)
+        return item.get_event_media(contents)
 
     async def async_events(self) -> Iterable[ImageEventBase]:
         """Return revent events."""
