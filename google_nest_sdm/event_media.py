@@ -7,7 +7,7 @@ import logging
 from abc import ABC
 from collections import OrderedDict
 from collections.abc import Iterable
-from typing import Any, Awaitable, Callable, Dict, Optional
+from typing import Any, Awaitable, Callable, Dict
 
 from .camera_traits import EventImageContentType, EventImageGenerator, EventImageType
 from .event import (
@@ -356,11 +356,8 @@ class EventMediaManager:
         await self._cache_policy._store.async_save(store_data)
 
     async def get_media(
-        self,
-        event_session_id: str,
-        width: Optional[int] = None,
-        height: Optional[int] = None,
-    ) -> Optional[EventMedia]:
+        self, event_session_id: str, width: int | None = None, height: int | None = None
+    ) -> EventMedia | None:
         """Get media for the specified event.
 
         Note that the height and width hints are best effort and may not be
@@ -509,7 +506,7 @@ class EventMediaManager:
             await self._callback(event_message)
 
     @property
-    def active_event_trait(self) -> Optional[EventImageGenerator]:
+    def active_event_trait(self) -> EventImageGenerator | None:
         """Return trait with the most recently received active event."""
         trait_to_return: EventImageGenerator | None = None
         for trait in self._event_trait_map.values():
@@ -524,3 +521,14 @@ class EventMediaManager:
                 if event.expires_at > trait_to_return.last_event.expires_at:
                     trait_to_return = trait
         return trait_to_return
+
+    async def get_active_event_media(
+        self, width: int | None = None, height: int | None = None
+    ) -> EventMedia | None:
+        """Return a snapshot image for a very recent event if any."""
+        if not (trait := self.active_event_trait):
+            return None
+        event: ImageEventBase | None = trait.last_event
+        if not event:
+            return None
+        return await self.get_media(event.event_session_id, width, height)

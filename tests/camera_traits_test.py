@@ -404,13 +404,16 @@ async def test_camera_active_event_image(
         [
             {
                 "results": {
-                    "url": "https://domain/sdm_event/dGNUlTU2CjY5Y3VKaTZwR3o4Y",
+                    "url": "image-url",
                     "token": "g.0.eventToken",
                 },
             }
         ],
     )
     app.router.add_post(f"/{device_id}:executeCommand", post_handler)
+
+    image_handler = NewImageHandler([b"image-bytes"], token="g.0.eventToken")
+    app.router.add_get("/image-url", image_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
@@ -438,16 +441,10 @@ async def test_camera_active_event_image(
         )
     )
 
-    trait = device.traits[test_trait]
-    assert trait.active_event is not None
-    image = await trait.generate_active_event_image()
-    assert recorder.request == {
-        "command": "sdm.devices.commands.CameraEventImage.GenerateImage",
-        "params": {"eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV..."},
-    }
-    assert image.url == "https://domain/sdm_event/dGNUlTU2CjY5Y3VKaTZwR3o4Y"
-    assert image.token == "g.0.eventToken"
-    assert image.event_image_type == EventImageType.IMAGE
+    event_media = await device.event_media_manager.get_active_event_media()
+    assert event_media
+    assert event_media.event_session_id == "CjY5Y3VKaTZwR3o4Y19YbTVfMF..."
+    assert event_media.media.contents == b"image-bytes"
 
 
 async def test_camera_last_active_event_image(
