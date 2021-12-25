@@ -4,7 +4,12 @@ import datetime
 import json
 from typing import Any, Callable, Dict, Optional
 
-from google_nest_sdm.event import CameraClipPreviewEvent, EventMessage, ImageEventBase
+from google_nest_sdm.event import (
+    CameraClipPreviewEvent,
+    EventImageType,
+    EventMessage,
+    ImageEventBase,
+)
 
 
 def test_camera_sound_event(
