@@ -13,7 +13,7 @@ charset-normalizer==2.0.9
 click==8.0.3
 coverage==6.2
 distlib==0.3.4
-filelock==3.4.0
+filelock==3.4.1
 flake8==4.0.1
 flake8-black==0.2.3
 frozenlist==1.2.0
