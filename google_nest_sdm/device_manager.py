@@ -61,6 +61,9 @@ class DeviceManager:
         """Handle a new message received."""
         if event_message.relation_update:
             self._handle_device_relation(event_message.relation_update)
+            if self._callback:
+                await self._callback(event_message)
+            return
 
         if event_message.resource_update_name:
             device_id = event_message.resource_update_name
