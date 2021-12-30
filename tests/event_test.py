@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+import base64
 import datetime
 import json
 from typing import Any, Callable, Dict, Optional
+
+import pytest
 
 from google_nest_sdm.event import (
     CameraClipPreviewEvent,
     EventImageType,
     EventMessage,
+    EventToken,
     ImageEventBase,
 )
+from google_nest_sdm.exceptions import DecodeException
 
 
 def test_camera_sound_event(
@@ -345,3 +350,38 @@ def test_event_image_type() -> None:
     assert EventImageType.from_string("image/gif") == EventImageType.IMAGE_PREVIEW
     assert EventImageType.from_string("image/gif").content_type == "image/gif"
     assert EventImageType.from_string("other").content_type == "other"
+
+
+def test_event_token() -> None:
+    """Test for an EventToken."""
+    token = EventToken("session-id", "event-id")
+    assert token.event_session_id == "session-id"
+    assert token.event_id == "event-id"
+    encoded_token = token.encode()
+    decoded_token = EventToken.decode(encoded_token)
+    assert decoded_token.event_session_id == "session-id"
+    assert decoded_token.event_id == "event-id"
+
+
+def test_decode_token_failure() -> None:
+    """Test failure to decode an event token."""
+    with pytest.raises(DecodeException):
+        EventToken.decode("some-bogus-token")
+
+
+def test_decode_token_failure_items() -> None:
+    """Test failure to decode an event token."""
+    data = ["wrong type"]
+    b = json.dumps(data).encode("utf-8")
+    token = base64.b64encode(b).decode("utf-8")
+    with pytest.raises(DecodeException):
+        EventToken.decode(token)
+
+
+def test_decode_token_failure_dict() -> None:
+    """Test failure to decode an event token."""
+    data = {"a": "b", "c": "d"}
+    b = json.dumps(data).encode("utf-8")
+    token = base64.b64encode(b).decode("utf-8")
+    with pytest.raises(DecodeException):
+        EventToken.decode(token)
