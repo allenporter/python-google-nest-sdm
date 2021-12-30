@@ -110,6 +110,17 @@ class EventToken:
             raise DecodeException("Unexpected data type: %s", data)
         return EventToken(data[0], data[1])
 
+    def __repr__(self) -> str:
+        if not self.event_id:
+            return "<EventToken event_session_id" + self.event_session_id + ">"
+        return (
+            "<EventToken event_session_id"
+            + self.event_session_id
+            + " event_id="
+            + self.event_id
+            + ">"
+        )
+
 
 class ImageEventBase(ABC):
     """Base class for all image related event types."""

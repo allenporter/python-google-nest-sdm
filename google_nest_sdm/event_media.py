@@ -10,7 +10,13 @@ from collections import OrderedDict
 from collections.abc import Iterable
 from typing import Any, Awaitable, Callable, Dict
 
-from .camera_traits import EventImageContentType, EventImageGenerator, EventImageType
+from .camera_traits import (
+    CameraClipPreviewTrait,
+    CameraEventImageTrait,
+    EventImageContentType,
+    EventImageGenerator,
+    EventImageType,
+)
 from .event import (
     CameraMotionEvent,
     CameraPersonEvent,
@@ -208,6 +214,14 @@ class EventMediaStore(ABC):
     def get_media_key(self, device_id: str, event: ImageEventBase) -> str:
         """Return the filename to use for the device and event."""
 
+    def get_image_media_key(self, device_id: str, event: ImageEventBase) -> str:
+        """Return the filename for image media."""
+        return self.get_media_key(device_id, event)
+
+    def get_clip_preview_media_key(self, device_id: str, event: ImageEventBase) -> str:
+        """Return the filename for clip preview media."""
+        return self.get_media_key(device_id, event)
+
     async def async_load_media(self, media_key: str) -> bytes | None:
         """Load media content."""
 
@@ -238,6 +252,14 @@ class InMemoryEventMediaStore(EventMediaStore):
         suffix = "jpg" if event.event_image_type == EventImageType.IMAGE else "mp4"
         return f"{device_id}_{event.timestamp}_{event.event_session_id}.{suffix}"
 
+    def get_image_media_key(self, device_id: str, event: ImageEventBase) -> str:
+        """Return the media key to use for the device and event."""
+        return f"{device_id}_{event.timestamp}_{event.event_session_id}_{event.event_id}.jpg"
+
+    def get_clip_preview_media_key(self, device_id: str, event: ImageEventBase) -> str:
+        """Return the media key to use for the device and event."""
+        return f"{device_id}_{event.timestamp}_{event.event_session_id}.mp4"
+
     async def async_load_media(self, media_key: str) -> bytes | None:
         """Load media content."""
         return self._media.get(media_key)
@@ -259,12 +281,14 @@ class EventMediaModelItem:
         self,
         event_session_id: str,
         events: dict[str, ImageEventBase],
-        media_key: str | None = None,
+        media_key: str | None,
+        event_media_keys: dict[str, str],
     ) -> None:
         """Initialize EventMediaModelItem."""
         self._event_session_id = event_session_id
         self._events = events
         self._media_key = media_key
+        self._event_media_keys = event_media_keys if event_media_keys else {}
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> EventMediaModelItem:
@@ -284,6 +308,7 @@ class EventMediaModelItem:
             data["event_session_id"],
             events,
             data.get("media_key"),
+            data.get("event_media_keys", {}),
         )
 
     @property
@@ -312,6 +337,27 @@ class EventMediaModelItem:
         """Update the media_key."""
         self._media_key = value
 
+    @property
+    def event_media_keys(self) -> dict[str, str]:
+        return self._event_media_keys
+
+    def media_key_for_token(self, token: EventToken) -> str | None:
+        """Return media key for the specified event token."""
+        if token.event_id:
+            if token.event_id in self._event_media_keys:
+                return self._event_media_keys[token.event_id]
+            # Fallback to legacy single event per session
+        return self._media_key
+
+    @property
+    def any_media_key(self) -> str | None:
+        """Return any media item for compatibility with legacy APIs."""
+        if self._media_key:
+            return self._media_key
+        if self._event_media_keys.values():
+            return next(iter(self._event_media_keys.values()))
+        return None
+
     def get_media(self, content: bytes) -> Media:
         assert self.visible_event
         return Media(content, self.visible_event.event_image_type)
@@ -331,6 +377,7 @@ class EventMediaModelItem:
         result: dict[str, Any] = {
             "event_session_id": self._event_session_id,
             "events": dict((k, v.as_dict()) for k, v in self._events.items()),
+            "event_media_keys": self._event_media_keys,
         }
         if self._media_key:
             result["media_key"] = self._media_key
@@ -352,11 +399,13 @@ class EventMediaManager:
     def __init__(
         self,
         device_id: str,
+        traits: Dict[str, Any],
         event_trait_map: Dict[str, EventImageGenerator],
         support_fetch: bool,
     ) -> None:
         """Initialize DeviceEventMediaManager."""
         self._device_id = device_id
+        self._traits = traits
         self._event_trait_map = event_trait_map
         self._cache_policy = CachePolicy()
         self._callback: Callable[[EventMessage], Awaitable[None]] | None = None
@@ -415,9 +464,9 @@ class EventMediaManager:
                 event_session_id,
             )
             return None
-        _LOGGER.debug("Fetching media for event_session_id=%s", event_session_id)
-        if item.media_key:
-            contents = await self._cache_policy._store.async_load_media(item.media_key)
+        media_key = item.any_media_key
+        if media_key:
+            contents = await self._cache_policy._store.async_load_media(media_key)
             if contents:
                 return item.get_event_media(contents)
 
@@ -427,6 +476,7 @@ class EventMediaManager:
                 event_session_id,
             )
             return None
+        _LOGGER.debug("Fetching media for event_session_id=%s", event_session_id)
         if not (generator := self._event_trait_map.get(event.event_type)):
             return None
         event_image = await generator.generate_event_image(event)
@@ -439,8 +489,53 @@ class EventMediaManager:
         await self._async_update(event_data)
         return item.get_event_media(contents)
 
-    async def get_image_media(self, event_token: str) -> bytes | None:
-        """Get media for the clip preview for the specified event."""
+    async def _fetch_media(self, item: EventMediaModelItem) -> None:
+        """Fetch media from the server in response to a pubsub event."""
+        store = self._cache_policy.store
+        if CameraClipPreviewTrait.NAME in self._traits:
+            if (
+                item.media_key
+                or not item.visible_event
+                or item.visible_event.is_expired
+            ):
+                return
+            clip_preview_trait: CameraClipPreviewTrait = self._traits[
+                CameraClipPreviewTrait.NAME
+            ]
+            event_image = await clip_preview_trait.generate_event_image(
+                item.visible_event
+            )
+            if event_image:
+                content = await event_image.contents()
+                # Caller will persist the media key assignment
+                media_key = store.get_clip_preview_media_key(
+                    self._device_id, item.visible_event
+                )
+                item.media_key = media_key
+                _LOGGER.debug("Saving media %s (%s)", media_key, item.event_session_id)
+                await store.async_save_media(media_key, content)
+                return
+
+        if CameraEventImageTrait.NAME not in self._traits:
+            return
+
+        event_image_trait: CameraEventImageTrait = self._traits[
+            CameraEventImageTrait.NAME
+        ]
+        for event in item.events.values():
+            if event.event_id in item.event_media_keys or event.is_expired:
+                continue
+            event_image = await event_image_trait.generate_image(event.event_id)
+            content = await event_image.contents()
+
+            # Caller will persist the media key assignment
+            media_key = store.get_image_media_key(self._device_id, event)
+            item.event_media_keys[event.event_id] = media_key
+            _LOGGER.debug("Saving media %s (%s)", media_key, item.event_session_id)
+            await store.async_save_media(media_key, content)
+
+    async def get_media_from_token(self, event_token: str) -> bytes | None:
+        """Get media based on the event token."""
         token = EventToken.decode(event_token)
         event_data = await self._async_load()
         if not (item := event_data.get(token.event_session_id)):
@@ -448,37 +543,16 @@ class EventMediaManager:
                 "No event information found for event id: %s", token.event_session_id
             )
             return None
-
-        if not item.media_key:
-            _LOGGER.debug("No persisted media for event id: %s", token.event_session_id)
+        media_key = item.media_key_for_token(token)
+        if not media_key:
+            _LOGGER.debug("No persisted media for event id %s", token)
             return None
-        contents = await self._cache_policy._store.async_load_media(item.media_key)
+        contents = await self._cache_policy._store.async_load_media(media_key)
         if not contents:
             _LOGGER.debug(
-                "Unable to load persisted media for event id: %s (%s)",
+                "Unable to load persisted media for event id: (%s, %s, %s)",
                 token.event_session_id,
-                item.media_key,
-            )
-            return None
-        return contents
-
-    async def get_clip_preview_media(self, event_token: str) -> bytes | None:
-        """Get media for the clip preview for the specified event."""
-        token = EventToken.decode(event_token)
-        event_data = await self._async_load()
-        if not (item := event_data.get(token.event_session_id)):
-            _LOGGER.debug(
-                "No event information found for event id: %s", token.event_session_id
-            )
-            return None
-        if not item.media_key:
-            _LOGGER.debug("No persisted media for event id: %s", token.event_session_id)
-            return None
-        contents = await self._cache_policy._store.async_load_media(item.media_key)
-        if not contents:
-            _LOGGER.debug(
-                "Unable to load persisted media for event id: %s (%s)",
-                token.event_session_id,
+                token.event_id,
                 item.media_key,
             )
             return None
@@ -601,27 +675,43 @@ class EventMediaManager:
             else:
                 # A new event session
                 valid_events += len(event_dict.keys())
-                model_item = EventMediaModelItem(event_session_id, event_dict)
+                model_item = EventMediaModelItem(
+                    event_session_id, event_dict, media_key=None, event_media_keys={}
+                )
                 event_data[event_session_id] = model_item
 
                 if len(event_data) > self._cache_policy.event_cache_size:
                     (key, old_item) = event_data.popitem(last=False)
                     if old_item.media_key:
+                        _LOGGER.debug(
+                            "Expiring media %s (%s)",
+                            old_item.media_key,
+                            old_item.event_session_id,
+                        )
                         await self._cache_policy.store.async_remove_media(
                             old_item.media_key
                         )
+                    for old_media_key in old_item.event_media_keys.values():
+                        _LOGGER.debug(
+                            "Expiring event media %s (%s)",
+                            old_media_key,
+                            old_item.event_session_id,
+                        )
+                        await self._cache_policy.store.async_remove_media(old_media_key)
 
             await self._async_update(event_data)
 
             if self._support_fetch and self._cache_policy.fetch:
                 try:
-                    await self.get_media(event_session_id)
+                    await self._fetch_media(model_item)
                 except GoogleNestException as err:
                     _LOGGER.warning(
                         "Failure when pre-fetching event '%s': %s",
-                        event.event_id,
+                        event.event_session_id,
                         str(err),
                     )
+                # Update any new media keys
+                await self._async_update(event_data)
 
         if not self._callback:
             return
