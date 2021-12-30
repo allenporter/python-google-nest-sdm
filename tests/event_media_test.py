@@ -1453,6 +1453,59 @@ async def test_persisted_storage_clip_preview(
     assert content == b"image-bytes-1"
 
 
+async def test_event_image_lookup_failure(
+    app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraEventImage": {},
+            "sdm.devices.traits.DoorbellChime": {},
+            "sdm.devices.traits.CameraMotion": {},
+        }
+    )
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert device.name == device_id
+
+    # Disable pre-fetch
+    event_media_manager = device.event_media_manager
+    event_media_manager.cache_policy.fetch = False
+
+    token = EventToken(
+        "CjY5Y3VKaTZwR3o4Y19YbTVfMF...", "FWWVQVUdGNUlTU2V4MGV2aTNXV..."
+    ).encode()
+    assert not await event_media_manager.get_image_media(token)
+
+    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": now.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": device_id,
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+
+    assert not await event_media_manager.get_image_media(token)
+
+
 async def test_clip_preview_lookup_failure(
     app: aiohttp.web.Application,
     device_handler: DeviceHandler,
@@ -1473,8 +1526,8 @@ async def test_clip_preview_lookup_failure(
     device = devices[0]
     assert device.name == device_id
 
-    # Enable pre-fetch
     event_media_manager = device.event_media_manager
+    event_media_manager.cache_policy.fetch = False
 
     token = EventToken("CjY5Y3VKaTZwR3o4Y19YbTVfMF...").encode()
     assert not await event_media_manager.get_clip_preview_media(token)
