@@ -325,6 +325,9 @@ def test_update_from_events(
     assert ts == e.timestamp
     expire_ts = datetime.datetime(2019, 1, 1, 0, 0, 31, tzinfo=datetime.timezone.utc)
     assert expire_ts == e.expires_at
+    event_token = EventToken.decode(e.event_token)
+    assert event_token.event_id == "EXXVQVUdGNUlTU2V4MGV2aTNXV..."
+    assert event_token.event_session_id == "DkX5Y3VKaTZwR3o4Y19YbTVfMF..."
 
     event = event.omit_events(["unknown"])
     events = event.resource_update_events
