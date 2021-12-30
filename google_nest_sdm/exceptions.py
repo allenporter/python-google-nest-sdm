@@ -19,3 +19,7 @@ class AuthException(GoogleNestException):
 
 class ConfigurationException(GoogleNestException):
     """Raised due to misconfiguration problems."""
+
+
+class DecodeException(GoogleNestException):
+    """Raised when failing to decode a token."""

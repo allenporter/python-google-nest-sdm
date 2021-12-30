@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import datetime
 import hashlib
+import json
 import logging
 from abc import ABC, abstractmethod
-from enum import Enum
-from typing import Any, Awaitable, Callable, Dict, Iterable, Mapping, Optional
+from dataclasses import dataclass
+from typing import Any, Dict, Iterable, Mapping, Optional
 
 from .auth import AbstractAuth
+from .exceptions import DecodeException
 from .registry import Registry
 from .traits import BuildTraits, Command
 from .typing import cast_assert, cast_optional
@@ -81,6 +85,32 @@ class EventImageType:
             return EventImageContentType(content_type)
 
 
+@dataclass
+class EventToken:
+    """Identifier for a unique event."""
+
+    event_session_id: str
+    event_id: str
+
+    def encode(self) -> str:
+        """Encode the event token as a serialized string."""
+        data = [self.event_session_id, self.event_id]
+        b = json.dumps(data).encode("utf-8")
+        return base64.b64encode(b).decode("utf-8")
+
+    @staticmethod
+    def decode(content: str) -> EventToken:
+        """Decode an event token into a class."""
+        try:
+            s = base64.b64decode(content).decode("utf-8")
+        except binascii.Error as err:
+            raise DecodeException from err
+        data = json.loads(s)
+        if not isinstance(data, list) or len(data) != 2:
+            raise DecodeException("Unexpected data type: %s", data)
+        return EventToken(data[0], data[1])
+
+
 class ImageEventBase(ABC):
     """Base class for all image related event types."""
 
@@ -91,6 +121,12 @@ class ImageEventBase(ABC):
         self._data = data
         self._timestamp = timestamp
         self._session_events: list[ImageEventBase] = []
+
+    @property
+    def event_token(self) -> str:
+        """An identifier of this session / event combination."""
+        token = EventToken(self.event_session_id, self.event_id)
+        return token.encode()
 
     @property
     @abstractmethod
