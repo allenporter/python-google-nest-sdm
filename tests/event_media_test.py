@@ -7,7 +7,7 @@ import pytest
 
 from google_nest_sdm import google_nest_api
 from google_nest_sdm.camera_traits import EventImageType
-from google_nest_sdm.event import EventMessage, ImageEventBase
+from google_nest_sdm.event import EventMessage, EventToken, ImageEventBase
 from google_nest_sdm.event_media import InMemoryEventMediaStore
 
 from .conftest import FAKE_TOKEN, DeviceHandler, NewHandler, NewImageHandler, Recorder
@@ -1062,3 +1062,512 @@ async def test_event_manager_no_media_support(
 
     trait = device.traits[other_trait]
     assert trait.active_event is None
+
+
+async def test_event_session_image(
+    app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraEventImage": {},
+            "sdm.devices.traits.DoorbellChime": {},
+            "sdm.devices.traits.CameraMotion": {},
+        }
+    )
+
+    post_handler = NewHandler(
+        recorder,
+        [
+            {
+                "results": {
+                    "url": "image-url-1",
+                    "token": "g.1.eventToken",
+                },
+            },
+            {
+                "results": {
+                    "url": "image-url-2",
+                    "token": "g.2.eventToken",
+                },
+            },
+        ],
+    )
+    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
+    app.router.add_get(
+        "/image-url-1", NewImageHandler([b"image-bytes-1"], token="g.1.eventToken")
+    )
+    app.router.add_get(
+        "/image-url-2", NewImageHandler([b"image-bytes-2"], token="g.2.eventToken")
+    )
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert device.name == device_id
+
+    # Enable pre-fetch
+    device.event_media_manager.cache_policy.fetch = True
+
+    ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": ts1.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": device_id,
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    ts2 = ts1 + datetime.timedelta(seconds=5)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "90120ecc7-3b57-4eb4-9941-91609f278ec3",
+                "timestamp": ts2.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": device_id,
+                    "events": {
+                        "sdm.devices.events.DoorbellChime.Chime": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "ABCZQRUdGNUlTU2V4MGV3bRZ23...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+
+    event_media_manager = device.event_media_manager
+
+    # TODO: Needs to be fixed to support multiple image types
+
+    events = list(await event_media_manager.async_image_sessions())
+    assert len(events) == 2
+    event = events[0]
+    event_token = EventToken.decode(event.event_token)
+    assert event_token.event_session_id == "CjY5Y3VKaTZwR3o4Y19YbTVfMF..."
+    assert event_token.event_id == "ABCZQRUdGNUlTU2V4MGV3bRZ23..."
+    assert event.event_type == "sdm.devices.events.DoorbellChime.Chime"
+    assert event.timestamp.isoformat(timespec="seconds") == ts2.isoformat(
+        timespec="seconds"
+    )
+
+    content = await event_media_manager.get_image_media(event.event_token)
+    assert content == b"image-bytes-1"
+
+    event = events[1]
+    event_token = EventToken.decode(event.event_token)
+    assert event_token.event_session_id == "CjY5Y3VKaTZwR3o4Y19YbTVfMF..."
+    assert event_token.event_id == "FWWVQVUdGNUlTU2V4MGV2aTNXV..."
+    assert event.event_type == "sdm.devices.events.CameraMotion.Motion"
+    assert event.timestamp.isoformat(timespec="seconds") == ts1.isoformat(
+        timespec="seconds"
+    )
+
+    content = await event_media_manager.get_image_media(event.event_token)
+    assert content == b"image-bytes-1"
+
+
+async def test_event_session_clip_preview(
+    app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraClipPreview": {},
+            "sdm.devices.traits.DoorbellChime": {},
+            "sdm.devices.traits.CameraMotion": {},
+        }
+    )
+
+    async def img_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
+        return aiohttp.web.Response(body=b"image-bytes-1")
+
+    app.router.add_get("/image-url-1", img_handler)
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert device.name == device_id
+
+    # Enable pre-fetch
+    device.event_media_manager.cache_policy.fetch = True
+
+    ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": ts1.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": device_id,
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "n:1",
+                        },
+                        "sdm.devices.events.CameraClipPreview.ClipPreview": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "previewUrl": "image-url-1",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+                "eventThreadId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                "resourcegroup": [
+                    "enterprises/project-id1/devices/device-id1",
+                ],
+                "eventThreadState": "STARTED",
+            }
+        )
+    )
+    ts2 = ts1 + datetime.timedelta(seconds=5)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": ts2.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": device_id,
+                    "events": {
+                        "sdm.devices.events.DoorbellChime.Chime": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "n:2",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+                "eventThreadId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                "resourcegroup": [
+                    "enterprises/project-id1/devices/device-id1",
+                ],
+                "eventThreadState": "ENDED",
+            }
+        )
+    )
+    event_media_manager = device.event_media_manager
+
+    events = list(await event_media_manager.async_clip_preview_sessions())
+    assert len(events) == 1
+    event = events[0]
+    event_token = EventToken.decode(event.event_token)
+    assert event_token.event_session_id == "CjY5Y3VKaTZwR3o4Y19YbTVfMF..."
+    assert not event_token.event_id
+    assert event.event_types == [
+        "sdm.devices.events.CameraMotion.Motion",
+        "sdm.devices.events.DoorbellChime.Chime",
+    ]
+    assert event.timestamp.isoformat(timespec="seconds") == ts1.isoformat(
+        timespec="seconds"
+    )
+
+    content = await event_media_manager.get_clip_preview_media(event.event_token)
+    assert content == b"image-bytes-1"
+
+
+async def test_persisted_storage_image(
+    app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraEventImage": {},
+            "sdm.devices.traits.DoorbellChime": {},
+            "sdm.devices.traits.CameraMotion": {},
+        }
+    )
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert device.name == device_id
+
+    data = {
+        device_id: [
+            {
+                "event_session_id": "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA",
+                "events": {
+                    "sdm.devices.events.CameraMotion.Motion": {
+                        "event_type": "sdm.devices.events.CameraMotion.Motion",
+                        "event_data": {
+                            "eventSessionId": "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA",
+                            "eventId": "CiUA2vuxrwjZjb0daCbmE...",
+                        },
+                        "timestamp": "2021-12-23T06:35:35.791000+00:00",
+                        "event_image_type": "image/jpeg",
+                    },
+                    "sdm.devices.events.DoorbellChime.Chime": {
+                        "event_type": "sdm.devices.events.DoorbellChime.Chime",
+                        "event_data": {
+                            "eventSessionId": "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA",
+                            "eventId": "CiUA2vuxr_zoChpekrBmo...",
+                        },
+                        "timestamp": "2021-12-23T06:35:36.101000+00:00",
+                        "event_image_type": "image/jpeg",
+                    },
+                },
+                "media_key": "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA-doorbell_chime.jpg",
+            }
+        ],
+    }
+    event_media_manager = device.event_media_manager
+    store = event_media_manager.cache_policy.store
+    await store.async_save(data)
+    # Legacy storage where only one media is stored for multiple image events
+    await store.async_save_media(
+        "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA-doorbell_chime.jpg",
+        b"image-bytes-1",
+    )
+
+    event_media_manager = device.event_media_manager
+
+    events = list(await event_media_manager.async_image_sessions())
+    assert len(events) == 2
+    event = events[0]
+    event_token = EventToken.decode(event.event_token)
+    assert (
+        event_token.event_session_id
+        == "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA"
+    )
+    assert event_token.event_id == "CiUA2vuxr_zoChpekrBmo..."
+    assert event.event_type == "sdm.devices.events.DoorbellChime.Chime"
+    assert event.timestamp.isoformat(timespec="seconds") == "2021-12-23T06:35:36+00:00"
+
+    content = await event_media_manager.get_image_media(event.event_token)
+    assert content == b"image-bytes-1"
+
+    event = events[1]
+    event_token = EventToken.decode(event.event_token)
+    assert (
+        event_token.event_session_id
+        == "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA"
+    )
+    assert event_token.event_id == "CiUA2vuxrwjZjb0daCbmE..."
+    assert event.event_type == "sdm.devices.events.CameraMotion.Motion"
+    assert event.timestamp.isoformat(timespec="seconds") == "2021-12-23T06:35:35+00:00"
+
+    content = await event_media_manager.get_image_media(event.event_token)
+    assert content == b"image-bytes-1"
+
+    # Test failure where media key points to removed media
+    await store.async_remove_media(
+        "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA-doorbell_chime.jpg"
+    )
+    assert not await event_media_manager.get_image_media(event.event_token)
+
+
+async def test_persisted_storage_clip_preview(
+    app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraClipPreview": {},
+            "sdm.devices.traits.DoorbellChime": {},
+            "sdm.devices.traits.CameraMotion": {},
+        }
+    )
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert device.name == device_id
+
+    data = {
+        device_id: [
+            {
+                "event_session_id": "1632710204",
+                "events": {
+                    "sdm.devices.events.CameraMotion.Motion": {
+                        "event_type": "sdm.devices.events.CameraMotion.Motion",
+                        "event_data": {
+                            "eventSessionId": "1632710204",
+                            "eventId": "n:1",
+                        },
+                        "timestamp": "2021-12-21T21:13:18.734000+00:00",
+                        "event_image_type": "video/mp4",
+                    },
+                    "sdm.devices.events.DoorbellChime.Chime": {
+                        "event_type": "sdm.devices.events.DoorbellChime.Chime",
+                        "event_data": {
+                            "eventSessionId": "1632710204",
+                            "eventId": "n:2",
+                        },
+                        "timestamp": "2021-12-21T21:13:18.734000+00:00",
+                        "event_image_type": "video/mp4",
+                    },
+                    "sdm.devices.events.CameraClipPreview.ClipPreview": {
+                        "event_type": "sdm.devices.events.CameraClipPreview.ClipPreview",
+                        "event_data": {
+                            "eventSessionId": "1632710204",
+                            "previewUrl": "https://127.0.0.1/example",
+                        },
+                        "timestamp": "2021-12-21T21:13:18.734000+00:00",
+                        "event_image_type": "video/mp4",
+                    },
+                },
+                "media_key": "1640121198-1632710204-doorbell_chime.mp4",
+            }
+        ],
+    }
+    event_media_manager = device.event_media_manager
+    store = event_media_manager.cache_policy.store
+    await store.async_save(data)
+    await store.async_save_media(
+        "1640121198-1632710204-doorbell_chime.mp4", b"image-bytes-1"
+    )
+
+    events = list(await event_media_manager.async_clip_preview_sessions())
+    assert len(events) == 1
+    event = events[0]
+    event_token = EventToken.decode(event.event_token)
+    assert event_token.event_session_id == "1632710204"
+    assert not event_token.event_id
+    assert event.event_types == [
+        "sdm.devices.events.CameraMotion.Motion",
+        "sdm.devices.events.DoorbellChime.Chime",
+    ]
+    assert event.timestamp.isoformat(timespec="seconds") == "2021-12-21T21:13:18+00:00"
+
+    content = await event_media_manager.get_clip_preview_media(event.event_token)
+    assert content == b"image-bytes-1"
+
+    # Test failure where media key points to removed media
+    await store.async_remove_media("1640121198-1632710204-doorbell_chime.mp4")
+    assert not await event_media_manager.get_clip_preview_media(event.event_token)
+
+
+async def test_event_image_lookup_failure(
+    app: aiohttp.web.Application,
+    recorder: Recorder,
+    device_handler: DeviceHandler,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraEventImage": {},
+            "sdm.devices.traits.DoorbellChime": {},
+            "sdm.devices.traits.CameraMotion": {},
+        }
+    )
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert device.name == device_id
+
+    # Disable pre-fetch
+    event_media_manager = device.event_media_manager
+    event_media_manager.cache_policy.fetch = False
+
+    token = EventToken(
+        "CjY5Y3VKaTZwR3o4Y19YbTVfMF...", "FWWVQVUdGNUlTU2V4MGV2aTNXV..."
+    ).encode()
+    assert not await event_media_manager.get_image_media(token)
+
+    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": now.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": device_id,
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+
+    assert not await event_media_manager.get_image_media(token)
+
+
+async def test_clip_preview_lookup_failure(
+    app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraClipPreview": {},
+            "sdm.devices.traits.DoorbellChime": {},
+            "sdm.devices.traits.CameraMotion": {},
+        }
+    )
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert device.name == device_id
+
+    event_media_manager = device.event_media_manager
+    event_media_manager.cache_policy.fetch = False
+
+    token = EventToken("CjY5Y3VKaTZwR3o4Y19YbTVfMF...").encode()
+    assert not await event_media_manager.get_clip_preview_media(token)
+
+    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": now.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": device_id,
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "eventId": "n:1",
+                        },
+                        "sdm.devices.events.CameraClipPreview.ClipPreview": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                            "previewUrl": "image-url-1",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+                "eventThreadId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                "resourcegroup": [
+                    "enterprises/project-id1/devices/device-id1",
+                ],
+                "eventThreadState": "STARTED",
+            }
+        )
+    )
+    assert not await event_media_manager.get_clip_preview_media(token)

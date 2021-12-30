@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime
+import itertools
 import logging
 from abc import ABC
 from collections import OrderedDict
@@ -16,6 +17,7 @@ from .event import (
     CameraSoundEvent,
     DoorbellChimeEvent,
     EventMessage,
+    EventToken,
     ImageEventBase,
     session_event_image_type,
 )
@@ -94,25 +96,90 @@ class Media:
         return self._event_image_type
 
 
+class ImageSession(ABC):
+    """An object that holds events that happened within a time range."""
+
+    def __init__(
+        self,
+        event_session_id: str,
+        event_id: str,
+        event_timestamp: datetime.datetime,
+        event_type: str,
+    ) -> None:
+        self._event_session_id = event_session_id
+        self._event_id = event_id
+        self._event_timestamp = event_timestamp
+        self._event_type = event_type
+
+    @property
+    def event_token(self) -> str:
+        token = EventToken(self._event_session_id, self._event_id)
+        return token.encode()
+
+    @property
+    def timestamp(self) -> datetime.datetime:
+        """Return timestamp that the event ocurred."""
+        return self._event_timestamp
+
+    @property
+    def event_type(self) -> str:
+        return self._event_type
+
+
+class ClipPreviewSession(ABC):
+    """An object that holds events that happened within a time range."""
+
+    def __init__(
+        self,
+        event_session_id: str,
+        event_timestamp: datetime.datetime,
+        event_types: list[str],
+    ) -> None:
+        self._event_session_id = event_session_id
+        self._event_timestamp = event_timestamp
+        self._event_types = event_types
+
+    @property
+    def event_token(self) -> str:
+        token = EventToken(self._event_session_id)
+        return token.encode()
+
+    @property
+    def timestamp(self) -> datetime.datetime:
+        """Return timestamp that the event ocurred."""
+        return self._event_timestamp
+
+    @property
+    def event_types(self) -> list[str]:
+        return self._event_types
+
+
 class EventMedia:
     """Represents an event and its associated media."""
 
     def __init__(
         self,
         event_session_id: str,
+        event_id: str,
         event_type: str,
         event_timestamp: datetime.datetime,
         media: Media,
     ) -> None:
         self._event_session_id = event_session_id
+        self._event_id = event_id
         self._event_type = event_type
         self._event_timestamp = event_timestamp
         self._media = media
 
     @property
     def event_session_id(self) -> str:
-        """Return the event id."""
+        """Return the event session id."""
         return self._event_session_id
+
+    @property
+    def event_id(self) -> str:
+        """Return the event id."""
+        return self._event_id
 
     @property
     def event_type(self) -> str:
@@ -253,6 +320,7 @@ class EventMediaModelItem:
         assert self.visible_event
         return EventMedia(
             self.visible_event.event_session_id,
+            self.visible_event.event_id,
             self.visible_event.event_type,
             self.visible_event.timestamp,
             self.get_media(content),
@@ -371,17 +439,54 @@ class EventMediaManager:
         await self._async_update(event_data)
         return item.get_event_media(contents)
 
+    async def get_image_media(self, event_token: str) -> bytes | None:
+        """Get media for the clip preview for the specified event."""
+        token = EventToken.decode(event_token)
+        event_data = await self._async_load()
+        if not (item := event_data.get(token.event_session_id)):
+            _LOGGER.debug(
+                "No event information found for event id: %s", token.event_session_id
+            )
+            return None
+
+        if not item.media_key:
+            _LOGGER.debug("No persisted media for event id: %s", token.event_session_id)
+            return None
+        contents = await self._cache_policy._store.async_load_media(item.media_key)
+        if not contents:
+            _LOGGER.debug(
+                "Unable to load persisted media for event id: %s (%s)",
+                token.event_session_id,
+                item.media_key,
+            )
+            return None
+        return contents
+
+    async def get_clip_preview_media(self, event_token: str) -> bytes | None:
+        """Get media for the clip preview for the specified event."""
+        token = EventToken.decode(event_token)
+        event_data = await self._async_load()
+        if not (item := event_data.get(token.event_session_id)):
+            _LOGGER.debug(
+                "No event information found for event id: %s", token.event_session_id
+            )
+            return None
+        if not item.media_key:
+            _LOGGER.debug("No persisted media for event id: %s", token.event_session_id)
+            return None
+        contents = await self._cache_policy._store.async_load_media(item.media_key)
+        if not contents:
+            _LOGGER.debug(
+                "Unable to load persisted media for event id: %s (%s)",
+                token.event_session_id,
+                item.media_key,
+            )
+            return None
+        return contents
+
     async def async_events(self) -> Iterable[ImageEventBase]:
         """Return revent events."""
-
-        def _filter(x: EventMediaModelItem) -> bool:
-            """Return events already fetched or that could be fetched."""
-            return x.visible_event is not None and (
-                x.media_key is not None or not x.visible_event.is_expired
-            )
-
-        event_data = await self._async_load()
-        result: list[EventMediaModelItem] = list(filter(_filter, event_data.values()))
+        result = await self._visible_items()
 
         def _get_event(x: EventMediaModelItem) -> ImageEventBase:
             assert x.visible_event
@@ -390,6 +495,60 @@ class EventMediaManager:
         event_result = list(map(_get_event, result))
         event_result.sort(key=lambda x: x.timestamp, reverse=True)
         return event_result
+
+    async def async_image_sessions(self) -> Iterable[ImageSession]:
+        """Return revent events."""
+
+        result = await self._visible_items()
+
+        def _get_events(x: EventMediaModelItem) -> list[ImageEventBase]:
+            return list(x.events.values())
+
+        events_list = list(map(_get_events, result))
+        events: Iterable[ImageEventBase] = itertools.chain(*events_list)
+
+        def _get_session(x: ImageEventBase) -> ImageSession:
+            return ImageSession(
+                x.event_session_id, x.event_id, x.timestamp, x.event_type
+            )
+
+        event_result = list(map(_get_session, events))
+        event_result.sort(key=lambda x: x.timestamp, reverse=True)
+        return event_result
+
+    async def async_clip_preview_sessions(self) -> Iterable[ClipPreviewSession]:
+        """Return revent events."""
+
+        result = await self._visible_items()
+
+        def _event_visible(event_type: str) -> bool:
+            return event_type in VISIBLE_EVENTS
+
+        def _get_event_session(x: EventMediaModelItem) -> ClipPreviewSession:
+            assert x.visible_event
+            events = list(x.events.values())
+            events.sort(key=lambda x: x.timestamp)
+            return ClipPreviewSession(
+                x.event_session_id,
+                next(iter(events)).timestamp,
+                list(filter(_event_visible, [y.event_type for y in events])),
+            )
+
+        event_result = list(map(_get_event_session, result))
+        event_result.sort(key=lambda x: x.timestamp, reverse=True)
+        return event_result
+
+    async def _visible_items(self) -> list[EventMediaModelItem]:
+        """Return items in the modle that are visible events for serving."""
+
+        def _filter(x: EventMediaModelItem) -> bool:
+            """Return events already fetched or that could be fetched."""
+            return x.visible_event is not None and (
+                x.media_key is not None or not x.visible_event.is_expired
+            )
+
+        event_data = await self._async_load()
+        return list(filter(_filter, event_data.values()))
 
     def set_update_callback(
         self, target: Callable[[EventMessage], Awaitable[None]]
