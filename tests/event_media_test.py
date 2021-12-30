@@ -1372,6 +1372,12 @@ async def test_persisted_storage_image(
     content = await event_media_manager.get_image_media(event.event_token)
     assert content == b"image-bytes-1"
 
+    # Test failure where media key points to removed media
+    await store.async_remove_media(
+        "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA-doorbell_chime.jpg"
+    )
+    assert not await event_media_manager.get_image_media(event.event_token)
+
 
 async def test_persisted_storage_clip_preview(
     app: aiohttp.web.Application,
@@ -1451,6 +1457,10 @@ async def test_persisted_storage_clip_preview(
 
     content = await event_media_manager.get_clip_preview_media(event.event_token)
     assert content == b"image-bytes-1"
+
+    # Test failure where media key points to removed media
+    await store.async_remove_media("1640121198-1632710204-doorbell_chime.mp4")
+    assert not await event_media_manager.get_clip_preview_media(event.event_token)
 
 
 async def test_event_image_lookup_failure(
