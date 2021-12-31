@@ -101,6 +101,11 @@ class Media:
         """Content event image type of the media."""
         return self._event_image_type
 
+    @property
+    def content_type(self) -> str:
+        """Content type of the media."""
+        return self._event_image_type.content_type
+
 
 class ImageSession(ABC):
     """An object that holds events that happened within a time range."""
@@ -529,7 +534,7 @@ class EventMediaManager:
             _LOGGER.debug("Saving media %s (%s)", media_key, item.event_session_id)
             await store.async_save_media(media_key, content)
 
-    async def get_media_from_token(self, event_token: str) -> bytes | None:
+    async def get_media_from_token(self, event_token: str) -> Media | None:
         """Get media based on the event token."""
         token = EventToken.decode(event_token)
         event_data = await self._async_load()
@@ -551,7 +556,8 @@ class EventMediaManager:
                 item.media_key,
             )
             return None
-        return contents
+        assert item.visible_event
+        return Media(contents, item.visible_event.event_image_type)
 
     async def async_events(self) -> Iterable[ImageEventBase]:
         """Return revent events."""
