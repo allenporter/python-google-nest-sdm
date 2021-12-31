@@ -1302,7 +1302,7 @@ async def test_event_session_clip_preview(
     event = events[0]
     event_token = EventToken.decode(event.event_token)
     assert event_token.event_session_id == "CjY5Y3VKaTZwR3o4Y19YbTVfMF..."
-    assert not event_token.event_id
+    assert event_token.event_id == "n:2"
     assert event.event_types == [
         "sdm.devices.events.CameraMotion.Motion",
         "sdm.devices.events.DoorbellChime.Chime",
@@ -1484,7 +1484,7 @@ async def test_persisted_storage_clip_preview(
     event = events[0]
     event_token = EventToken.decode(event.event_token)
     assert event_token.event_session_id == "1632710204"
-    assert not event_token.event_id
+    assert event_token.event_id == "n:2"
     assert event.event_types == [
         "sdm.devices.events.CameraMotion.Motion",
         "sdm.devices.events.DoorbellChime.Chime",

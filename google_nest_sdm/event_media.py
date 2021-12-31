@@ -112,20 +112,17 @@ class ImageSession(ABC):
 
     def __init__(
         self,
-        event_session_id: str,
-        event_id: str,
+        event_token: str,
         event_timestamp: datetime.datetime,
         event_type: str,
     ) -> None:
-        self._event_session_id = event_session_id
-        self._event_id = event_id
+        self._event_token = event_token
         self._event_timestamp = event_timestamp
         self._event_type = event_type
 
     @property
     def event_token(self) -> str:
-        token = EventToken(self._event_session_id, self._event_id)
-        return token.encode()
+        return self._event_token
 
     @property
     def timestamp(self) -> datetime.datetime:
@@ -142,18 +139,17 @@ class ClipPreviewSession(ABC):
 
     def __init__(
         self,
-        event_session_id: str,
+        event_token: str,
         event_timestamp: datetime.datetime,
         event_types: list[str],
     ) -> None:
-        self._event_session_id = event_session_id
+        self._event_token = event_token
         self._event_timestamp = event_timestamp
         self._event_types = event_types
 
     @property
     def event_token(self) -> str:
-        token = EventToken(self._event_session_id)
-        return token.encode()
+        return self._event_token
 
     @property
     def timestamp(self) -> datetime.datetime:
@@ -583,9 +579,7 @@ class EventMediaManager:
         events: Iterable[ImageEventBase] = itertools.chain(*events_list)
 
         def _get_session(x: ImageEventBase) -> ImageSession:
-            return ImageSession(
-                x.event_session_id, x.event_id, x.timestamp, x.event_type
-            )
+            return ImageSession(x.event_token, x.timestamp, x.event_type)
 
         event_result = list(map(_get_session, events))
         event_result.sort(key=lambda x: x.timestamp, reverse=True)
@@ -603,8 +597,9 @@ class EventMediaManager:
             assert x.visible_event
             events = list(x.events.values())
             events.sort(key=lambda x: x.timestamp)
+            token = EventToken(x.event_session_id, x.visible_event.event_id)
             return ClipPreviewSession(
-                x.event_session_id,
+                token.encode(),
                 next(iter(events)).timestamp,
                 list(filter(_event_visible, [y.event_type for y in events])),
             )
