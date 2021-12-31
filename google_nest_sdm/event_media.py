@@ -183,11 +183,6 @@ class EventMedia:
         return self._event_session_id
 
     @property
-    def event_id(self) -> str:
-        """Return the event id."""
-        return self._event_id
-
-    @property
     def event_type(self) -> str:
         """Return the event type."""
         return self._event_type

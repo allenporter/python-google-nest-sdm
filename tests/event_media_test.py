@@ -1335,12 +1335,12 @@ async def test_persisted_storage_image(
     data = {
         device_id: [
             {
-                "event_session_id": "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA",
+                "event_session_id": "AVPHwEtyzgSxu6EuaIOfvz...",
                 "events": {
                     "sdm.devices.events.CameraMotion.Motion": {
                         "event_type": "sdm.devices.events.CameraMotion.Motion",
                         "event_data": {
-                            "eventSessionId": "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA",
+                            "eventSessionId": "AVPHwEtyzgSxu6EuaIOfvz...",
                             "eventId": "CiUA2vuxrwjZjb0daCbmE...",
                         },
                         "timestamp": "2021-12-23T06:35:35.791000+00:00",
@@ -1349,7 +1349,7 @@ async def test_persisted_storage_image(
                     "sdm.devices.events.DoorbellChime.Chime": {
                         "event_type": "sdm.devices.events.DoorbellChime.Chime",
                         "event_data": {
-                            "eventSessionId": "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA",
+                            "eventSessionId": "AVPHwEtyzgSxu6EuaIOfvz...",
                             "eventId": "CiUA2vuxr_zoChpekrBmo...",
                         },
                         "timestamp": "2021-12-23T06:35:36.101000+00:00",
@@ -1375,10 +1375,7 @@ async def test_persisted_storage_image(
     assert len(events) == 2
     event = events[0]
     event_token = EventToken.decode(event.event_token)
-    assert (
-        event_token.event_session_id
-        == "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA"
-    )
+    assert event_token.event_session_id == "AVPHwEtyzgSxu6EuaIOfvz..."
     assert event_token.event_id == "CiUA2vuxr_zoChpekrBmo..."
     assert event.event_type == "sdm.devices.events.DoorbellChime.Chime"
     assert event.timestamp.isoformat(timespec="seconds") == "2021-12-23T06:35:36+00:00"
@@ -1388,16 +1385,18 @@ async def test_persisted_storage_image(
 
     event = events[1]
     event_token = EventToken.decode(event.event_token)
-    assert (
-        event_token.event_session_id
-        == "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA"
-    )
+    assert event_token.event_session_id == "AVPHwEtyzgSxu6EuaIOfvz..."
     assert event_token.event_id == "CiUA2vuxrwjZjb0daCbmE..."
     assert event.event_type == "sdm.devices.events.CameraMotion.Motion"
     assert event.timestamp.isoformat(timespec="seconds") == "2021-12-23T06:35:35+00:00"
 
     content = await event_media_manager.get_media_from_token(event.event_token)
     assert content == b"image-bytes-1"
+
+    # Use original APIs
+    event_media = await event_media_manager.get_media("AVPHwEtyzgSxu6EuaIOfvz...")
+    assert event_media
+    assert event_media.media.contents == b"image-bytes-1"
 
     # Test failure where media key points to removed media
     await store.async_remove_media(
@@ -1484,6 +1483,11 @@ async def test_persisted_storage_clip_preview(
 
     content = await event_media_manager.get_media_from_token(event.event_token)
     assert content == b"image-bytes-1"
+
+    # Use original APIs
+    event_media = await event_media_manager.get_media("1632710204")
+    assert event_media
+    assert event_media.media.contents == b"image-bytes-1"
 
     # Test failure where media key points to removed media
     await store.async_remove_media("1640121198-1632710204-doorbell_chime.mp4")
