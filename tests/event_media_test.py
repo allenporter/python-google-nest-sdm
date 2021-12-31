@@ -1194,8 +1194,10 @@ async def test_event_session_image(
         timespec="seconds"
     )
 
-    content = await event_media_manager.get_media_from_token(event.event_token)
-    assert content == b"image-bytes-2"
+    media = await event_media_manager.get_media_from_token(event.event_token)
+    assert media
+    assert media.contents == b"image-bytes-2"
+    assert media.content_type == "image/jpeg"
 
     event = events[1]
     event_token = EventToken.decode(event.event_token)
@@ -1206,8 +1208,10 @@ async def test_event_session_image(
         timespec="seconds"
     )
 
-    content = await event_media_manager.get_media_from_token(event.event_token)
-    assert content == b"image-bytes-1"
+    media = await event_media_manager.get_media_from_token(event.event_token)
+    assert media
+    assert media.contents == b"image-bytes-1"
+    assert media.content_type == "image/jpeg"
 
 
 async def test_event_session_clip_preview(
@@ -1307,8 +1311,10 @@ async def test_event_session_clip_preview(
         timespec="seconds"
     )
 
-    content = await event_media_manager.get_media_from_token(event.event_token)
-    assert content == b"image-bytes-1"
+    media = await event_media_manager.get_media_from_token(event.event_token)
+    assert media
+    assert media.contents == b"image-bytes-1"
+    assert media.content_type == "video/mp4"
 
 
 async def test_persisted_storage_image(
@@ -1380,8 +1386,10 @@ async def test_persisted_storage_image(
     assert event.event_type == "sdm.devices.events.DoorbellChime.Chime"
     assert event.timestamp.isoformat(timespec="seconds") == "2021-12-23T06:35:36+00:00"
 
-    content = await event_media_manager.get_media_from_token(event.event_token)
-    assert content == b"image-bytes-1"
+    media = await event_media_manager.get_media_from_token(event.event_token)
+    assert media
+    assert media.contents == b"image-bytes-1"
+    assert media.content_type == "image/jpeg"
 
     event = events[1]
     event_token = EventToken.decode(event.event_token)
@@ -1390,8 +1398,10 @@ async def test_persisted_storage_image(
     assert event.event_type == "sdm.devices.events.CameraMotion.Motion"
     assert event.timestamp.isoformat(timespec="seconds") == "2021-12-23T06:35:35+00:00"
 
-    content = await event_media_manager.get_media_from_token(event.event_token)
-    assert content == b"image-bytes-1"
+    media = await event_media_manager.get_media_from_token(event.event_token)
+    assert media
+    assert media.contents == b"image-bytes-1"
+    assert media.content_type == "image/jpeg"
 
     # Use original APIs
     event_media = await event_media_manager.get_media("AVPHwEtyzgSxu6EuaIOfvz...")
@@ -1481,8 +1491,10 @@ async def test_persisted_storage_clip_preview(
     ]
     assert event.timestamp.isoformat(timespec="seconds") == "2021-12-21T21:13:18+00:00"
 
-    content = await event_media_manager.get_media_from_token(event.event_token)
-    assert content == b"image-bytes-1"
+    media = await event_media_manager.get_media_from_token(event.event_token)
+    assert media
+    assert media.contents == b"image-bytes-1"
+    assert media.content_type == "video/mp4"
 
     # Use original APIs
     event_media = await event_media_manager.get_media("1632710204")
