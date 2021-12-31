@@ -156,11 +156,20 @@ async def test_event_manager_prefetch_image(
                     "token": "g.1.eventToken",
                 },
             },
+            {
+                "results": {
+                    "url": "image-url-2",
+                    "token": "g.2.eventToken",
+                },
+            },
         ],
     )
     app.router.add_post(f"/{device_id}:executeCommand", post_handler)
     app.router.add_get(
         "/image-url-1", NewImageHandler([b"image-bytes-1"], token="g.1.eventToken")
+    )
+    app.router.add_get(
+        "/image-url-2", NewImageHandler([b"image-bytes-2"], token="g.2.eventToken")
     )
 
     api = await api_client()
@@ -366,6 +375,16 @@ async def test_event_manager_cache_expiration(
             """Return a predictable media key."""
             return event.event_session_id
 
+        def get_image_media_key(self, device_id: str, event: ImageEventBase) -> str:
+            """Return a predictable media key."""
+            return event.event_session_id
+
+        def get_preview_clip_media_key(
+            self, device_id: str, event: ImageEventBase
+        ) -> str:
+            """Return a predictable media key."""
+            return event.event_session_id
+
     store = TestStore()
     device.event_media_manager.cache_policy.store = store
 
@@ -417,7 +436,7 @@ async def test_event_manager_prefetch_image_failure(
     )
 
     # Send one failure response, then 3 other valid responses. The cache size
-    # is too so we're exercising events dropping out of the cache.
+    # is too small so we're exercising events dropping out of the cache.
     responses = [
         aiohttp.web.json_response(
             {
@@ -452,6 +471,14 @@ async def test_event_manager_prefetch_image_failure(
                 },
             }
         ),
+        aiohttp.web.json_response(
+            {
+                "results": {
+                    "url": "image-url-1",
+                    "token": "g.1.eventToken",
+                },
+            }
+        ),
     ]
 
     async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
@@ -462,7 +489,7 @@ async def test_event_manager_prefetch_image_failure(
     app.router.add_get(
         "/image-url-1",
         NewImageHandler(
-            list(itertools.repeat(b"image-bytes-1", 4)), token="g.1.eventToken"
+            list(itertools.repeat(b"image-bytes-1", 5)), token="g.1.eventToken"
         ),
     )
 
@@ -499,14 +526,16 @@ async def test_event_manager_prefetch_image_failure(
         )
 
     event_media_manager = device.event_media_manager
-    events = await event_media_manager.async_events()
-    assert len(list(events)) == 3
+    events = list(await event_media_manager.async_events())
+    assert len(events) == 3
 
-    for i in range(1, 4):
+    events[0].event_session_id == "CjY5Y...4..."
+    events[1].event_session_id == "CjY5Y...3..."
+    events[2].event_session_id == "CjY5Y...2..."
+
+    for i in range(2, 5):
         event_media = await event_media_manager.get_media(f"CjY5Y...{i}...")
-        if i == 1:
-            assert not event_media
-            continue
+        assert event_media
 
         ts = now + datetime.timedelta(seconds=i)
         assert event_media
@@ -1154,8 +1183,6 @@ async def test_event_session_image(
 
     event_media_manager = device.event_media_manager
 
-    # TODO: Needs to be fixed to support multiple image types
-
     events = list(await event_media_manager.async_image_sessions())
     assert len(events) == 2
     event = events[0]
@@ -1167,8 +1194,8 @@ async def test_event_session_image(
         timespec="seconds"
     )
 
-    content = await event_media_manager.get_image_media(event.event_token)
-    assert content == b"image-bytes-1"
+    content = await event_media_manager.get_media_from_token(event.event_token)
+    assert content == b"image-bytes-2"
 
     event = events[1]
     event_token = EventToken.decode(event.event_token)
@@ -1179,7 +1206,7 @@ async def test_event_session_image(
         timespec="seconds"
     )
 
-    content = await event_media_manager.get_image_media(event.event_token)
+    content = await event_media_manager.get_media_from_token(event.event_token)
     assert content == b"image-bytes-1"
 
 
@@ -1280,7 +1307,7 @@ async def test_event_session_clip_preview(
         timespec="seconds"
     )
 
-    content = await event_media_manager.get_clip_preview_media(event.event_token)
+    content = await event_media_manager.get_media_from_token(event.event_token)
     assert content == b"image-bytes-1"
 
 
@@ -1308,12 +1335,12 @@ async def test_persisted_storage_image(
     data = {
         device_id: [
             {
-                "event_session_id": "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA",
+                "event_session_id": "AVPHwEtyzgSxu6EuaIOfvz...",
                 "events": {
                     "sdm.devices.events.CameraMotion.Motion": {
                         "event_type": "sdm.devices.events.CameraMotion.Motion",
                         "event_data": {
-                            "eventSessionId": "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA",
+                            "eventSessionId": "AVPHwEtyzgSxu6EuaIOfvz...",
                             "eventId": "CiUA2vuxrwjZjb0daCbmE...",
                         },
                         "timestamp": "2021-12-23T06:35:35.791000+00:00",
@@ -1322,7 +1349,7 @@ async def test_persisted_storage_image(
                     "sdm.devices.events.DoorbellChime.Chime": {
                         "event_type": "sdm.devices.events.DoorbellChime.Chime",
                         "event_data": {
-                            "eventSessionId": "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA",
+                            "eventSessionId": "AVPHwEtyzgSxu6EuaIOfvz...",
                             "eventId": "CiUA2vuxr_zoChpekrBmo...",
                         },
                         "timestamp": "2021-12-23T06:35:36.101000+00:00",
@@ -1348,35 +1375,34 @@ async def test_persisted_storage_image(
     assert len(events) == 2
     event = events[0]
     event_token = EventToken.decode(event.event_token)
-    assert (
-        event_token.event_session_id
-        == "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA"
-    )
+    assert event_token.event_session_id == "AVPHwEtyzgSxu6EuaIOfvz..."
     assert event_token.event_id == "CiUA2vuxr_zoChpekrBmo..."
     assert event.event_type == "sdm.devices.events.DoorbellChime.Chime"
     assert event.timestamp.isoformat(timespec="seconds") == "2021-12-23T06:35:36+00:00"
 
-    content = await event_media_manager.get_image_media(event.event_token)
+    content = await event_media_manager.get_media_from_token(event.event_token)
     assert content == b"image-bytes-1"
 
     event = events[1]
     event_token = EventToken.decode(event.event_token)
-    assert (
-        event_token.event_session_id
-        == "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA"
-    )
+    assert event_token.event_session_id == "AVPHwEtyzgSxu6EuaIOfvz..."
     assert event_token.event_id == "CiUA2vuxrwjZjb0daCbmE..."
     assert event.event_type == "sdm.devices.events.CameraMotion.Motion"
     assert event.timestamp.isoformat(timespec="seconds") == "2021-12-23T06:35:35+00:00"
 
-    content = await event_media_manager.get_image_media(event.event_token)
+    content = await event_media_manager.get_media_from_token(event.event_token)
     assert content == b"image-bytes-1"
+
+    # Use original APIs
+    event_media = await event_media_manager.get_media("AVPHwEtyzgSxu6EuaIOfvz...")
+    assert event_media
+    assert event_media.media.contents == b"image-bytes-1"
 
     # Test failure where media key points to removed media
     await store.async_remove_media(
         "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA-doorbell_chime.jpg"
     )
-    assert not await event_media_manager.get_image_media(event.event_token)
+    assert not await event_media_manager.get_media_from_token(event.event_token)
 
 
 async def test_persisted_storage_clip_preview(
@@ -1455,12 +1481,17 @@ async def test_persisted_storage_clip_preview(
     ]
     assert event.timestamp.isoformat(timespec="seconds") == "2021-12-21T21:13:18+00:00"
 
-    content = await event_media_manager.get_clip_preview_media(event.event_token)
+    content = await event_media_manager.get_media_from_token(event.event_token)
     assert content == b"image-bytes-1"
+
+    # Use original APIs
+    event_media = await event_media_manager.get_media("1632710204")
+    assert event_media
+    assert event_media.media.contents == b"image-bytes-1"
 
     # Test failure where media key points to removed media
     await store.async_remove_media("1640121198-1632710204-doorbell_chime.mp4")
-    assert not await event_media_manager.get_clip_preview_media(event.event_token)
+    assert not await event_media_manager.get_media_from_token(event.event_token)
 
 
 async def test_event_image_lookup_failure(
@@ -1491,7 +1522,7 @@ async def test_event_image_lookup_failure(
     token = EventToken(
         "CjY5Y3VKaTZwR3o4Y19YbTVfMF...", "FWWVQVUdGNUlTU2V4MGV2aTNXV..."
     ).encode()
-    assert not await event_media_manager.get_image_media(token)
+    assert not await event_media_manager.get_media_from_token(token)
 
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     await device.async_handle_event(
@@ -1513,7 +1544,7 @@ async def test_event_image_lookup_failure(
         )
     )
 
-    assert not await event_media_manager.get_image_media(token)
+    assert not await event_media_manager.get_media_from_token(token)
 
 
 async def test_clip_preview_lookup_failure(
@@ -1540,7 +1571,7 @@ async def test_clip_preview_lookup_failure(
     event_media_manager.cache_policy.fetch = False
 
     token = EventToken("CjY5Y3VKaTZwR3o4Y19YbTVfMF...").encode()
-    assert not await event_media_manager.get_clip_preview_media(token)
+    assert not await event_media_manager.get_media_from_token(token)
 
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     await device.async_handle_event(
@@ -1570,4 +1601,4 @@ async def test_clip_preview_lookup_failure(
             }
         )
     )
-    assert not await event_media_manager.get_clip_preview_media(token)
+    assert not await event_media_manager.get_media_from_token(token)

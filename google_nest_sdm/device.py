@@ -81,7 +81,10 @@ class Device:
                     trait_class.event_image_creator = event_image_trait
         event_trait_map = _MakeEventTraitMap(traits_dict)
         event_media_manager = EventMediaManager(
-            device_id, event_trait_map, support_fetch=(event_image_trait is not None)
+            device_id,
+            traits_dict,
+            event_trait_map,
+            support_fetch=(event_image_trait is not None),
         )
         return Device(raw_data, traits_dict, event_media_manager)
 
