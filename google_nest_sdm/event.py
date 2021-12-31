@@ -90,7 +90,7 @@ class EventToken:
     """Identifier for a unique event."""
 
     event_session_id: str
-    event_id: str | None = None
+    event_id: str
 
     def encode(self) -> str:
         """Encode the event token as a serialized string."""

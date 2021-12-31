@@ -112,20 +112,17 @@ class ImageSession(ABC):
 
     def __init__(
         self,
-        event_session_id: str,
-        event_id: str,
+        event_token: str,
         event_timestamp: datetime.datetime,
         event_type: str,
     ) -> None:
-        self._event_session_id = event_session_id
-        self._event_id = event_id
+        self._event_token = event_token
         self._event_timestamp = event_timestamp
         self._event_type = event_type
 
     @property
     def event_token(self) -> str:
-        token = EventToken(self._event_session_id, self._event_id)
-        return token.encode()
+        return self._event_token
 
     @property
     def timestamp(self) -> datetime.datetime:
@@ -142,18 +139,17 @@ class ClipPreviewSession(ABC):
 
     def __init__(
         self,
-        event_session_id: str,
+        event_token: str,
         event_timestamp: datetime.datetime,
         event_types: list[str],
     ) -> None:
-        self._event_session_id = event_session_id
+        self._event_token = event_token
         self._event_timestamp = event_timestamp
         self._event_types = event_types
 
     @property
     def event_token(self) -> str:
-        token = EventToken(self._event_session_id)
-        return token.encode()
+        return self._event_token
 
     @property
     def timestamp(self) -> datetime.datetime:
@@ -574,18 +570,15 @@ class EventMediaManager:
     async def async_image_sessions(self) -> Iterable[ImageSession]:
         """Return revent events."""
 
-        result = await self._visible_items()
-
         def _get_events(x: EventMediaModelItem) -> list[ImageEventBase]:
             return list(x.events.values())
 
+        result = await self._items_with_media()
         events_list = list(map(_get_events, result))
         events: Iterable[ImageEventBase] = itertools.chain(*events_list)
 
         def _get_session(x: ImageEventBase) -> ImageSession:
-            return ImageSession(
-                x.event_session_id, x.event_id, x.timestamp, x.event_type
-            )
+            return ImageSession(x.event_token, x.timestamp, x.event_type)
 
         event_result = list(map(_get_session, events))
         event_result.sort(key=lambda x: x.timestamp, reverse=True)
@@ -594,24 +587,30 @@ class EventMediaManager:
     async def async_clip_preview_sessions(self) -> Iterable[ClipPreviewSession]:
         """Return revent events."""
 
-        result = await self._visible_items()
+        def _event_visible(x: ImageEventBase) -> bool:
+            return x.event_type in VISIBLE_EVENTS
 
-        def _event_visible(event_type: str) -> bool:
-            return event_type in VISIBLE_EVENTS
-
-        def _get_event_session(x: EventMediaModelItem) -> ClipPreviewSession:
+        def _get_event_session(x: EventMediaModelItem) -> ClipPreviewSession | None:
             assert x.visible_event
-            events = list(x.events.values())
+            events = list(filter(_event_visible, x.events.values()))
             events.sort(key=lambda x: x.timestamp)
+            if not events:
+                _LOGGER.debug("Partial event in storage")
+                return None
+            visible_event = events[0]
             return ClipPreviewSession(
-                x.event_session_id,
-                next(iter(events)).timestamp,
-                list(filter(_event_visible, [y.event_type for y in events])),
+                visible_event.event_token,
+                visible_event.timestamp,
+                [y.event_type for y in events],
             )
 
-        event_result = list(map(_get_event_session, result))
-        event_result.sort(key=lambda x: x.timestamp, reverse=True)
-        return event_result
+        result = await self._items_with_media()
+        clips: Iterable[ClipPreviewSession | None] = iter(
+            map(_get_event_session, result)
+        )
+        valid_clips: list[ClipPreviewSession] = [x for x in clips if x is not None]
+        valid_clips.sort(key=lambda x: x.timestamp, reverse=True)
+        return valid_clips
 
     async def _visible_items(self) -> list[EventMediaModelItem]:
         """Return items in the modle that are visible events for serving."""
@@ -621,6 +620,18 @@ class EventMediaManager:
             return x.visible_event is not None and (
                 x.media_key is not None or not x.visible_event.is_expired
             )
+
+        event_data = await self._async_load()
+        return list(filter(_filter, event_data.values()))
+
+    async def _items_with_media(self) -> list[EventMediaModelItem]:
+        """Return items in the modle that have media for serving."""
+
+        def _filter(x: EventMediaModelItem) -> bool:
+            """Return events already fetched or that could be fetched."""
+            if x.media_key or x.event_media_keys:
+                return True
+            return False
 
         event_data = await self._async_load()
         return list(filter(_filter, event_data.values()))
