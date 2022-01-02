@@ -13,7 +13,7 @@ class ApiException(GoogleNestException):
     """Raised during problems talking to the API."""
 
 
-class AuthException(GoogleNestException):
+class AuthException(ApiException):
     """Raised due to auth problems talking to API or subscriber."""
 
 
