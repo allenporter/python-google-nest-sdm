@@ -73,6 +73,6 @@ types-PyYAML==6.0.1
 typing-extensions==4.0.1
 typing-inspect==0.7.1
 unittest2pytest==0.4
-urllib3==1.26.7
+urllib3==1.26.8
 virtualenv==20.13.0
 yarl==1.7.2
