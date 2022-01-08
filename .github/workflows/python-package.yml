@@ -36,7 +36,7 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Static typing wiyh mypy
       run: |
-        mypy --install-types --non-interactive .
+        mypy --install-types --non-interactive --no-warn-unused-ignores .
     - name: Test with pytest
       run: |
         pytest --cov=google_nest_sdm --cov-report=xml
