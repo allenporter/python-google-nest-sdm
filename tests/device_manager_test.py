@@ -255,7 +255,7 @@ async def test_device_event_callback(
     assert callback.invoked
 
     # Test event not for this device
-    callback.invoked = False  # type: ignore[unreachble]
+    callback.invoked = False  # type: ignore[unreachable]
     await mgr.async_handle_event(
         fake_event_message(
             {
@@ -361,7 +361,7 @@ async def test_device_update_listener(
     assert callback.invoked
 
     # Test event not for this device
-    callback.invoked = False  # type: ignore[unreachble]
+    callback.invoked = False  # type: ignore[unreachable]
     await mgr.async_handle_event(
         fake_event_message(
             {
