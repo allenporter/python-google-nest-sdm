@@ -45,7 +45,7 @@ platformdirs==2.4.1
 pluggy==1.0.0
 pre-commit==2.16.0
 proto-plus==1.19.8
-protobuf==3.19.1
+protobuf==3.19.3
 py==1.11.0
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
