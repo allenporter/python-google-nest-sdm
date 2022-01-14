@@ -31,6 +31,9 @@ from .exceptions import GoogleNestException
 
 _LOGGER = logging.getLogger(__name__)
 
+# Should be large enough for processing, but not too large to be a size issue
+SNAPSHOT_WIDTH_PX = 1600
+
 DEFAULT_CACHE_SIZE = 2
 
 # Events are collapsed in the order shown here
@@ -522,7 +525,7 @@ class EventMediaManager:
             if event.event_id in item.event_media_keys or event.is_expired:
                 continue
             event_image = await event_image_trait.generate_image(event.event_id)
-            content = await event_image.contents()
+            content = await event_image.contents(width=SNAPSHOT_WIDTH_PX)
 
             # Caller will persist the media key assignment
             media_key = store.get_image_media_key(self._device_id, event)
