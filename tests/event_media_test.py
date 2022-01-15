@@ -1827,7 +1827,28 @@ async def test_clip_preview_transcode(
         assert media.contents == b"fake-video-thumb-bytes"
         assert media.content_type == "image/gif"
 
+    # Test cache
+    with patch(
+        "google_nest_sdm.event_media.InMemoryEventMediaStore.async_load_media",
+        return_value=b"fake-video-thumb-bytes",
+    ):
+        media = await event_media_manager.get_clip_thumbnail_from_token(
+            event.event_token
+        )
+        assert media
+        assert media.contents == b"fake-video-thumb-bytes"
+        assert media.content_type == "image/gif"
+
+    # Test failure mode
     with patch("google_nest_sdm.transcoder.os.path.exists", return_value=False):
+        assert not await event_media_manager.get_clip_thumbnail_from_token(
+            event.event_token
+        )
+
+    with patch(
+        "google_nest_sdm.event_media.InMemoryEventMediaStore.async_load_media",
+        return_value=None,
+    ):
         assert not await event_media_manager.get_clip_thumbnail_from_token(
             event.event_token
         )

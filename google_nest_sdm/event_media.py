@@ -600,14 +600,13 @@ class EventMediaManager:
         """Get a thumbnail from the event token."""
         token = EventToken.decode(event_token)
         event_data = await self._async_load()
-        if not (item := event_data.get(token.event_session_id)):
+        if (
+            not (item := event_data.get(token.event_session_id))
+            or not item.visible_event
+        ):
             _LOGGER.debug(
                 "No event information found for event id: %s", token.event_session_id
             )
-            return None
-
-        if not item.visible_event:
-            _LOGGER.debug("Not events visible for token: %s", event_token)
             return None
 
         if item.thumbnail_media_key:
@@ -627,17 +626,13 @@ class EventMediaManager:
             _LOGGER.debug("No persisted media for event id %s", token)
             return None
 
-        if not self._cache_policy.transcoder:
-            _LOGGER.debug("Transcoder disabled")
-            return None
-
         thumbnail_media_key = (
             self._cache_policy._store.get_clip_preview_thumbnail_media_key(
                 self._device_id, item.visible_event
             )
         )
-        if not thumbnail_media_key:
-            _LOGGER.debug("No media key for thumbnail")
+        if not self._cache_policy.transcoder or not thumbnail_media_key:
+            _LOGGER.debug("Clip transcoding disabled")
             return None
 
         try:
