@@ -45,8 +45,6 @@ VISIBLE_EVENTS = [
     CameraSoundEvent.NAME,
 ]
 
-TRANSCODE_MAX_THREADS = 2
-
 
 class CachePolicy:
     """Policy for how many local objects to cache in memory."""
