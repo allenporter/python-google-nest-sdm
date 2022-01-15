@@ -15,19 +15,20 @@ from .camera_traits import (
     CameraEventImageTrait,
     EventImageContentType,
     EventImageGenerator,
-    EventImageType,
 )
 from .event import (
     CameraMotionEvent,
     CameraPersonEvent,
     CameraSoundEvent,
     DoorbellChimeEvent,
+    EventImageType,
     EventMessage,
     EventToken,
     ImageEventBase,
     session_event_image_type,
 )
-from .exceptions import GoogleNestException
+from .exceptions import GoogleNestException, TranscodeException
+from .transcoder import Transcoder
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,6 +45,8 @@ VISIBLE_EVENTS = [
     CameraSoundEvent.NAME,
 ]
 
+TRANSCODE_MAX_THREADS = 2
+
 
 class CachePolicy:
     """Policy for how many local objects to cache in memory."""
@@ -52,6 +55,7 @@ class CachePolicy:
         self._event_cache_size = event_cache_size
         self._fetch = fetch
         self._store: EventMediaStore = InMemoryEventMediaStore()
+        self._transcoder: Transcoder | None = None
 
     @property
     def event_cache_size(self) -> int:
@@ -82,6 +86,16 @@ class CachePolicy:
     def store(self, value: EventMediaStore) -> None:
         """Update the EventMediaStore."""
         self._store = value
+
+    @property
+    def transcoder(self) -> Transcoder | None:
+        """Return the transcoder."""
+        return self._transcoder
+
+    @transcoder.setter
+    def transcoder(self, value: Transcoder) -> None:
+        """Update the Transcoder."""
+        self._transcoder = value
 
 
 class Media:
@@ -221,6 +235,12 @@ class EventMediaStore(ABC):
         """Return the filename for clip preview media."""
         return self.get_media_key(device_id, event)
 
+    def get_clip_preview_thumbnail_media_key(
+        self, device_id: str, event: ImageEventBase
+    ) -> str | None:
+        """Return the filename for thumbnail for clip preview media."""
+        return None
+
     async def async_load_media(self, media_key: str) -> bytes | None:
         """Load media content."""
 
@@ -259,6 +279,12 @@ class InMemoryEventMediaStore(EventMediaStore):
         """Return the media key to use for the device and event."""
         return f"{device_id}_{event.timestamp}_{event.event_session_id}.mp4"
 
+    def get_clip_preview_thumbnail_media_key(
+        self, device_id: str, event: ImageEventBase
+    ) -> str | None:
+        """Return the media key to use for the clip preview thumbnail."""
+        return f"{device_id}_{event.timestamp}_{event.event_session_id}_thumb.jpg"
+
     async def async_load_media(self, media_key: str) -> bytes | None:
         """Load media content."""
         return self._media.get(media_key)
@@ -282,12 +308,14 @@ class EventMediaModelItem:
         events: dict[str, ImageEventBase],
         media_key: str | None,
         event_media_keys: dict[str, str],
+        thumbnail_media_key: str | None,
     ) -> None:
         """Initialize EventMediaModelItem."""
         self._event_session_id = event_session_id
         self._events = events
         self._media_key = media_key
         self._event_media_keys = event_media_keys if event_media_keys else {}
+        self._thumbnail_media_key = thumbnail_media_key
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> EventMediaModelItem:
@@ -308,6 +336,7 @@ class EventMediaModelItem:
             events,
             data.get("media_key"),
             data.get("event_media_keys", {}),
+            data.get("thumbnail_media_key"),
         )
 
     @property
@@ -357,6 +386,15 @@ class EventMediaModelItem:
             return next(iter(self._event_media_keys.values()))
         return None
 
+    @property
+    def thumbnail_media_key(self) -> str | None:
+        return self._thumbnail_media_key
+
+    @thumbnail_media_key.setter
+    def thumbnail_media_key(self, value: str) -> None:
+        """Update the thumbnail_media_key."""
+        self._thumbnail_media_key = value
+
     def get_media(self, content: bytes) -> Media:
         assert self.visible_event
         return Media(content, self.visible_event.event_image_type)
@@ -380,6 +418,8 @@ class EventMediaModelItem:
         }
         if self._media_key:
             result["media_key"] = self._media_key
+        if self._thumbnail_media_key:
+            result["thumbnail_media_key"] = self._thumbnail_media_key
         return result
 
     def __repr__(self) -> str:
@@ -558,6 +598,70 @@ class EventMediaManager:
         assert item.visible_event
         return Media(contents, item.visible_event.event_image_type)
 
+    async def get_clip_thumbnail_from_token(self, event_token: str) -> Media | None:
+        """Get a thumbnail from the event token."""
+        token = EventToken.decode(event_token)
+        event_data = await self._async_load()
+        if not (item := event_data.get(token.event_session_id)):
+            _LOGGER.debug(
+                "No event information found for event id: %s", token.event_session_id
+            )
+            return None
+
+        if not item.visible_event:
+            _LOGGER.debug("Not events visible for token: %s", event_token)
+            return None
+
+        if item.thumbnail_media_key:
+            # Load cached thumbnail
+            contents = await self._cache_policy._store.async_load_media(
+                item.thumbnail_media_key
+            )
+            if contents:
+                return Media(contents, EventImageType.IMAGE_PREVIEW)
+            _LOGGER.debug(
+                "Thumbnail %s does not exist; transcoding", item.thumbnail_media_key
+            )
+
+        # Check for existing primary media
+        media_key = item.media_key_for_token(token)
+        if not media_key:
+            _LOGGER.debug("No persisted media for event id %s", token)
+            return None
+
+        if not self._cache_policy.transcoder:
+            _LOGGER.debug("Transcoder disabled")
+            return None
+
+        thumbnail_media_key = (
+            self._cache_policy._store.get_clip_preview_thumbnail_media_key(
+                self._device_id, item.visible_event
+            )
+        )
+        if not thumbnail_media_key:
+            _LOGGER.debug("No media key for thumbnail")
+            return None
+
+        try:
+            await self._cache_policy.transcoder.transcode_clip(
+                media_key, thumbnail_media_key
+            )
+        except TranscodeException as err:
+            _LOGGER.debug("Failure to transcode clip thumbnail: %s", str(err))
+            return None
+
+        contents = await self._cache_policy._store.async_load_media(thumbnail_media_key)
+        if not contents:
+            _LOGGER.debug(
+                "Failed to load transcoded clip: %s", item.thumbnail_media_key
+            )
+            return None
+
+        item.thumbnail_media_key = thumbnail_media_key
+        await self._async_update(event_data)
+
+        return Media(contents, EventImageType.IMAGE_PREVIEW)
+
     async def async_events(self) -> Iterable[ImageEventBase]:
         """Return revent events."""
         result = await self._visible_items()
@@ -691,7 +795,11 @@ class EventMediaManager:
                 # A new event session
                 valid_events += len(event_dict.keys())
                 model_item = EventMediaModelItem(
-                    event_session_id, event_dict, media_key=None, event_media_keys={}
+                    event_session_id,
+                    event_dict,
+                    media_key=None,
+                    event_media_keys={},
+                    thumbnail_media_key=None,
                 )
                 event_data[event_session_id] = model_item
 

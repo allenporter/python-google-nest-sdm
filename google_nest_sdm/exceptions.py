@@ -23,3 +23,7 @@ class ConfigurationException(GoogleNestException):
 
 class DecodeException(GoogleNestException):
     """Raised when failing to decode a token."""
+
+
+class TranscodeException(GoogleNestException):
+    """Raised when failing to transcode media."""
