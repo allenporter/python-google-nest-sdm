@@ -38,10 +38,10 @@ class Transcoder:
                 full_output_file,
             ]
         )
-        _LOGGER.debug("Transcoding: %s", cmd)
         proc = await asyncio.create_subprocess_shell(cmd)
         stdout, stderr = await proc.communicate()
         if proc.returncode != 0:
-            _LOGGER.debug(stdout)
             _LOGGER.debug(stderr)
-            raise TranscodeException("Transcode command failure: {cmd}")
+            raise TranscodeException(
+                f"Transcode command failure: {cmd} code: {proc.returncode}"
+            )

@@ -1728,7 +1728,6 @@ async def test_clip_preview_lookup_failure(
 
 
 async def test_clip_preview_transcode(
-    loop: Any,
     app: aiohttp.web.Application,
     device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
