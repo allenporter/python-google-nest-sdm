@@ -1,6 +1,7 @@
 import datetime
 import itertools
 from typing import Any, Awaitable, Callable, Dict
+from unittest.mock import patch
 
 import aiohttp
 import pytest
@@ -9,6 +10,7 @@ from google_nest_sdm import google_nest_api
 from google_nest_sdm.camera_traits import EventImageType
 from google_nest_sdm.event import EventMessage, EventToken, ImageEventBase
 from google_nest_sdm.event_media import InMemoryEventMediaStore
+from google_nest_sdm.transcoder import Transcoder
 
 from .conftest import FAKE_TOKEN, DeviceHandler, NewHandler, NewImageHandler, Recorder
 
@@ -1723,3 +1725,110 @@ async def test_clip_preview_lookup_failure(
         )
     )
     assert not await event_media_manager.get_media_from_token(token)
+
+
+async def test_clip_preview_transcode(
+    loop: Any,
+    app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraClipPreview": {},
+            "sdm.devices.traits.CameraMotion": {},
+        }
+    )
+
+    async def img_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
+        return aiohttp.web.Response(body=b"image-bytes-1")
+
+    app.router.add_get("/image-url-1", img_handler)
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert device.name == device_id
+
+    fake_transcoder = Transcoder("/bin/echo", "")
+
+    # Enable pre-fetch
+    device.event_media_manager.cache_policy.fetch = True
+    device.event_media_manager.cache_policy.transcoder = fake_transcoder
+
+    ts = datetime.datetime.now(tz=datetime.timezone.utc)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": ts.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": device_id,
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF",
+                            "eventId": "n:1",
+                        },
+                        "sdm.devices.events.CameraClipPreview.ClipPreview": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF",
+                            "previewUrl": "image-url-1",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+                "eventThreadId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF",
+                "resourcegroup": [
+                    "enterprises/project-id1/devices/device-id1",
+                ],
+                "eventThreadState": "STARTED",
+            }
+        )
+    )
+
+    event_media_manager = device.event_media_manager
+
+    # XXX
+    events = list(await event_media_manager.async_clip_preview_sessions())
+    assert len(events) == 1
+    event = events[0]
+    event_token = EventToken.decode(event.event_token)
+    assert event_token.event_session_id == "CjY5Y3VKaTZwR3o4Y19YbTVfMF"
+    assert event_token.event_id == "n:1"
+    assert event.event_types == [
+        "sdm.devices.events.CameraMotion.Motion",
+    ]
+    assert event.timestamp.isoformat(timespec="seconds") == ts.isoformat(
+        timespec="seconds"
+    )
+
+    cnt = 0
+
+    def values() -> Callable[[str], bool]:
+        def func(filename: str) -> bool:
+            nonlocal cnt
+            cnt = cnt + 1
+            if cnt == 1:
+                # input file exists
+                return True
+            return False
+
+        return func
+
+    with patch("google_nest_sdm.transcoder.os.path.exists", new_callable=values), patch(
+        "google_nest_sdm.event_media.InMemoryEventMediaStore.async_load_media",
+        return_value=b"fake-video-thumb-bytes",
+    ):
+        media = await event_media_manager.get_clip_thumbnail_from_token(
+            event.event_token
+        )
+        assert media
+        assert media.contents == b"fake-video-thumb-bytes"
+        assert media.content_type == "image/gif"
+
+    with patch("google_nest_sdm.transcoder.os.path.exists", return_value=False):
+        assert not await event_media_manager.get_clip_thumbnail_from_token(
+            event.event_token
+        )
