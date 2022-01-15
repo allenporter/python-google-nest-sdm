@@ -1758,12 +1758,12 @@ async def test_clip_preview_transcode(
     device.event_media_manager.cache_policy.fetch = True
     device.event_media_manager.cache_policy.transcoder = fake_transcoder
 
-    ts = datetime.datetime.now(tz=datetime.timezone.utc)
+    ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
     await device.async_handle_event(
         await event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
-                "timestamp": ts.isoformat(timespec="seconds"),
+                "timestamp": ts1.isoformat(timespec="seconds"),
                 "resourceUpdate": {
                     "name": device_id,
                     "events": {
@@ -1789,7 +1789,6 @@ async def test_clip_preview_transcode(
 
     event_media_manager = device.event_media_manager
 
-    # XXX
     events = list(await event_media_manager.async_clip_preview_sessions())
     assert len(events) == 1
     event = events[0]
@@ -1799,7 +1798,7 @@ async def test_clip_preview_transcode(
     assert event.event_types == [
         "sdm.devices.events.CameraMotion.Motion",
     ]
-    assert event.timestamp.isoformat(timespec="seconds") == ts.isoformat(
+    assert event.timestamp.isoformat(timespec="seconds") == ts1.isoformat(
         timespec="seconds"
     )
 
@@ -1838,6 +1837,41 @@ async def test_clip_preview_transcode(
         assert media
         assert media.contents == b"fake-video-thumb-bytes"
         assert media.content_type == "image/gif"
+
+    ts2 = ts1 + datetime.timedelta(seconds=5)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": ts2.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": device_id,
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "DjY5Y3VKaTZwR3o4Y19YbTVfMF",
+                            "eventId": "n:1",
+                        },
+                        "sdm.devices.events.CameraClipPreview.ClipPreview": {
+                            "eventSessionId": "DjY5Y3VKaTZwR3o4Y19YbTVfMF",
+                            "previewUrl": "image-url-1",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+                "eventThreadId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF",
+                "resourcegroup": [
+                    "enterprises/project-id1/devices/device-id1",
+                ],
+                "eventThreadState": "STARTED",
+            }
+        )
+    )
+
+    events = list(await event_media_manager.async_clip_preview_sessions())
+    assert len(events) == 2
+    event = events[0]
+    event_token = EventToken.decode(event.event_token)
+    assert event_token.event_session_id == "DjY5Y3VKaTZwR3o4Y19YbTVfMF"
 
     # Test failure mode
     with patch("google_nest_sdm.transcoder.os.path.exists", return_value=False):
