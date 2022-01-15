@@ -1852,3 +1852,9 @@ async def test_clip_preview_transcode(
         assert not await event_media_manager.get_clip_thumbnail_from_token(
             event.event_token
         )
+
+    # Disable transcoding
+    event_media_manager.cache_policy.transcoder = None
+    assert not await event_media_manager.get_clip_thumbnail_from_token(
+        event.event_token
+    )
