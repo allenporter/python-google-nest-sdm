@@ -381,11 +381,6 @@ async def test_event_manager_cache_expiration(
             """Return a predictable media key."""
             return event.event_session_id
 
-        def get_preview_clip_media_key(
-            self, device_id: str, event: ImageEventBase
-        ) -> str:
-            """Return a predictable media key."""
-            return event.event_session_id
 
     store = TestStore()
     device.event_media_manager.cache_policy.store = store
@@ -1892,3 +1887,126 @@ async def test_clip_preview_transcode(
     assert not await event_media_manager.get_clip_thumbnail_from_token(
         event.event_token
     )
+
+
+
+async def test_event_manager_event_expiration_with_transcode(
+    app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraClipPreview": {},
+            "sdm.devices.traits.CameraMotion": {},
+        }
+    )
+
+    async def img_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
+        return aiohttp.web.Response(body=b"image-bytes-1")
+
+    app.router.add_get("/image-url-1", img_handler)
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert device.name == device_id
+
+    fake_transcoder = Transcoder("/bin/echo", "")
+
+    class TestStore(InMemoryEventMediaStore):
+        def get_media_key(self, device_id: str, event: ImageEventBase) -> str:
+            """Return a predictable media key."""
+            return event.event_session_id
+
+        def get_image_media_key(self, device_id: str, event: ImageEventBase) -> str:
+            """Return a predictable media key."""
+            return event.event_session_id
+
+        def get_clip_preview_media_key(
+            self, device_id: str, event: ImageEventBase
+        ) -> str:
+            """Return a predictable media key."""
+            return event.event_session_id
+
+        def get_clip_preview_thumbnail_media_key(
+            self, device_id: str, event: ImageEventBase
+        ) -> str:
+            """Return a predictable media key."""
+            return event.event_session_id + "-thumb"
+
+    store = TestStore()
+    device.event_media_manager.cache_policy.store = store
+    device.event_media_manager.cache_policy.fetch = True
+    device.event_media_manager.cache_policy.transcoder = fake_transcoder
+    device.event_media_manager.cache_policy.event_cache_size = 5
+    event_media_manager = device.event_media_manager
+
+    num_events = 7
+
+    for i in range(0, num_events):
+        ts = datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(
+            seconds=i
+        )
+        await device.async_handle_event(
+            await event_message(
+                {
+                    "eventId": f"0120ecc7-{i}",
+                    "timestamp": ts.isoformat(timespec="seconds"),
+                    "resourceUpdate": {
+                        "name": device_id,
+                        "events": {
+                            "sdm.devices.events.CameraMotion.Motion": {
+                                "eventSessionId": f"CjY5Y3VK..{i}...",
+                                "eventId": f"n:{i}",
+                            },
+                            "sdm.devices.events.CameraClipPreview.ClipPreview": {
+                                "eventSessionId": f"CjY5Y3VK..{i}...",
+                                "previewUrl": "image-url-1",
+                            },
+                        },
+                    },
+                    "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+                }
+            )
+        )
+        assert await store.async_load_media(f"CjY5Y3VK..{i}...") == b"image-bytes-1"
+
+        events = list(await event_media_manager.async_clip_preview_sessions())
+        event_token = events[0].event_token
+
+        cnt = 0
+        def values() -> Callable[[str], bool]:
+            def func(filename: str) -> bool:
+                nonlocal cnt
+                cnt = cnt + 1
+                if cnt == 1:
+                    # input file exists
+                    return True
+                return False
+
+            return func
+
+        # Cache a clip thumbnail to ensure it is expired later
+        with patch("google_nest_sdm.transcoder.os.path.exists", new_callable=values), patch(
+            "google_nest_sdm.event_media.InMemoryEventMediaStore.async_load_media",
+            return_value=b"fake-video-thumb-bytes",
+        ):
+            media = await event_media_manager.get_clip_thumbnail_from_token(event_token)
+            assert media
+            assert media.contents == b"fake-video-thumb-bytes"
+            assert media.content_type == "image/gif"
+
+    event_media_manager = device.event_media_manager
+    # All old items are evicted from the cache
+    assert len(list(await event_media_manager.async_events())) == 5
+
+    # Old items are evicted from the media store
+    assert await store.async_load_media("CjY5Y3VK..0...") is None
+    assert await store.async_load_media("CjY5Y3VK..1...") is None
+    for i in range(2, num_events):
+        assert await store.async_load_media(f"CjY5Y3VK..{i}...") == b"image-bytes-1"
