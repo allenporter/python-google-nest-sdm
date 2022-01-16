@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import asyncio
 import datetime
 import itertools
 import logging
@@ -447,6 +449,7 @@ class EventMediaManager:
         self._cache_policy = CachePolicy()
         self._callback: Callable[[EventMessage], Awaitable[None]] | None = None
         self._support_fetch = support_fetch
+        self._lock: asyncio.Lock | None = None
 
     @property
     def cache_policy(self) -> CachePolicy:
@@ -483,6 +486,48 @@ class EventMediaManager:
         store_data[self._device_id] = device_data
         await self._cache_policy._store.async_save(store_data)
 
+    async def _async_load_item(self, event_session_id: str) -> EventMediaModelItem | None:
+        """Load the specific item from the store."""
+        event_data = await self._async_load()
+        return event_data.get(event_session_id)
+
+    async def _async_update_item(self, item: EventMediaModelItem) -> None:
+        """Update the specific item in the store."""
+        if not self._lock:
+            self._lock = asyncio.Lock()
+        async with self._lock:
+            event_data = await self._async_load()
+            event_data[item.event_session_id] = item
+            await self._async_update(event_data)
+
+    async def _expire_cache(self) -> None:
+        """Garbage collect any items from the cache."""
+        if not self._lock:
+            self._lock = asyncio.Lock()
+        async with self._lock:
+            event_data = await self._async_load()
+            if len(event_data) <= self._cache_policy.event_cache_size:
+                return
+            (key, old_item) = event_data.popitem(last=False)
+            if old_item.media_key:
+                _LOGGER.debug(
+                    "Expiring media %s (%s)",
+                    old_item.media_key,
+                    old_item.event_session_id,
+                )
+                await self._cache_policy.store.async_remove_media(
+                    old_item.media_key
+                )
+            for old_media_key in old_item.event_media_keys.values():
+                _LOGGER.debug(
+                    "Expiring event media %s (%s)",
+                    old_media_key,
+                    old_item.event_session_id,
+                )
+                await self._cache_policy.store.async_remove_media(old_media_key)
+            await self._async_update(event_data)
+
+
     async def get_media(
         self, event_session_id: str, width: int | None = None, height: int | None = None
     ) -> EventMedia | None:
@@ -491,8 +536,7 @@ class EventMediaManager:
         Note that the height and width hints are best effort and may not be
         honored (e.g. if image is already cached).
         """
-        event_data = await self._async_load()
-        if not (item := event_data.get(event_session_id)):
+        if not (item := await self._async_load_item(event_session_id)):
             return None
         event = item.visible_event
         if not event:
@@ -523,7 +567,7 @@ class EventMediaManager:
         media_key = self._cache_policy._store.get_media_key(self._device_id, event)
         await self._cache_policy.store.async_save_media(media_key, contents)
         item.media_key = media_key
-        await self._async_update(event_data)
+        await self._async_update_item(item)
         return item.get_event_media(contents)
 
     async def _fetch_media(self, item: EventMediaModelItem) -> None:
@@ -574,8 +618,7 @@ class EventMediaManager:
     async def get_media_from_token(self, event_token: str) -> Media | None:
         """Get media based on the event token."""
         token = EventToken.decode(event_token)
-        event_data = await self._async_load()
-        if not (item := event_data.get(token.event_session_id)):
+        if not (item := await self._async_load_item(token.event_session_id)):
             _LOGGER.debug(
                 "No event information found for event id: %s", token.event_session_id
             )
@@ -599,9 +642,8 @@ class EventMediaManager:
     async def get_clip_thumbnail_from_token(self, event_token: str) -> Media | None:
         """Get a thumbnail from the event token."""
         token = EventToken.decode(event_token)
-        event_data = await self._async_load()
         if (
-            not (item := event_data.get(token.event_session_id))
+            not (item := await self._async_load_item(token.event_session_id))
             or not item.visible_event
         ):
             _LOGGER.debug(
@@ -651,7 +693,7 @@ class EventMediaManager:
             return None
 
         item.thumbnail_media_key = thumbnail_media_key
-        await self._async_update(event_data)
+        await self._async_update_item(item)
 
         return Media(contents, EventImageType.IMAGE_PREVIEW)
 
@@ -774,9 +816,7 @@ class EventMediaManager:
         for event_session_id, event_dict in event_sessions.items():
 
             # Track all related events together with the same session
-            event_data = await self._async_load()
-
-            if model_item := event_data.get(event_session_id):
+            if model_item := await self._async_load_item(event_session_id):
                 # Update the existing event session with new/updated events. Only
                 # new events are published.
                 suppress_keys |= set(model_item.events.keys())
@@ -794,28 +834,8 @@ class EventMediaManager:
                     event_media_keys={},
                     thumbnail_media_key=None,
                 )
-                event_data[event_session_id] = model_item
 
-                if len(event_data) > self._cache_policy.event_cache_size:
-                    (key, old_item) = event_data.popitem(last=False)
-                    if old_item.media_key:
-                        _LOGGER.debug(
-                            "Expiring media %s (%s)",
-                            old_item.media_key,
-                            old_item.event_session_id,
-                        )
-                        await self._cache_policy.store.async_remove_media(
-                            old_item.media_key
-                        )
-                    for old_media_key in old_item.event_media_keys.values():
-                        _LOGGER.debug(
-                            "Expiring event media %s (%s)",
-                            old_media_key,
-                            old_item.event_session_id,
-                        )
-                        await self._cache_policy.store.async_remove_media(old_media_key)
-
-            await self._async_update(event_data)
+            await self._async_update_item(model_item)
 
             if self._support_fetch and self._cache_policy.fetch:
                 try:
@@ -827,7 +847,9 @@ class EventMediaManager:
                         str(err),
                     )
                 # Update any new media keys
-                await self._async_update(event_data)
+                await self._async_update_item(model_item)
+
+        await self._expire_cache()
 
         if not self._callback:
             return
