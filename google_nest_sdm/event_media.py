@@ -518,6 +518,15 @@ class EventMediaManager:
                 await self._cache_policy.store.async_remove_media(
                     old_item.media_key
                 )
+            if old_item.thumbnail_media_key:
+                _LOGGER.debug(
+                    "Expiring media %s (%s)",
+                    old_item.thumbnail_media_key,
+                    old_item.event_session_id,
+                )
+                await self._cache_policy.store.async_remove_media(
+                    old_item.thumbnail_media_key
+                )
             for old_media_key in old_item.event_media_keys.values():
                 _LOGGER.debug(
                     "Expiring event media %s (%s)",
