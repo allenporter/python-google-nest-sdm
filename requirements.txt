@@ -19,7 +19,7 @@ filelock==3.4.2
 flake8==4.0.1
 flake8-black==0.2.3
 frozenlist==1.2.0
-google-api-core==2.3.2
+google-api-core==2.4.0
 google-auth==2.3.3
 google-auth-oauthlib==0.4.6
 google-cloud-core==2.2.1
