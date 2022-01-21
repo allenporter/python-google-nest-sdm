@@ -56,7 +56,7 @@ pycodestyle==2.8.0
 pyflakes==2.4.0
 pyparsing==3.0.6
 pytest==6.2.5
-pytest-aiohttp==0.3.0
+pytest-aiohttp==1.0.3
 pytest-asyncio==0.17.2
 pytest-cov==3.0.0
 pytest-mock==3.6.1
