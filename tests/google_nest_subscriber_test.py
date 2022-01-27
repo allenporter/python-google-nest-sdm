@@ -11,6 +11,7 @@ from google.api_core.exceptions import ClientError, Unauthenticated
 from google.cloud import pubsub_v1
 from google.oauth2.credentials import Credentials
 
+from google_nest_sdm import diagnostics
 from google_nest_sdm.auth import AbstractAuth
 from google_nest_sdm.event import EventMessage
 from google_nest_sdm.exceptions import (
@@ -130,6 +131,13 @@ async def test_subscribe_device_manager(
     assert devices[device_id2].type == "sdm.devices.types.device-type2"
     subscriber.stop_async()
 
+    assert diagnostics.get_diagnostics() == {
+        "subscriber": {
+            "start": 1,
+            "stop": 1,
+        }
+    }
+
 
 async def test_subscribe_update_trait(
     app: aiohttp.web.Application,
@@ -178,6 +186,15 @@ async def test_subscribe_update_trait(
     trait = device.traits["sdm.devices.traits.Connectivity"]
     assert "OFFLINE" == trait.status
     subscriber.stop_async()
+
+    assert diagnostics.get_diagnostics() == {
+        "subscriber": {
+            "message_acked": 1,
+            "message_received": 1,
+            "start": 1,
+            "stop": 1,
+        }
+    }
 
 
 async def test_subscribe_device_manager_init(
@@ -267,6 +284,14 @@ async def test_subscriber_error(
     with pytest.raises(SubscriberException):
         await subscriber.start_async()
     subscriber.stop_async()
+
+    assert diagnostics.get_diagnostics() == {
+        "subscriber": {
+            "start": 1,
+            "start.api_error": 1,
+            "stop": 1,
+        }
+    }
 
 
 async def test_subscriber_auth_error(

@@ -17,6 +17,7 @@ from google.protobuf.duration_pb2 import Duration
 
 from .auth import AbstractAuth
 from .device_manager import DeviceManager
+from .diagnostics import SUBSCRIBER_DIAGNOSTICS as DIAGNOSTICS
 from .event import EventMessage
 from .event_media import CachePolicy
 from .exceptions import AuthException, ConfigurationException, SubscriberException
@@ -60,6 +61,7 @@ def _validate_subscription_name(subscription_name: str) -> None:
     Raises ConfigurationException on failure.
     """
     if not EXPECTED_SUBSCRIBER_REGEXP.match(subscription_name):
+        DIAGNOSTICS.increment("subscription_name_invalid")
         raise ConfigurationException(
             "Subscription misconfigured. Expected subscriber_id to "
             f"match '{EXPECTED_SUBSCRIBER_REGEXP.pattern}' but was "
@@ -73,6 +75,7 @@ def _validate_topic_name(topic_name: str) -> None:
     Raises ConfigurationException on failure.
     """
     if not EXPECTED_TOPIC_REGEXP.match(topic_name):
+        DIAGNOSTICS.increment("topic_name_invalid")
         raise ConfigurationException(
             "Subscription misconfigured. Expected topic name to "
             f"match '{EXPECTED_TOPIC_REGEXP.pattern}' but was "
@@ -309,9 +312,11 @@ class GoogleNestSubscriber:
     async def create_subscription(self) -> None:
         """Create the subscription if it does not already exist."""
         _validate_subscription_name(self._subscriber_id)
+        DIAGNOSTICS.increment("create_subscription.attempt")
         try:
             creds = await self._auth.async_get_creds()
         except ClientError as err:
+            DIAGNOSTICS.increment("create_subscription.creds_error")
             raise AuthException(f"Access token failure: {err}") from err
         try:
             await self._subscriber_factory.async_create_subscription(
@@ -321,22 +326,27 @@ class GoogleNestSubscriber:
                 self._loop,
             )
         except NotFound as err:
+            DIAGNOSTICS.increment("create_subscription.not_found")
             raise ConfigurationException(
                 f"Failed to create subscriber '{self._subscriber_id}' "
                 + "(cloud project id incorrect?)"
             ) from err
         except Unauthenticated as err:
+            DIAGNOSTICS.increment("create_subscription.unauthenticated")
             raise AuthException("Failed to authenticate subscriber: {err}") from err
         except GoogleAPIError as err:
+            DIAGNOSTICS.increment("create_subscription.api_error")
             raise SubscriberException(
                 f"Failed to create subscriber '{self._subscriber_id}': {err}"
             ) from err
 
     async def delete_subscription(self) -> None:
         """Delete the subscription."""
+        DIAGNOSTICS.increment("delete_subscription.attempt")
         try:
             creds = await self._auth.async_get_creds()
         except ClientError as err:
+            DIAGNOSTICS.increment("delete_subscription.creds_error")
             raise AuthException(f"Access token failure: {err}") from err
 
         try:
@@ -344,21 +354,26 @@ class GoogleNestSubscriber:
                 creds, self._subscriber_id, self._loop
             )
         except NotFound:
+            DIAGNOSTICS.increment("delete_subscription.not_found")
             # No-op if subscription was already deleted
             return
         except Unauthenticated as err:
+            DIAGNOSTICS.increment("delete_subscription.unauthenticated")
             raise AuthException("Failed to authenticate subscriber: {err}") from err
         except GoogleAPIError as err:
+            DIAGNOSTICS.increment("delete_subscription.api_error")
             raise SubscriberException(
                 f"Failed to delete subscription '{self._subscriber_id}': {err}"
             ) from err
 
     async def start_async(self) -> None:
         """Start the subscriber."""
+        DIAGNOSTICS.increment("start")
         _validate_subscription_name(self._subscriber_id)
         try:
             creds = await self._auth.async_get_creds()
         except ClientError as err:
+            DIAGNOSTICS.increment("start.creds_error")
             raise AuthException(f"Access token failure: {err}") from err
 
         try:
@@ -368,12 +383,15 @@ class GoogleNestSubscriber:
                 )
             )
         except NotFound as err:
+            DIAGNOSTICS.increment("start.not_found_error")
             raise ConfigurationException(
                 f"Failed to create subscriber '{self._subscriber_id}' id was not found"
             ) from err
         except Unauthenticated as err:
+            DIAGNOSTICS.increment("start.unauthenticated")
             raise AuthException("Failed to authenticate subscriber: {err}") from err
         except GoogleAPIError as err:
+            DIAGNOSTICS.increment("start.api_error")
             raise SubscriberException(
                 f"Failed to create subscriber '{self._subscriber_id}': {err}"
             ) from err
@@ -409,6 +427,7 @@ class GoogleNestSubscriber:
 
     def stop_async(self) -> None:
         """Tell the subscriber to start shutting down."""
+        DIAGNOSTICS.increment("stop")
         if self._device_manager_task:
             self._device_manager_task.cancel()
         if self._watchdog_task:
@@ -458,6 +477,7 @@ class GoogleNestSubscriber:
         self, message: pubsub_v1.subscriber.message.Message
     ) -> None:
         """Handle a received message."""
+        DIAGNOSTICS.increment("message_received")
         payload = json.loads(bytes.decode(message.data))
         event = EventMessage(payload, self._auth)
         # Only accept device events once the Device Manager has been loaded.
@@ -466,3 +486,4 @@ class GoogleNestSubscriber:
         if self._device_manager_task and self._device_manager_task.done():
             await self._device_manager_task.result().async_handle_event(event)
         message.ack()
+        DIAGNOSTICS.increment("message_acked")
