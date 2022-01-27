@@ -4,13 +4,23 @@ from __future__ import annotations
 
 import uuid
 from abc import ABC
-from typing import Any, AsyncGenerator, Awaitable, Callable, Dict, List, Optional, cast
+from typing import (
+    Any,
+    AsyncGenerator,
+    Awaitable,
+    Callable,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    cast,
+)
 
 import aiohttp
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
-from google_nest_sdm import google_nest_api
+from google_nest_sdm import diagnostics, google_nest_api
 from google_nest_sdm.auth import AbstractAuth
 from google_nest_sdm.device import Device
 from google_nest_sdm.event import EventMessage
@@ -296,3 +306,9 @@ def structure_handler(
     app: aiohttp.web.Application, project_id: str, recorder: Recorder
 ) -> StructureHandler:
     return StructureHandler(app, project_id, recorder)
+
+
+@pytest.fixture(autouse=True)
+def reset_diagnostics() -> Generator[None, None, None]:
+    yield
+    diagnostics.reset()
