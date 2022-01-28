@@ -132,10 +132,11 @@ async def test_subscribe_device_manager(
     subscriber.stop_async()
 
     assert diagnostics.get_diagnostics() == {
+        "event_media": {},
         "subscriber": {
             "start": 1,
             "stop": 1,
-        }
+        },
     }
 
 
@@ -188,12 +189,13 @@ async def test_subscribe_update_trait(
     subscriber.stop_async()
 
     assert diagnostics.get_diagnostics() == {
+        "event_media": {"event": 1},
         "subscriber": {
             "message_acked": 1,
             "message_received": 1,
             "start": 1,
             "stop": 1,
-        }
+        },
     }
 
 
@@ -286,11 +288,12 @@ async def test_subscriber_error(
     subscriber.stop_async()
 
     assert diagnostics.get_diagnostics() == {
+        "event_media": {},
         "subscriber": {
             "start": 1,
             "start.api_error": 1,
             "stop": 1,
-        }
+        },
     }
 
 

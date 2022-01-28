@@ -28,9 +28,11 @@ class Diagnostics:
 
 
 SUBSCRIBER_DIAGNOSTICS = Diagnostics()
+EVENT_MEDIA_DIAGNOSTICS = Diagnostics()
 
 MAP = {
     "subscriber": SUBSCRIBER_DIAGNOSTICS,
+    "event_media": EVENT_MEDIA_DIAGNOSTICS,
 }
 
 
