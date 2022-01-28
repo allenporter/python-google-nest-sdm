@@ -30,6 +30,11 @@ PROJECT_ID = "project-id1"
 
 
 @pytest.fixture
+def loop(event_loop: Any) -> Any:
+    return event_loop
+
+
+@pytest.fixture
 async def app() -> AsyncGenerator[aiohttp.web.Application, None]:
     app = aiohttp.web.Application()
     yield app
