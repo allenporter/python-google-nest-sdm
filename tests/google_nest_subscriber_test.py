@@ -132,7 +132,6 @@ async def test_subscribe_device_manager(
     subscriber.stop_async()
 
     assert diagnostics.get_diagnostics() == {
-        "event_media": {},
         "subscriber": {
             "start": 1,
             "stop": 1,
@@ -288,7 +287,6 @@ async def test_subscriber_error(
     subscriber.stop_async()
 
     assert diagnostics.get_diagnostics() == {
-        "event_media": {},
         "subscriber": {
             "start": 1,
             "start.api_error": 1,

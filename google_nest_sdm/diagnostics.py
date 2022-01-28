@@ -28,10 +28,12 @@ class Diagnostics:
 
 
 SUBSCRIBER_DIAGNOSTICS = Diagnostics()
+EVENT_DIAGNOSTICS = Diagnostics()
 EVENT_MEDIA_DIAGNOSTICS = Diagnostics()
 
 MAP = {
     "subscriber": SUBSCRIBER_DIAGNOSTICS,
+    "event": EVENT_DIAGNOSTICS,
     "event_media": EVENT_MEDIA_DIAGNOSTICS,
 }
 
@@ -43,4 +45,36 @@ def reset() -> None:
 
 
 def get_diagnostics() -> dict[str, Any]:
-    return {k: v.as_dict() for (k, v) in MAP.items()}
+    return {k: v.as_dict() for (k, v) in MAP.items() if v.as_dict()}
+
+
+REDACT_KEYS = {
+    "name",
+    "customName",
+    "displayName",
+    "parent",
+    "assignee",
+    "subject",
+    "object",
+    "userId",
+    "resourceGroup",
+    "eventId",
+    "eventSessionId",
+    "eventThreadId",
+}
+REDACTED = "**REDACTED**"
+
+
+def redact_data(data: Mapping) -> dict[str, Any]:
+    """Redact sensitive data in a dict."""
+    redacted = {**data}
+
+    for key, value in redacted.items():
+        if key in REDACT_KEYS:
+            redacted[key] = REDACTED
+        elif isinstance(value, dict):
+            redacted[key] = redact_data(value)
+        elif isinstance(value, list):
+            redacted[key] = [redact_data(item) for item in value]
+
+    return redacted
