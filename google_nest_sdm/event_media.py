@@ -18,6 +18,7 @@ from .camera_traits import (
     EventImageGenerator,
 )
 from .diagnostics import EVENT_MEDIA_DIAGNOSTICS as DIAGNOSTICS
+from .diagnostics import Diagnostics
 from .event import (
     CameraMotionEvent,
     CameraPersonEvent,
@@ -444,6 +445,7 @@ class EventMediaManager:
         traits: Dict[str, Any],
         event_trait_map: Dict[str, EventImageGenerator],
         support_fetch: bool,
+        diagnostics: Diagnostics,
     ) -> None:
         """Initialize DeviceEventMediaManager."""
         self._device_id = device_id
@@ -452,6 +454,7 @@ class EventMediaManager:
         self._cache_policy = CachePolicy()
         self._callback: Callable[[EventMessage], Awaitable[None]] | None = None
         self._support_fetch = support_fetch
+        self._diagnostics = diagnostics
         self._lock: asyncio.Lock | None = None
 
     @property
@@ -547,7 +550,7 @@ class EventMediaManager:
         Note that the height and width hints are best effort and may not be
         honored (e.g. if image is already cached).
         """
-        DIAGNOSTICS.increment("get_media")
+        self._diagnostics.increment("get_media")
         if not (item := await self._async_load_item(event_session_id)):
             return None
         event = item.visible_event
@@ -586,13 +589,13 @@ class EventMediaManager:
         """Fetch media from the server in response to a pubsub event."""
         store = self._cache_policy.store
         if CameraClipPreviewTrait.NAME in self._traits:
-            DIAGNOSTICS.increment("fetch_clip")
+            self._diagnostics.increment("fetch_clip")
             if (
                 item.media_key
                 or not item.visible_event
                 or item.visible_event.is_expired
             ):
-                DIAGNOSTICS.increment("fetch_clip.skip")
+                self._diagnostics.increment("fetch_clip.skip")
                 return
             clip_preview_trait: CameraClipPreviewTrait = self._traits[
                 CameraClipPreviewTrait.NAME
@@ -608,20 +611,20 @@ class EventMediaManager:
                 )
                 item.media_key = media_key
                 _LOGGER.debug("Saving media %s (%s)", media_key, item.event_session_id)
-                DIAGNOSTICS.increment("fetch_clip.save")
+                self._diagnostics.increment("fetch_clip.save")
                 await store.async_save_media(media_key, content)
                 return
 
         if CameraEventImageTrait.NAME not in self._traits:
             return
-        DIAGNOSTICS.increment("fetch_image")
+        self._diagnostics.increment("fetch_image")
 
         event_image_trait: CameraEventImageTrait = self._traits[
             CameraEventImageTrait.NAME
         ]
         for event in item.events.values():
             if event.event_id in item.event_media_keys or event.is_expired:
-                DIAGNOSTICS.increment("fetch_image.skip")
+                self._diagnostics.increment("fetch_image.skip")
                 continue
             event_image = await event_image_trait.generate_image(event.event_id)
             content = await event_image.contents(width=SNAPSHOT_WIDTH_PX)
@@ -630,26 +633,26 @@ class EventMediaManager:
             media_key = store.get_image_media_key(self._device_id, event)
             item.event_media_keys[event.event_id] = media_key
             _LOGGER.debug("Saving media %s (%s)", media_key, item.event_session_id)
-            DIAGNOSTICS.increment("fetch_image.save")
+            self._diagnostics.increment("fetch_image.save")
             await store.async_save_media(media_key, content)
 
     async def get_media_from_token(self, event_token: str) -> Media | None:
         """Get media based on the event token."""
         token = EventToken.decode(event_token)
         if not (item := await self._async_load_item(token.event_session_id)):
-            DIAGNOSTICS.increment("get_media.invalid_event")
+            self._diagnostics.increment("get_media.invalid_event")
             _LOGGER.debug(
                 "No event information found for event id: %s", token.event_session_id
             )
             return None
         media_key = item.media_key_for_token(token)
         if not media_key:
-            DIAGNOSTICS.increment("get_media.no_media")
+            self._diagnostics.increment("get_media.no_media")
             _LOGGER.debug("No persisted media for event id %s", token)
             return None
         contents = await self._cache_policy._store.async_load_media(media_key)
         if not contents:
-            DIAGNOSTICS.increment("get_media.empty")
+            self._diagnostics.increment("get_media.empty")
             _LOGGER.debug(
                 "Unable to load persisted media for event id: (%s, %s, %s)",
                 token.event_session_id,
@@ -658,18 +661,18 @@ class EventMediaManager:
             )
             return None
         assert item.visible_event
-        DIAGNOSTICS.increment("get_media.success")
+        self._diagnostics.increment("get_media.success")
         return Media(contents, item.visible_event.event_image_type)
 
     async def get_clip_thumbnail_from_token(self, event_token: str) -> Media | None:
         """Get a thumbnail from the event token."""
-        DIAGNOSTICS.increment("get_clip")
+        self._diagnostics.increment("get_clip")
         token = EventToken.decode(event_token)
         if (
             not (item := await self._async_load_item(token.event_session_id))
             or not item.visible_event
         ):
-            DIAGNOSTICS.increment("get_clip.invalid_event")
+            self._diagnostics.increment("get_clip.invalid_event")
             _LOGGER.debug(
                 "No event information found for event id: %s", token.event_session_id
             )
@@ -681,7 +684,7 @@ class EventMediaManager:
                 item.thumbnail_media_key
             )
             if contents:
-                DIAGNOSTICS.increment("get_clip.cached")
+                self._diagnostics.increment("get_clip.cached")
                 return Media(contents, EventImageType.IMAGE_PREVIEW)
             _LOGGER.debug(
                 "Thumbnail %s does not exist; transcoding", item.thumbnail_media_key
@@ -690,7 +693,7 @@ class EventMediaManager:
         # Check for existing primary media
         media_key = item.media_key_for_token(token)
         if not media_key:
-            DIAGNOSTICS.increment("get_clip.no_media")
+            self._diagnostics.increment("get_clip.no_media")
             _LOGGER.debug("No persisted media for event id %s", token)
             return None
 
@@ -700,7 +703,7 @@ class EventMediaManager:
             )
         )
         if not self._cache_policy.transcoder or not thumbnail_media_key:
-            DIAGNOSTICS.increment("get_clip.no_transcoding")
+            self._diagnostics.increment("get_clip.no_transcoding")
             _LOGGER.debug("Clip transcoding disabled")
             return None
 
@@ -709,13 +712,13 @@ class EventMediaManager:
                 media_key, thumbnail_media_key
             )
         except TranscodeException as err:
-            DIAGNOSTICS.increment("get_clip.transcode_error")
+            self._diagnostics.increment("get_clip.transcode_error")
             _LOGGER.debug("Failure to transcode clip thumbnail: %s", str(err))
             return None
 
         contents = await self._cache_policy._store.async_load_media(thumbnail_media_key)
         if not contents:
-            DIAGNOSTICS.increment("get_clip.load_error")
+            self._diagnostics.increment("get_clip.load_error")
             _LOGGER.debug(
                 "Failed to load transcoded clip: %s", item.thumbnail_media_key
             )
@@ -724,12 +727,12 @@ class EventMediaManager:
         item.thumbnail_media_key = thumbnail_media_key
         await self._async_update_item(item)
 
-        DIAGNOSTICS.increment("get_clip.success")
+        self._diagnostics.increment("get_clip.success")
         return Media(contents, EventImageType.IMAGE_PREVIEW)
 
     async def async_events(self) -> Iterable[ImageEventBase]:
         """Return revent events."""
-        DIAGNOSTICS.increment("load_events")
+        self._diagnostics.increment("load_events")
         result = await self._visible_items()
 
         def _get_event(x: EventMediaModelItem) -> ImageEventBase:
@@ -742,7 +745,7 @@ class EventMediaManager:
 
     async def async_image_sessions(self) -> Iterable[ImageSession]:
         """Return revent events."""
-        DIAGNOSTICS.increment("load_image_sessions")
+        self._diagnostics.increment("load_image_sessions")
 
         def _get_events(x: EventMediaModelItem) -> list[ImageEventBase]:
             return list(x.events.values())
@@ -760,7 +763,7 @@ class EventMediaManager:
 
     async def async_clip_preview_sessions(self) -> Iterable[ClipPreviewSession]:
         """Return revent events."""
-        DIAGNOSTICS.increment("load_clip_previews")
+        self._diagnostics.increment("load_clip_previews")
 
         def _event_visible(x: ImageEventBase) -> bool:
             return x.event_type in VISIBLE_EVENTS
@@ -819,7 +822,7 @@ class EventMediaManager:
 
     async def async_handle_events(self, event_message: EventMessage) -> None:
         """Handle the EventMessage."""
-        DIAGNOSTICS.increment("event")
+        self._diagnostics.increment("event")
         event_sessions: dict[
             str, dict[str, ImageEventBase]
         ] | None = event_message.event_sessions
@@ -833,7 +836,7 @@ class EventMediaManager:
             supported = False
             for event_name, event in event_dict.items():
                 if not (trait := self._event_trait_map.get(event_name)):
-                    DIAGNOSTICS.increment("event.unsupported_trait")
+                    self._diagnostics.increment("event.unsupported_trait")
                     _LOGGER.debug("Unsupported event trait: %s", event_name)
                     continue
                 supported = True
@@ -852,7 +855,7 @@ class EventMediaManager:
 
             # Track all related events together with the same session
             if model_item := await self._async_load_item(event_session_id):
-                DIAGNOSTICS.increment("event.update")
+                self._diagnostics.increment("event.update")
                 # Update the existing event session with new/updated events. Only
                 # new events are published.
                 suppress_keys |= set(model_item.events.keys())
@@ -861,7 +864,7 @@ class EventMediaManager:
                 )
                 model_item.events.update(event_dict)
             else:
-                DIAGNOSTICS.increment("event.new")
+                self._diagnostics.increment("event.new")
                 # A new event session
                 valid_events += len(event_dict.keys())
                 model_item = EventMediaModelItem(
@@ -875,11 +878,11 @@ class EventMediaManager:
             await self._async_update_item(model_item)
 
             if self._support_fetch and self._cache_policy.fetch:
-                DIAGNOSTICS.increment("event.fetch")
+                self._diagnostics.increment("event.fetch")
                 try:
                     await self._fetch_media(model_item)
                 except GoogleNestException as err:
-                    DIAGNOSTICS.increment("event.fetch_error")
+                    self._diagnostics.increment("event.fetch_error")
                     _LOGGER.warning(
                         "Failure when pre-fetching event '%s': %s",
                         event.event_session_id,
@@ -896,7 +899,7 @@ class EventMediaManager:
         if suppress_keys:
             event_message = event_message.omit_events(suppress_keys)
         if valid_events > 0:
-            DIAGNOSTICS.increment("event.notify")
+            self._diagnostics.increment("event.notify")
             await self._callback(event_message)
 
     @property

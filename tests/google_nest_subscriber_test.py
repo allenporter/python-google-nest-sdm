@@ -188,12 +188,20 @@ async def test_subscribe_update_trait(
     subscriber.stop_async()
 
     assert diagnostics.get_diagnostics() == {
-        "event_media": {"event": 1},
         "subscriber": {
             "message_acked": 1,
             "message_received": 1,
             "start": 1,
             "stop": 1,
+        },
+    }
+    assert device.get_diagnostics() == {
+        "event_media": {"event": 1},
+        "data": {
+            "name": "**REDACTED**",
+            "parentRelations": [],
+            "traits": {"sdm.devices.traits.Connectivity": {"status": "ONLINE"}},
+            "type": "sdm.devices.types.device-type1",
         },
     }
 
