@@ -13,6 +13,7 @@ class Diagnostics:
     def __init__(self) -> None:
         """Initialize Diagnostics."""
         self._counter: Counter = Counter()
+        self._subkeys: dict[str, Diagnostics] = {}
 
     def increment(self, key: str) -> None:
         """Increment a counter for the spcified key/event."""
@@ -20,11 +21,25 @@ class Diagnostics:
 
     def as_dict(self) -> Mapping[str, Any]:
         """Return diagnostics as a debug dictionary."""
-        return {k: self._counter[k] for k in self._counter}
+        data: dict[str, Any] = {k: self._counter[k] for k in self._counter}
+        for k, d in self._subkeys.items():
+            v = d.as_dict()
+            if not v:
+                continue
+            data[k] = v
+        return data
+
+    def subkey(self, key: str) -> Diagnostics:
+        """Return sub-Diagnositics object with the specified subkey."""
+        if key not in self._subkeys:
+            self._subkeys[key] = Diagnostics()
+        return self._subkeys[key]
 
     def reset(self) -> None:
         """Clear all diagnostics, for testing."""
         self._counter = Counter()
+        for d in self._subkeys.values():
+            d.reset()
 
 
 SUBSCRIBER_DIAGNOSTICS = Diagnostics()

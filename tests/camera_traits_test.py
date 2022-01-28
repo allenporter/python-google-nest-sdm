@@ -243,7 +243,7 @@ async def test_camera_live_stream_rtsp(
             "traits": {"sdm.devices.traits.CameraLiveStream": {}},
             "type": "sdm.devices.types.device-type1",
         },
-        "diagnostics": {
+        "command": {
             "sdm.devices.commands.CameraLiveStream.ExtendRtspStream": 2,
             "sdm.devices.commands.CameraLiveStream.GenerateRtspStream": 1,
             "sdm.devices.commands.CameraLiveStream.StopRtspStream": 1,

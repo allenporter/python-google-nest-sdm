@@ -136,11 +136,29 @@ async def test_event_manager_image(
 
     assert diagnostics.get_diagnostics() == {
         "event_media": {
+            "save_media": 2,
+        },
+    }
+
+    assert device.get_diagnostics() == {
+        "command": {
+            "fetch_image": 2,
+            "sdm.devices.commands.CameraEventImage.GenerateImage": 2,
+        },
+        "data": {
+            "name": "**REDACTED**",
+            "parentRelations": [],
+            "traits": {
+                "sdm.devices.traits.CameraEventImage": {},
+                test_trait: {},
+            },
+            "type": "sdm.devices.types.device-type1",
+        },
+        "event_media": {
             "event": 2,
             "event.new": 2,
             "get_media": 2,
             "load_events": 1,
-            "save_media": 2,
         },
     }
 
@@ -429,15 +447,32 @@ async def test_event_manager_cache_expiration(
 
     assert diagnostics.get_diagnostics() == {
         "event_media": {
+            "load_media": 10,
+            "save_media": 10,
+            "remove_media": 2,
+        },
+    }
+    assert device.get_diagnostics() == {
+        "command": {
+            "fetch_image": 10,
+            "sdm.devices.commands.CameraEventImage.GenerateImage": 10,
+        },
+        "data": {
+            "name": "**REDACTED**",
+            "parentRelations": [],
+            "traits": {
+                "sdm.devices.traits.CameraEventImage": {},
+                "sdm.devices.traits.CameraMotion": {},
+            },
+            "type": "sdm.devices.types.device-type1",
+        },
+        "event_media": {
             "event": 10,
             "event.fetch": 10,
             "event.new": 10,
             "fetch_image": 10,
             "fetch_image.save": 10,
             "load_events": 1,
-            "load_media": 10,
-            "save_media": 10,
-            "remove_media": 2,
         },
     }
 
@@ -569,6 +604,26 @@ async def test_event_manager_prefetch_image_failure(
 
     assert diagnostics.get_diagnostics() == {
         "event_media": {
+            "load_media": 3,
+            "remove_media": 1,
+            "save_media": 4,
+        },
+    }
+    assert device.get_diagnostics() == {
+        "command": {
+            "fetch_image": 4,
+            "sdm.devices.commands.CameraEventImage.GenerateImage": 5,
+        },
+        "data": {
+            "name": "**REDACTED**",
+            "parentRelations": [],
+            "traits": {
+                "sdm.devices.traits.CameraEventImage": {},
+                "sdm.devices.traits.CameraMotion": {},
+            },
+            "type": "sdm.devices.types.device-type1",
+        },
+        "event_media": {
             "event": 5,
             "event.fetch": 5,
             "event.fetch_error": 1,
@@ -577,9 +632,6 @@ async def test_event_manager_prefetch_image_failure(
             "fetch_image.save": 4,
             "get_media": 3,
             "load_events": 1,
-            "load_media": 3,
-            "remove_media": 1,
-            "save_media": 4,
         },
     }
 
@@ -815,12 +867,26 @@ async def test_camera_active_clip_preview_threads(
 
     assert diagnostics.get_diagnostics() == {
         "event_media": {
+            "save_media": 1,
+        },
+    }
+    assert device.get_diagnostics() == {
+        "command": {"fetch_image": 1},
+        "event_media": {
             "event": 2,
             "event.new": 1,
             "event.update": 1,
             "get_media": 1,
             "load_events": 1,
-            "save_media": 1,
+        },
+        "data": {
+            "name": "**REDACTED**",
+            "parentRelations": [],
+            "traits": {
+                "sdm.devices.traits.CameraClipPreview": {},
+                test_trait: {},
+            },
+            "type": "sdm.devices.types.device-type1",
         },
     }
 

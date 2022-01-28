@@ -69,7 +69,7 @@ class Device:
         if not device_id:
             raise ValueError(f"raw_data missing field '{DEVICE_NAME}'")
         diagnostics = Diagnostics()
-        cmd = Command(device_id, auth, diagnostics)
+        cmd = Command(device_id, auth, diagnostics.subkey("command"))
         traits = raw_data.get(DEVICE_TRAITS, {})
         traits_dict = BuildTraits(traits, cmd, raw_data.get(DEVICE_TYPE))
 
@@ -89,6 +89,7 @@ class Device:
             traits_dict,
             event_trait_map,
             support_fetch=(event_image_trait is not None),
+            diagnostics=diagnostics.subkey("event_media"),
         )
         return Device(raw_data, traits_dict, event_media_manager, diagnostics)
 
@@ -197,6 +198,6 @@ class Device:
 
     def get_diagnostics(self) -> Dict[str, Any]:
         return {
-            "diagnostics": self._diagnostics.as_dict(),
             "data": redact_data(self.raw_data),
+            **self._diagnostics.as_dict(),
         }
