@@ -6,7 +6,7 @@ from unittest.mock import patch
 import aiohttp
 import pytest
 
-from google_nest_sdm import google_nest_api
+from google_nest_sdm import diagnostics, google_nest_api
 from google_nest_sdm.camera_traits import EventImageType
 from google_nest_sdm.event import EventMessage, EventToken, ImageEventBase
 from google_nest_sdm.event_media import InMemoryEventMediaStore
@@ -133,6 +133,17 @@ async def test_event_manager_image(
     assert event_media.media.event_image_type.content_type == "image/jpeg"
 
     assert len(list(await event_media_manager.async_events())) == 2
+
+    assert diagnostics.get_diagnostics() == {
+        "event_media": {
+            "event": 2,
+            "event.new": 2,
+            "get_media": 2,
+            "load_events": 1,
+            "save_media": 2,
+        },
+        "subscriber": {},
+    }
 
 
 async def test_event_manager_prefetch_image(
@@ -381,7 +392,6 @@ async def test_event_manager_cache_expiration(
             """Return a predictable media key."""
             return event.event_session_id
 
-
     store = TestStore()
     device.event_media_manager.cache_policy.store = store
 
@@ -417,6 +427,21 @@ async def test_event_manager_cache_expiration(
     assert await store.async_load_media("CjY5Y3VK..1...") is None
     for i in range(2, num_events):
         assert await store.async_load_media(f"CjY5Y3VK..{i}...") == b"image-bytes-1"
+
+    assert diagnostics.get_diagnostics() == {
+        "event_media": {
+            "event": 10,
+            "event.fetch": 10,
+            "event.new": 10,
+            "fetch_image": 10,
+            "fetch_image.save": 10,
+            "load_events": 1,
+            "load_media": 10,
+            "save_media": 10,
+            "remove_media": 2,
+        },
+        "subscriber": {},
+    }
 
 
 async def test_event_manager_prefetch_image_failure(
@@ -543,6 +568,23 @@ async def test_event_manager_prefetch_image_failure(
         ) == ts.isoformat(timespec="seconds")
         assert event_media.media.contents == b"image-bytes-1"
         assert event_media.media.event_image_type.content_type == "image/jpeg"
+
+    assert diagnostics.get_diagnostics() == {
+        "event_media": {
+            "event": 5,
+            "event.fetch": 5,
+            "event.fetch_error": 1,
+            "event.new": 5,
+            "fetch_image": 5,
+            "fetch_image.save": 4,
+            "get_media": 3,
+            "load_events": 1,
+            "load_media": 3,
+            "remove_media": 1,
+            "save_media": 4,
+        },
+        "subscriber": {},
+    }
 
 
 async def test_multi_device_events(
@@ -773,6 +815,18 @@ async def test_camera_active_clip_preview_threads(
     )
     assert event_media.media.contents == b"image-bytes-1"
     assert event_media.media.event_image_type.content_type == "video/mp4"
+
+    assert diagnostics.get_diagnostics() == {
+        "event_media": {
+            "event": 2,
+            "event.new": 1,
+            "event.update": 1,
+            "get_media": 1,
+            "load_events": 1,
+            "save_media": 1,
+        },
+        "subscriber": {},
+    }
 
 
 async def test_unsupported_event_for_event_manager(
@@ -1889,7 +1943,6 @@ async def test_clip_preview_transcode(
     )
 
 
-
 async def test_event_manager_event_expiration_with_transcode(
     app: aiohttp.web.Application,
     device_handler: DeviceHandler,
@@ -1980,6 +2033,7 @@ async def test_event_manager_event_expiration_with_transcode(
         event_token = events[0].event_token
 
         cnt = 0
+
         def values() -> Callable[[str], bool]:
             def func(filename: str) -> bool:
                 nonlocal cnt
@@ -1992,7 +2046,9 @@ async def test_event_manager_event_expiration_with_transcode(
             return func
 
         # Cache a clip thumbnail to ensure it is expired later
-        with patch("google_nest_sdm.transcoder.os.path.exists", new_callable=values), patch(
+        with patch(
+            "google_nest_sdm.transcoder.os.path.exists", new_callable=values
+        ), patch(
             "google_nest_sdm.event_media.InMemoryEventMediaStore.async_load_media",
             return_value=b"fake-video-thumb-bytes",
         ):
