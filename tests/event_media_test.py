@@ -142,7 +142,6 @@ async def test_event_manager_image(
             "load_events": 1,
             "save_media": 2,
         },
-        "subscriber": {},
     }
 
 
@@ -440,7 +439,6 @@ async def test_event_manager_cache_expiration(
             "save_media": 10,
             "remove_media": 2,
         },
-        "subscriber": {},
     }
 
 
@@ -583,7 +581,6 @@ async def test_event_manager_prefetch_image_failure(
             "remove_media": 1,
             "save_media": 4,
         },
-        "subscriber": {},
     }
 
 
@@ -825,7 +822,6 @@ async def test_camera_active_clip_preview_threads(
             "load_events": 1,
             "save_media": 1,
         },
-        "subscriber": {},
     }
 
 

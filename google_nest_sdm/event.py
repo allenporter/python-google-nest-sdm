@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Mapping, Optional
 
 from .auth import AbstractAuth
+from .diagnostics import EVENT_DIAGNOSTICS as DIAGNOSTICS
 from .exceptions import DecodeException
 from .registry import Registry
 from .traits import BuildTraits, Command
@@ -418,7 +419,7 @@ class EventMessage:
         """Return the set of traits that were updated."""
         if not self.resource_update_name:
             return None
-        cmd = Command(self.resource_update_name, self._auth)
+        cmd = Command(self.resource_update_name, self._auth, DIAGNOSTICS)
         events = self._raw_data[RESOURCE_UPDATE].get(TRAITS, {})
         return BuildTraits(events, cmd)
 

@@ -236,6 +236,20 @@ async def test_camera_live_stream_rtsp(
         },
     }
 
+    assert device.get_diagnostics() == {
+        "data": {
+            "name": "**REDACTED**",
+            "parentRelations": [],
+            "traits": {"sdm.devices.traits.CameraLiveStream": {}},
+            "type": "sdm.devices.types.device-type1",
+        },
+        "diagnostics": {
+            "sdm.devices.commands.CameraLiveStream.ExtendRtspStream": 2,
+            "sdm.devices.commands.CameraLiveStream.GenerateRtspStream": 1,
+            "sdm.devices.commands.CameraLiveStream.StopRtspStream": 1,
+        },
+    }
+
 
 async def test_camera_live_stream_web_rtc(
     app: aiohttp.web.Application,

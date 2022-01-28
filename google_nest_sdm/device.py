@@ -12,6 +12,7 @@ from . import device_traits  # noqa: F401
 from . import doorbell_traits  # noqa: F401
 from . import thermostat_traits  # noqa: F401
 from .auth import AbstractAuth
+from .diagnostics import Diagnostics, redact_data
 from .event import EventMessage, EventProcessingError, EventTrait
 from .event_media import EventMediaManager
 from .traits import BuildTraits, Command
@@ -46,6 +47,7 @@ class Device:
         raw_data: Mapping[str, Any],
         traits: Dict[str, Any],
         event_media_manager: EventMediaManager,
+        diagnostics: Diagnostics,
     ) -> None:
         """Initialize a device."""
         self._raw_data = raw_data
@@ -58,6 +60,7 @@ class Device:
             self._relations[relation[PARENT]] = relation[DISPLAYNAME]
         self._callbacks: List[Callable[[EventMessage], Awaitable[None]]] = []
         self._event_media_manager = event_media_manager
+        self._diagnostics = diagnostics
 
     @staticmethod
     def MakeDevice(raw_data: Mapping[str, Any], auth: AbstractAuth) -> Device:
@@ -65,7 +68,8 @@ class Device:
         device_id = raw_data.get(DEVICE_NAME)
         if not device_id:
             raise ValueError(f"raw_data missing field '{DEVICE_NAME}'")
-        cmd = Command(device_id, auth)
+        diagnostics = Diagnostics()
+        cmd = Command(device_id, auth, diagnostics)
         traits = raw_data.get(DEVICE_TRAITS, {})
         traits_dict = BuildTraits(traits, cmd, raw_data.get(DEVICE_TYPE))
 
@@ -86,7 +90,7 @@ class Device:
             event_trait_map,
             support_fetch=(event_image_trait is not None),
         )
-        return Device(raw_data, traits_dict, event_media_manager)
+        return Device(raw_data, traits_dict, event_media_manager, diagnostics)
 
     @property
     def name(self) -> str:
@@ -190,3 +194,9 @@ class Device:
     def raw_data(self) -> Dict[str, Any]:
         """Return raw data for the device."""
         return dict(self._raw_data)
+
+    def get_diagnostics(self) -> Dict[str, Any]:
+        return {
+            "diagnostics": self._diagnostics.as_dict(),
+            "data": redact_data(self.raw_data),
+        }
