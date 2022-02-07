@@ -71,7 +71,7 @@ toml==0.10.2
 tomli==2.0.0
 typed-ast==1.5.2
 types-futures==3.3.8
-types-protobuf==3.19.7
+types-protobuf==3.19.10
 types-PyYAML==6.0.4
 typing-extensions==4.0.1
 typing-inspect==0.7.1
