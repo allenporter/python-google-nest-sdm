@@ -31,6 +31,7 @@ TYPE = "type"
 SUBJECT = "subject"
 OBJECT = "object"
 PREVIEW_URL = "previewUrl"
+ZONES = "zones"
 
 # Event images expire 30 seconds after the event is published
 EVENT_IMAGE_EXPIRE_SECS = 30
@@ -181,6 +182,11 @@ class ImageEventBase(ABC):
     @session_events.setter
     def session_events(self, value: list[ImageEventBase]) -> None:
         self._session_events = value
+
+    @property
+    def zones(self) -> list[str]:
+        """List of zones for the event."""
+        return cast_assert(list, self._data.get(ZONES, []))
 
     def as_dict(self) -> dict[str, Any]:
         """Return as a dict form that can be serialized."""
