@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, TypeVar, cast
 
 
 class Diagnostics:
@@ -80,8 +80,17 @@ REDACT_KEYS = {
 REDACTED = "**REDACTED**"
 
 
-def redact_data(data: Mapping) -> dict[str, Any]:
+T = TypeVar("T")
+
+
+def redact_data(data: T) -> T | dict | list:
     """Redact sensitive data in a dict."""
+    if not isinstance(data, (Mapping, list)):
+        return data
+
+    if isinstance(data, list):
+        return cast(T, [redact_data(item) for item in data])
+
     redacted = {**data}
 
     for key, value in redacted.items():
