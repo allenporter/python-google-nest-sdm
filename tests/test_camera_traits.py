@@ -144,7 +144,16 @@ async def test_camera_live_stream_rtsp(
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
     device_id = device_handler.add_device(
-        traits={"sdm.devices.traits.CameraLiveStream": {}}
+        traits={
+            "sdm.devices.traits.CameraLiveStream": {
+                "maxVideoResolution": {
+                    "width": 500,
+                    "height": 300,
+                },
+                "videoCodecs": ["H264"],
+                "audioCodecs": ["AAC"],
+            },
+        }
     )
 
     post_handler = NewHandler(
@@ -240,7 +249,16 @@ async def test_camera_live_stream_rtsp(
         "data": {
             "name": "**REDACTED**",
             "parentRelations": [],
-            "traits": {"sdm.devices.traits.CameraLiveStream": {}},
+            "traits": {
+                "sdm.devices.traits.CameraLiveStream": {
+                    "maxVideoResolution": {
+                        "width": 500,
+                        "height": 300,
+                    },
+                    "videoCodecs": ["H264"],
+                    "audioCodecs": ["AAC"],
+                }
+            },
             "type": "sdm.devices.types.device-type1",
         },
         "command": {
