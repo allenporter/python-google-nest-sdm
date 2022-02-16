@@ -749,7 +749,11 @@ class EventMediaManager:
 
         def _get_events(x: EventMediaModelItem) -> list[ImageEventBase]:
             # Only return events that have successful media fetches
-            return [y for y in x.events.values() if y.event_id in x.event_media_keys]
+            return [
+                y
+                for y in x.events.values()
+                if x.media_key or y.event_id in x.event_media_keys
+            ]
 
         result = await self._items_with_media()
         events_list = list(map(_get_events, result))
