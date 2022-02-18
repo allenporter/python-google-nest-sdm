@@ -636,6 +636,108 @@ async def test_event_manager_prefetch_image_failure(
     }
 
 
+async def test_prefetch_image_failure_in_session(
+    app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+    """Exercise case where one image within a session fails."""
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraEventImage": {},
+            "sdm.devices.traits.CameraMotion": {},
+            "sdm.devices.traits.CameraPerson": {},
+        }
+    )
+
+    # Send one failure response, then 3 other valid responses. The cache size
+    # is too small so we're exercising events dropping out of the cache.
+    responses = [
+        aiohttp.web.json_response(
+            {
+                "results": {
+                    "url": "image-url-1",
+                    "token": "g.1.eventToken",
+                },
+            }
+        ),
+        aiohttp.web.Response(status=502),
+    ]
+
+    async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
+        return responses.pop(0)
+
+    app.router.add_post(f"/{device_id}:executeCommand", handler)
+    app.router.add_get(
+        "/image-url-1",
+        NewImageHandler([b"image-bytes-1"], token="g.1.eventToken"),
+    )
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert device.name == device_id
+
+    # Turn on event fetching
+    device.event_media_manager.cache_policy.fetch = True
+
+    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    ts1 = now + datetime.timedelta(seconds=1)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-1",
+                "timestamp": ts1.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": device_id,
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "CjY5Y.......",
+                            "eventId": "FWWVQVU..1...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    ts2 = now + datetime.timedelta(seconds=2)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-2",
+                "timestamp": ts2.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": device_id,
+                    "events": {
+                        "sdm.devices.events.CameraPerson.Person": {
+                            "eventSessionId": "CjY5Y.......",
+                            "eventId": "FWWVQVU..2...",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+
+    event_media_manager = device.event_media_manager
+
+    events = list(await event_media_manager.async_image_sessions())
+    assert len(events) == 1
+    event = events[0]
+    event_token = EventToken.decode(event.event_token)
+    assert event_token.event_session_id == "CjY5Y......."
+    assert event_token.event_id == "FWWVQVU..1..."
+    assert event.event_type == "sdm.devices.events.CameraMotion.Motion"
+    assert event.timestamp.isoformat(timespec="seconds") == ts1.isoformat(
+        timespec="seconds"
+    )
+
+
 async def test_multi_device_events(
     app: aiohttp.web.Application,
     recorder: Recorder,
