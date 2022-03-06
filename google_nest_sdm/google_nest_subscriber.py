@@ -79,7 +79,7 @@ class ApiEnv(enum.Enum):
         return self._api_url
 
 
-def api_env(env: str) -> ApiEnv:
+def get_api_env(env: str) -> ApiEnv:
     """Create an ApiEnv from a string."""
     if env == "preprod":
         return ApiEnv.PREPROD
