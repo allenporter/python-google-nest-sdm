@@ -1,6 +1,9 @@
 """Subscriber for the Smart Device Management event based API."""
+from __future__ import annotations
+
 import asyncio
 import concurrent.futures
+import enum
 import json
 import logging
 import re
@@ -53,6 +56,38 @@ SDM_SCOPES = [
     "https://www.googleapis.com/auth/pubsub",
 ]
 API_URL = "https://smartdevicemanagement.googleapis.com/v1"
+
+
+class ApiEnv(enum.Enum):
+    PROD = (OAUTH2_AUTHORIZE_FORMAT, API_URL)
+    PREPROD = (
+        "https://sdmresourcepicker-preprod.sandbox.google.com/partnerconnections/{project_id}/auth",
+        "https://preprod-smartdevicemanagement.googleapis.com/v1",
+    )
+
+    def __init__(self, authorize_url: str, api_url: str) -> None:
+        """Init ApiEnv."""
+        self._authorize_url = authorize_url
+        self._api_url = api_url
+
+    @property
+    def authorize_url_format(self) -> str:
+        """OAuth Authorize url format string."""
+        return self._authorize_url
+
+    @property
+    def api_url(self) -> str:
+        """API url."""
+        return self._api_url
+
+
+def get_api_env(env: str | None) -> ApiEnv:
+    """Create an ApiEnv from a string."""
+    if env is None or env == "prod":
+        return ApiEnv.PROD
+    if env == "preprod":
+        return ApiEnv.PREPROD
+    raise ValueError("Invalid ApiEnv: %s" % env)
 
 
 def _validate_subscription_name(subscription_name: str) -> None:
