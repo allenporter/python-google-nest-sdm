@@ -1,4 +1,6 @@
 """Subscriber for the Smart Device Management event based API."""
+from __future__ import annotations
+
 import asyncio
 import concurrent.futures
 import enum
@@ -79,14 +81,13 @@ class ApiEnv(enum.Enum):
         return self._api_url
 
 
-def get_api_env(env: str) -> ApiEnv:
+def get_api_env(env: str | None) -> ApiEnv:
     """Create an ApiEnv from a string."""
+    if env is None or env == "prod":
+        return ApiEnv.PROD
     if env == "preprod":
         return ApiEnv.PREPROD
-    elif env == "prod":
-        return ApiEnv.PROD
-    else:
-        raise ValueError("Invalid ApiEnv: %s" % env)
+    raise ValueError("Invalid ApiEnv: %s" % env)
 
 
 def _validate_subscription_name(subscription_name: str) -> None:

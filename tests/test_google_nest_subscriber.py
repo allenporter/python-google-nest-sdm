@@ -617,6 +617,13 @@ def test_api_env_prod() -> None:
     )
     assert env.api_url == "https://smartdevicemanagement.googleapis.com/v1"
 
+    env = get_api_env(None)
+    assert (
+        env.authorize_url_format
+        == "https://nestservices.google.com/partnerconnections/{project_id}/auth"
+    )
+    assert env.api_url == "https://smartdevicemanagement.googleapis.com/v1"
+
 
 def test_api_env_preprod() -> None:
     env = get_api_env("preprod")
