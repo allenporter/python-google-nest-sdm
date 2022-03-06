@@ -22,6 +22,7 @@ from google_nest_sdm.exceptions import (
 from google_nest_sdm.google_nest_subscriber import (
     AbstractSubscriberFactory,
     GoogleNestSubscriber,
+    api_env,
 )
 
 from .conftest import DeviceHandler, StructureHandler
@@ -606,3 +607,26 @@ async def test_subscribe_thread_update_new_events(
     assert "sdm.devices.events.CameraPerson.Person" in events
 
     subscriber.stop_async()
+
+
+def test_api_env_prod() -> None:
+    env = api_env("prod")
+    assert (
+        env.authorize_url_format
+        == "https://nestservices.google.com/partnerconnections/{project_id}/auth"
+    )
+    assert env.api_url == "https://smartdevicemanagement.googleapis.com/v1"
+
+
+def test_api_env_preprod() -> None:
+    env = api_env("preprod")
+    assert (
+        env.authorize_url_format
+        == "https://sdmresourcepicker-preprod.sandbox.google.com/partnerconnections/{project_id}/auth"
+    )
+    assert env.api_url == "https://preprod-smartdevicemanagement.googleapis.com/v1"
+
+
+def test_api_env_invalid() -> None:
+    with pytest.raises(ValueError):
+        api_env("invalid")
