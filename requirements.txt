@@ -60,7 +60,7 @@ pytest-aiohttp==1.0.4
 pytest-asyncio==0.18.2
 pytest-cov==3.0.0
 pytest-mock==3.7.0
-pytz==2021.3
+pytz==2022.1
 PyYAML==6.0
 regex==2022.3.15
 requests==2.27.1
