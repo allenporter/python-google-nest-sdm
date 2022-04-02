@@ -48,6 +48,9 @@ VISIBLE_EVENTS = [
     CameraSoundEvent.NAME,
 ]
 
+# Percentage of items to delete when bulk purging from the cache
+EXPIRE_CACHE_BATCH_SIZE = 0.05
+
 
 class CachePolicy:
     """Policy for how many local objects to cache in memory."""
@@ -67,6 +70,11 @@ class CachePolicy:
     def event_cache_size(self, value: int) -> None:
         """Set the number of events to keep in memory per device."""
         self._event_cache_size = value
+
+    @property
+    def event_cache_expire_count(self) -> int:
+        """Number of events to keep in memory per device."""
+        return max(int(self._event_cache_size * EXPIRE_CACHE_BATCH_SIZE), 1)
 
     @property
     def fetch(self) -> bool:
@@ -391,6 +399,13 @@ class EventMediaModelItem:
         return None
 
     @property
+    def all_media_keys(self) -> list[str]:
+        """Return all media items for purging media keys."""
+        keys: list[str | None] = [self.media_key, self.thumbnail_media_key]
+        keys.extend(self.event_media_keys.values())
+        return [key for key in keys if key is not None]
+
+    @property
     def thumbnail_media_key(self) -> str | None:
         return self._thumbnail_media_key
 
@@ -514,32 +529,22 @@ class EventMediaManager:
             self._lock = asyncio.Lock()
         async with self._lock:
             event_data = await self._async_load()
+            _LOGGER.info("Checking cache size %s", len(event_data))
             if len(event_data) <= self._cache_policy.event_cache_size:
                 return
-            (key, old_item) = event_data.popitem(last=False)
-            if old_item.media_key:
+            _LOGGER.info(
+                "Expiring cache %s", self._cache_policy.event_cache_expire_count
+            )
+            # Bulk pop items
+            for i in range(0, self._cache_policy.event_cache_expire_count):
+                (key, old_item) = event_data.popitem(last=False)
                 _LOGGER.debug(
                     "Expiring media %s (%s)",
-                    old_item.media_key,
+                    old_item.all_media_keys,
                     old_item.event_session_id,
                 )
-                await self._cache_policy.store.async_remove_media(old_item.media_key)
-            if old_item.thumbnail_media_key:
-                _LOGGER.debug(
-                    "Expiring media %s (%s)",
-                    old_item.thumbnail_media_key,
-                    old_item.event_session_id,
-                )
-                await self._cache_policy.store.async_remove_media(
-                    old_item.thumbnail_media_key
-                )
-            for old_media_key in old_item.event_media_keys.values():
-                _LOGGER.debug(
-                    "Expiring event media %s (%s)",
-                    old_media_key,
-                    old_item.event_session_id,
-                )
-                await self._cache_policy.store.async_remove_media(old_media_key)
+                for media_key in old_item.all_media_keys:
+                    await self._cache_policy.store.async_remove_media(media_key)
             await self._async_update(event_data)
 
     async def get_media(
