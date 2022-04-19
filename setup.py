@@ -26,6 +26,7 @@ setup(
         "google-auth-oauthlib>=0.4.1",
         "google-cloud-pubsub>=2.1.0",
         "requests-oauthlib>=1.3.0",
+        "PyYAML==6.0",
     ],
     entry_points={
         "console_scripts": [
