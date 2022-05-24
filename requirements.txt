@@ -69,7 +69,7 @@ rsa==4.8
 six==1.16.0
 toml==0.10.2
 tomli==2.0.1
-typed-ast==1.5.3
+typed-ast==1.5.4
 types-futures==3.3.8
 types-protobuf==3.19.21
 types-PyYAML==6.0.7
