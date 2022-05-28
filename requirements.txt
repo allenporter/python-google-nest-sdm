@@ -38,7 +38,7 @@ libcst==0.4.3
 mccabe==0.6.1
 mock==4.0.3
 multidict==6.0.2
-mypy==0.950
+mypy==0.960
 mypy-extensions==0.4.3
 nodeenv==1.6.0
 oauthlib==3.2.0
