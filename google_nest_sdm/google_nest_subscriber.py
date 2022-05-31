@@ -182,7 +182,6 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
         topic_name: str,
     ) -> None:
         """Creates a subscription name if it does not already exist."""
-        creds = self._refresh_creds(creds)
         subscriber = pubsub_v1.SubscriberClient(credentials=creds)
 
         subscription = None
