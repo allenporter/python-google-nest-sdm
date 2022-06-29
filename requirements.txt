@@ -6,7 +6,7 @@ asynctest==0.13.0
 attrs==21.4.0
 autoflake==1.4
 backports.entry-points-selectable==1.1.1
-black==22.3.0
+black==22.6.0
 cachetools==4.2.4
 certifi==2022.6.15
 cfgv==3.3.1
