@@ -73,7 +73,7 @@ typed-ast==1.5.4
 types-futures==3.3.8
 types-protobuf==3.19.22
 types-PyYAML==6.0.9
-typing-extensions==4.2.0
+typing-extensions==4.3.0
 typing-inspect==0.7.1
 unittest2pytest==0.4
 urllib3==1.26.9
