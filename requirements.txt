@@ -30,7 +30,7 @@ grpc-google-iam-v1==0.12.4
 grpcio==1.47.0
 grpcio-status==1.47.0
 httplib2==0.20.4
-identify==2.5.1
+identify==2.5.2
 idna==3.3
 iniconfig==1.1.1
 isort==5.10.1
