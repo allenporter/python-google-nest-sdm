@@ -28,7 +28,7 @@ google-cloud-resource-manager==1.6.1
 googleapis-common-protos==1.56.4
 grpc-google-iam-v1==0.12.4
 grpcio==1.48.1
-grpcio-status==1.48.0
+grpcio-status==1.48.1
 httplib2==0.20.4
 identify==2.5.3
 idna==3.3
