@@ -21,7 +21,8 @@
       "branchPrefix": "flake8",
       "matchUpdateTypes": ["minor", "patch", "major"],
       "groupSlug": "flake8",
-      "additionalBranchPrefix": "example",
+      "separateMajorMinor": false,
+      "separateMinorPatch": false,
     },
     {
       "groupName": "group:pytest",
