@@ -19,7 +19,6 @@
           "pycodestyle",
       ],
       "branchPrefix": "flake8",
-      "matchUpdateTypes": ["minor", "patch", "major"],
       "groupSlug": "flake8",
       "separateMajorMinor": false,
       "separateMinorPatch": false,
