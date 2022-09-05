@@ -13,7 +13,7 @@
       "groupName": "group:flake8",
       "matchPackageNames": ["flake8"],
       "matchPackagePrefixes": [
-          "flake8-",
+          "flake8",
           "pyflakes",
           "mccabe",
           "pycodestyle",
