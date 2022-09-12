@@ -173,7 +173,7 @@ def CreateCreds(args: argparse.Namespace) -> Credentials:
             app_flow = InstalledAppFlow.from_client_config(
                 client_config, scopes=SDM_SCOPES
             )
-            creds = app_flow.run_local_server() #LC
+            creds = app_flow.run_local_server()
         # Save the credentials for the next run
         if not os.path.exists(os.path.dirname(token_cache)):
             try:
