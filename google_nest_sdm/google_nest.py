@@ -163,17 +163,17 @@ def CreateCreds(args: argparse.Namespace) -> Credentials:
                 "installed": {
                     "client_id": args.client_id,
                     "client_secret": args.client_secret,
-                    "redirect_uris": ["urn:ietf:wg:oauth:2.0:oob"],
                     "auth_uri": OAUTH2_AUTHORIZE_FORMAT.format(
                         project_id=args.project_id
                     ),
                     "token_uri": OAUTH2_TOKEN,
                 },
             }
+            print(client_config)
             app_flow = InstalledAppFlow.from_client_config(
                 client_config, scopes=SDM_SCOPES
             )
-            creds = app_flow.run_console()
+            creds = app_flow.run_local_server() #LC
         # Save the credentials for the next run
         if not os.path.exists(os.path.dirname(token_cache)):
             try:
