@@ -169,7 +169,6 @@ def CreateCreds(args: argparse.Namespace) -> Credentials:
                     "token_uri": OAUTH2_TOKEN,
                 },
             }
-            print(client_config)
             app_flow = InstalledAppFlow.from_client_config(
                 client_config, scopes=SDM_SCOPES
             )
