@@ -735,7 +735,7 @@ class EventMediaManager:
         self._diagnostics.increment("get_clip.success")
         return Media(contents, EventImageType.IMAGE_PREVIEW)
 
-    async def async_events(self) -> Iterable[ImageEventBase]:
+    async def async_events(self) -> list[ImageEventBase]:
         """Return revent events."""
         self._diagnostics.increment("load_events")
         result = await self._visible_items()
@@ -748,7 +748,7 @@ class EventMediaManager:
         event_result.sort(key=lambda x: x.timestamp, reverse=True)
         return event_result
 
-    async def async_image_sessions(self) -> Iterable[ImageSession]:
+    async def async_image_sessions(self) -> list[ImageSession]:
         """Return revent events."""
         self._diagnostics.increment("load_image_sessions")
 
@@ -771,7 +771,7 @@ class EventMediaManager:
         event_result.sort(key=lambda x: x.timestamp, reverse=True)
         return event_result
 
-    async def async_clip_preview_sessions(self) -> Iterable[ClipPreviewSession]:
+    async def async_clip_preview_sessions(self) -> list[ClipPreviewSession]:
         """Return revent events."""
         self._diagnostics.increment("load_clip_previews")
 
