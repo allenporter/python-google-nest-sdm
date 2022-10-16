@@ -16,7 +16,7 @@ grpcio-status==1.49.1
 isort==5.10.1
 libcst==0.4.7
 mock==4.0.3
-mypy==0.971
+mypy==0.982
 mypy-extensions==0.4.3
 pre-commit==2.20.0
 protobuf==4.21.7
@@ -30,8 +30,8 @@ regex==2022.9.13
 typed-ast==1.5.4
 types-futures==3.3.8
 types-protobuf==3.20.4
-types-PyYAML==6.0.11
-typing-extensions==4.3.0
+types-PyYAML==6.0.12
+typing-extensions==4.4.0
 typing-inspect==0.8.0
 urllib3==1.26.12
 virtualenv==20.16.5
