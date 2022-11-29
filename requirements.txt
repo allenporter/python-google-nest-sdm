@@ -34,5 +34,5 @@ types-PyYAML==6.0.12.1
 typing-extensions==4.4.0
 typing-inspect==0.8.0
 urllib3==1.26.13
-virtualenv==20.16.7
+virtualenv==20.17.0
 yarl==1.8.1
