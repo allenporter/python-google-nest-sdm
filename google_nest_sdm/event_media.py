@@ -529,10 +529,10 @@ class EventMediaManager:
             self._lock = asyncio.Lock()
         async with self._lock:
             event_data = await self._async_load()
-            _LOGGER.info("Checking cache size %s", len(event_data))
+            _LOGGER.debug("Checking cache size %s", len(event_data))
             if len(event_data) <= self._cache_policy.event_cache_size:
                 return
-            _LOGGER.info(
+            _LOGGER.debug(
                 "Expiring cache %s", self._cache_policy.event_cache_expire_count
             )
             # Bulk pop items
