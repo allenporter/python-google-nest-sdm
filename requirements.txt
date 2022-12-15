@@ -13,7 +13,7 @@ googleapis-common-protos==1.57.0
 grpc-google-iam-v1==0.12.4
 grpcio==1.51.1
 grpcio-status==1.51.1
-isort==5.10.1
+isort==5.11.2
 libcst==0.4.9
 mock==4.0.3
 mypy==0.982
