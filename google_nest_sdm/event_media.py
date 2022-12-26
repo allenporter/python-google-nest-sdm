@@ -296,19 +296,19 @@ class InMemoryEventMediaStore(EventMediaStore):
 
     async def async_load_media(self, media_key: str) -> bytes | None:
         """Load media content."""
-        DIAGNOSTICS.increment("load_media")
-        return self._media.get(media_key)
+        with DIAGNOSTICS.timer("load_media"):
+            return self._media.get(media_key)
 
     async def async_save_media(self, media_key: str, content: bytes) -> None:
         """Remove media content."""
-        DIAGNOSTICS.increment("save_media")
-        self._media[media_key] = content
+        with DIAGNOSTICS.timer("save_media"):
+            self._media[media_key] = content
 
     async def async_remove_media(self, media_key: str) -> None:
         """Remove media content."""
-        DIAGNOSTICS.increment("remove_media")
-        if media_key in self._media:
-            del self._media[media_key]
+        with DIAGNOSTICS.timer("remove_media"):
+            if media_key in self._media:
+                del self._media[media_key]
 
 
 class EventMediaModelItem:

@@ -145,7 +145,7 @@ async def test_event_manager_image(
         diagnostics.get_diagnostics(),
         {
             "event_media": {
-                "save_media": 2,
+                "save_media_count": 2,
             },
         },
     )
@@ -462,9 +462,9 @@ async def test_event_manager_cache_expiration(
         diagnostics.get_diagnostics(),
         {
             "event_media": {
-                "load_media": 10,
-                "save_media": 10,
-                "remove_media": 2,
+                "load_media_count": 10,
+                "save_media_count": 10,
+                "remove_media_count": 2,
             },
         },
     )
@@ -625,9 +625,9 @@ async def test_event_manager_prefetch_image_failure(
         diagnostics.get_diagnostics(),
         {
             "event_media": {
-                "load_media": 3,
-                "remove_media": 1,
-                "save_media": 4,
+                "load_media_count": 3,
+                "remove_media_count": 1,
+                "save_media_count": 4,
             },
         },
     )
@@ -996,7 +996,7 @@ async def test_camera_active_clip_preview_threads(
         diagnostics.get_diagnostics(),
         {
             "event_media": {
-                "save_media": 1,
+                "save_media_count": 1,
             },
         },
     )
