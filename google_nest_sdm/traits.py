@@ -27,25 +27,27 @@ class Command:
     async def execute(self, data: Mapping[str, Any]) -> aiohttp.ClientResponse:
         """Run the command."""
         assert self._auth
-        self._diagnostics.increment(data.get("command", "execute"))
-        return await self._auth.post(f"{self._device_id}:executeCommand", json=data)
+        cmd = data.get("command", "execute")
+        with self._diagnostics.timer(cmd):
+            return await self._auth.post(f"{self._device_id}:executeCommand", json=data)
 
     async def execute_json(self, data: Mapping[str, Any]) -> dict[str, Any]:
         """Run the command and return a json result."""
         assert self._auth
-        self._diagnostics.increment(data.get("command", "execute"))
-        return await self._auth.post_json(
-            f"{self._device_id}:executeCommand", json=data
-        )
+        cmd = data.get("command", "execute")
+        with self._diagnostics.timer(cmd):
+            return await self._auth.post_json(
+                f"{self._device_id}:executeCommand", json=data
+            )
 
     async def fetch_image(self, url: str, basic_auth: Optional[str] = None) -> bytes:
         """Fetch an image at the specified url."""
         headers: Dict[str, Any] = {}
         if basic_auth:
             headers = {"Authorization": f"Basic {basic_auth}"}
-        self._diagnostics.increment("fetch_image")
-        resp = await self._auth.get(url, headers=headers)
-        return await resp.read()
+        with self._diagnostics.timer("fetch_image"):
+            resp = await self._auth.get(url, headers=headers)
+            return await resp.read()
 
 
 def _TraitsDict(

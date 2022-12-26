@@ -12,7 +12,14 @@ from google_nest_sdm.event import EventMessage, EventToken, ImageEventBase
 from google_nest_sdm.event_media import InMemoryEventMediaStore
 from google_nest_sdm.transcoder import Transcoder
 
-from .conftest import FAKE_TOKEN, DeviceHandler, NewHandler, NewImageHandler, Recorder
+from .conftest import (
+    FAKE_TOKEN,
+    DeviceHandler,
+    NewHandler,
+    NewImageHandler,
+    Recorder,
+    assert_diagnostics,
+)
 
 
 @pytest.mark.parametrize(
@@ -134,33 +141,39 @@ async def test_event_manager_image(
 
     assert len(list(await event_media_manager.async_events())) == 2
 
-    assert diagnostics.get_diagnostics() == {
-        "event_media": {
-            "save_media": 2,
-        },
-    }
-
-    assert device.get_diagnostics() == {
-        "command": {
-            "fetch_image": 2,
-            "sdm.devices.commands.CameraEventImage.GenerateImage": 2,
-        },
-        "data": {
-            "name": "**REDACTED**",
-            "parentRelations": [],
-            "traits": {
-                "sdm.devices.traits.CameraEventImage": {},
-                test_trait: {},
+    assert_diagnostics(
+        diagnostics.get_diagnostics(),
+        {
+            "event_media": {
+                "save_media": 2,
             },
-            "type": "sdm.devices.types.device-type1",
         },
-        "event_media": {
-            "event": 2,
-            "event.new": 2,
-            "get_media": 2,
-            "load_events": 1,
+    )
+
+    assert_diagnostics(
+        device.get_diagnostics(),
+        {
+            "command": {
+                "fetch_image_count": 2,
+                "sdm.devices.commands.CameraEventImage.GenerateImage_count": 2,
+            },
+            "data": {
+                "name": "**REDACTED**",
+                "parentRelations": [],
+                "traits": {
+                    "sdm.devices.traits.CameraEventImage": {},
+                    test_trait: {},
+                },
+                "type": "sdm.devices.types.device-type1",
+            },
+            "event_media": {
+                "event": 2,
+                "event.new": 2,
+                "get_media": 2,
+                "load_events": 1,
+            },
         },
-    }
+    )
 
 
 async def test_event_manager_prefetch_image(
@@ -445,36 +458,42 @@ async def test_event_manager_cache_expiration(
     for i in range(2, num_events):
         assert await store.async_load_media(f"CjY5Y3VK..{i}...") == b"image-bytes-1"
 
-    assert diagnostics.get_diagnostics() == {
-        "event_media": {
-            "load_media": 10,
-            "save_media": 10,
-            "remove_media": 2,
-        },
-    }
-    assert device.get_diagnostics() == {
-        "command": {
-            "fetch_image": 10,
-            "sdm.devices.commands.CameraEventImage.GenerateImage": 10,
-        },
-        "data": {
-            "name": "**REDACTED**",
-            "parentRelations": [],
-            "traits": {
-                "sdm.devices.traits.CameraEventImage": {},
-                "sdm.devices.traits.CameraMotion": {},
+    assert_diagnostics(
+        diagnostics.get_diagnostics(),
+        {
+            "event_media": {
+                "load_media": 10,
+                "save_media": 10,
+                "remove_media": 2,
             },
-            "type": "sdm.devices.types.device-type1",
         },
-        "event_media": {
-            "event": 10,
-            "event.fetch": 10,
-            "event.new": 10,
-            "fetch_image": 10,
-            "fetch_image.save": 10,
-            "load_events": 1,
+    )
+    assert_diagnostics(
+        device.get_diagnostics(),
+        {
+            "command": {
+                "fetch_image_count": 10,
+                "sdm.devices.commands.CameraEventImage.GenerateImage_count": 10,
+            },
+            "data": {
+                "name": "**REDACTED**",
+                "parentRelations": [],
+                "traits": {
+                    "sdm.devices.traits.CameraEventImage": {},
+                    "sdm.devices.traits.CameraMotion": {},
+                },
+                "type": "sdm.devices.types.device-type1",
+            },
+            "event_media": {
+                "event": 10,
+                "event.fetch": 10,
+                "event.new": 10,
+                "fetch_image": 10,
+                "fetch_image.save": 10,
+                "load_events": 1,
+            },
         },
-    }
+    )
 
 
 async def test_event_manager_prefetch_image_failure(
@@ -602,38 +621,44 @@ async def test_event_manager_prefetch_image_failure(
         assert event_media.media.contents == b"image-bytes-1"
         assert event_media.media.event_image_type.content_type == "image/jpeg"
 
-    assert diagnostics.get_diagnostics() == {
-        "event_media": {
-            "load_media": 3,
-            "remove_media": 1,
-            "save_media": 4,
-        },
-    }
-    assert device.get_diagnostics() == {
-        "command": {
-            "fetch_image": 4,
-            "sdm.devices.commands.CameraEventImage.GenerateImage": 5,
-        },
-        "data": {
-            "name": "**REDACTED**",
-            "parentRelations": [],
-            "traits": {
-                "sdm.devices.traits.CameraEventImage": {},
-                "sdm.devices.traits.CameraMotion": {},
+    assert_diagnostics(
+        diagnostics.get_diagnostics(),
+        {
+            "event_media": {
+                "load_media": 3,
+                "remove_media": 1,
+                "save_media": 4,
             },
-            "type": "sdm.devices.types.device-type1",
         },
-        "event_media": {
-            "event": 5,
-            "event.fetch": 5,
-            "event.fetch_error": 1,
-            "event.new": 5,
-            "fetch_image": 5,
-            "fetch_image.save": 4,
-            "get_media": 3,
-            "load_events": 1,
+    )
+    assert_diagnostics(
+        device.get_diagnostics(),
+        {
+            "command": {
+                "fetch_image_count": 4,
+                "sdm.devices.commands.CameraEventImage.GenerateImage_count": 5,
+            },
+            "data": {
+                "name": "**REDACTED**",
+                "parentRelations": [],
+                "traits": {
+                    "sdm.devices.traits.CameraEventImage": {},
+                    "sdm.devices.traits.CameraMotion": {},
+                },
+                "type": "sdm.devices.types.device-type1",
+            },
+            "event_media": {
+                "event": 5,
+                "event.fetch": 5,
+                "event.fetch_error": 1,
+                "event.new": 5,
+                "fetch_image": 5,
+                "fetch_image.save": 4,
+                "get_media": 3,
+                "load_events": 1,
+            },
         },
-    }
+    )
 
 
 async def test_prefetch_image_failure_in_session(
@@ -967,30 +992,36 @@ async def test_camera_active_clip_preview_threads(
     assert event_media.media.contents == b"image-bytes-1"
     assert event_media.media.event_image_type.content_type == "video/mp4"
 
-    assert diagnostics.get_diagnostics() == {
-        "event_media": {
-            "save_media": 1,
-        },
-    }
-    assert device.get_diagnostics() == {
-        "command": {"fetch_image": 1},
-        "event_media": {
-            "event": 2,
-            "event.new": 1,
-            "event.update": 1,
-            "get_media": 1,
-            "load_events": 1,
-        },
-        "data": {
-            "name": "**REDACTED**",
-            "parentRelations": [],
-            "traits": {
-                "sdm.devices.traits.CameraClipPreview": {},
-                test_trait: {},
+    assert_diagnostics(
+        diagnostics.get_diagnostics(),
+        {
+            "event_media": {
+                "save_media": 1,
             },
-            "type": "sdm.devices.types.device-type1",
         },
-    }
+    )
+    assert_diagnostics(
+        device.get_diagnostics(),
+        {
+            "command": {"fetch_image_count": 1},
+            "event_media": {
+                "event": 2,
+                "event.new": 1,
+                "event.update": 1,
+                "get_media": 1,
+                "load_events": 1,
+            },
+            "data": {
+                "name": "**REDACTED**",
+                "parentRelations": [],
+                "traits": {
+                    "sdm.devices.traits.CameraClipPreview": {},
+                    test_trait: {},
+                },
+                "type": "sdm.devices.types.device-type1",
+            },
+        },
+    )
 
 
 async def test_unsupported_event_for_event_manager(
