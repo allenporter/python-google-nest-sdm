@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import time
 from collections import Counter
 from collections.abc import Mapping
-from typing import Any, TypeVar, cast
+from contextlib import contextmanager
+from typing import Any, Generator, TypeVar, cast
 
 
 class Diagnostics:
@@ -15,9 +17,14 @@ class Diagnostics:
         self._counter: Counter = Counter()
         self._subkeys: dict[str, Diagnostics] = {}
 
-    def increment(self, key: str) -> None:
+    def increment(self, key: str, count: int = 1) -> None:
         """Increment a counter for the spcified key/event."""
-        self._counter.update(Counter({key: 1}))
+        self._counter.update(Counter({key: count}))
+
+    def elapsed(self, key_prefix: str, elapsed_ms: int = 1) -> None:
+        """Track a latency event for the specified key/event prefix."""
+        self.increment(f"{key_prefix}_count", 1)
+        self.increment(f"{key_prefix}_sum", elapsed_ms)
 
     def as_dict(self) -> Mapping[str, Any]:
         """Return diagnostics as a debug dictionary."""
@@ -34,6 +41,17 @@ class Diagnostics:
         if key not in self._subkeys:
             self._subkeys[key] = Diagnostics()
         return self._subkeys[key]
+
+    @contextmanager
+    def timer(self, key_prefix: str) -> Generator[None, None, None]:
+        """A context manager that records the timing of operations as a diagnostic."""
+        start = time.perf_counter()
+        try:
+            yield
+        finally:
+            end = time.perf_counter()
+            ms = int((end - start) * 1000)
+            self.elapsed(key_prefix, ms)
 
     def reset(self) -> None:
         """Clear all diagnostics, for testing."""

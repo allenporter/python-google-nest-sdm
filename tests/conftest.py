@@ -317,3 +317,17 @@ def structure_handler(
 def reset_diagnostics() -> Generator[None, None, None]:
     yield
     diagnostics.reset()
+
+
+def assert_diagnostics(actual: dict[str, Any], expected: dict[str, Any]) -> None:
+    """Helper method for stripping timing based daignostics."""
+    for k1, v1 in actual.items():
+        if isinstance(v1, dict):
+            drop_keys = []
+            for k2, v2 in v1.items():
+                if k2.endswith("_sum"):
+                    drop_keys.append(k2)
+            for k in drop_keys:
+                del v1[k]
+
+    assert actual == expected

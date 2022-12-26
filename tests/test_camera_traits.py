@@ -11,7 +11,13 @@ from google_nest_sdm.camera_traits import EventImageType, StreamingProtocol
 from google_nest_sdm.device import Device
 from google_nest_sdm.event import EventMessage
 
-from .conftest import DeviceHandler, NewHandler, NewImageHandler, Recorder
+from .conftest import (
+    DeviceHandler,
+    NewHandler,
+    NewImageHandler,
+    Recorder,
+    assert_diagnostics,
+)
 
 
 def test_camera_image_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
@@ -245,28 +251,31 @@ async def test_camera_live_stream_rtsp(
         },
     }
 
-    assert device.get_diagnostics() == {
-        "data": {
-            "name": "**REDACTED**",
-            "parentRelations": [],
-            "traits": {
-                "sdm.devices.traits.CameraLiveStream": {
-                    "maxVideoResolution": {
-                        "width": 500,
-                        "height": 300,
-                    },
-                    "videoCodecs": ["H264"],
-                    "audioCodecs": ["AAC"],
-                }
+    assert_diagnostics(
+        device.get_diagnostics(),
+        {
+            "data": {
+                "name": "**REDACTED**",
+                "parentRelations": [],
+                "traits": {
+                    "sdm.devices.traits.CameraLiveStream": {
+                        "maxVideoResolution": {
+                            "width": 500,
+                            "height": 300,
+                        },
+                        "videoCodecs": ["H264"],
+                        "audioCodecs": ["AAC"],
+                    }
+                },
+                "type": "sdm.devices.types.device-type1",
             },
-            "type": "sdm.devices.types.device-type1",
+            "command": {
+                "sdm.devices.commands.CameraLiveStream.ExtendRtspStream_count": 2,
+                "sdm.devices.commands.CameraLiveStream.GenerateRtspStream_count": 1,
+                "sdm.devices.commands.CameraLiveStream.StopRtspStream_count": 1,
+            },
         },
-        "command": {
-            "sdm.devices.commands.CameraLiveStream.ExtendRtspStream": 2,
-            "sdm.devices.commands.CameraLiveStream.GenerateRtspStream": 1,
-            "sdm.devices.commands.CameraLiveStream.StopRtspStream": 1,
-        },
-    }
+    )
 
 
 async def test_camera_live_stream_web_rtc(
