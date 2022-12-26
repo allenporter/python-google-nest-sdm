@@ -25,7 +25,7 @@ from google_nest_sdm.google_nest_subscriber import (
     get_api_env,
 )
 
-from .conftest import DeviceHandler, StructureHandler
+from .conftest import DeviceHandler, StructureHandler, assert_diagnostics
 
 PROJECT_ID = "project-id1"
 SUBSCRIBER_ID = "projects/some-project-id/subscriptions/subscriber-id1"
@@ -132,12 +132,15 @@ async def test_subscribe_device_manager(
     assert devices[device_id2].type == "sdm.devices.types.device-type2"
     subscriber.stop_async()
 
-    assert diagnostics.get_diagnostics() == {
-        "subscriber": {
-            "start": 1,
-            "stop": 1,
+    assert_diagnostics(
+        diagnostics.get_diagnostics(),
+        {
+            "subscriber": {
+                "start": 1,
+                "stop": 1,
+            },
         },
-    }
+    )
 
 
 async def test_subscribe_update_trait(
@@ -188,23 +191,29 @@ async def test_subscribe_update_trait(
     assert "OFFLINE" == trait.status
     subscriber.stop_async()
 
-    assert diagnostics.get_diagnostics() == {
-        "subscriber": {
-            "message_acked": 1,
-            "message_received": 1,
-            "start": 1,
-            "stop": 1,
+    assert_diagnostics(
+        diagnostics.get_diagnostics(),
+        {
+            "subscriber": {
+                "message_acked_count": 1,
+                "message_received_count": 1,
+                "start": 1,
+                "stop": 1,
+            },
         },
-    }
-    assert device.get_diagnostics() == {
-        "event_media": {"event": 1},
-        "data": {
-            "name": "**REDACTED**",
-            "parentRelations": [],
-            "traits": {"sdm.devices.traits.Connectivity": {"status": "ONLINE"}},
-            "type": "sdm.devices.types.device-type1",
+    )
+    assert_diagnostics(
+        device.get_diagnostics(),
+        {
+            "event_media": {"event": 1},
+            "data": {
+                "name": "**REDACTED**",
+                "parentRelations": [],
+                "traits": {"sdm.devices.traits.Connectivity": {"status": "ONLINE"}},
+                "type": "sdm.devices.types.device-type1",
+            },
         },
-    }
+    )
 
 
 async def test_subscribe_device_manager_init(
@@ -295,13 +304,16 @@ async def test_subscriber_error(
         await subscriber.start_async()
     subscriber.stop_async()
 
-    assert diagnostics.get_diagnostics() == {
-        "subscriber": {
-            "start": 1,
-            "start.api_error": 1,
-            "stop": 1,
+    assert_diagnostics(
+        diagnostics.get_diagnostics(),
+        {
+            "subscriber": {
+                "start": 1,
+                "start.api_error": 1,
+                "stop": 1,
+            },
         },
-    }
+    )
 
 
 async def test_subscriber_auth_error(

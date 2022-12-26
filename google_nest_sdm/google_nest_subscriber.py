@@ -7,6 +7,7 @@ import enum
 import json
 import logging
 import re
+import time
 from abc import ABC, abstractmethod
 from typing import Awaitable, Callable, Optional
 
@@ -511,13 +512,16 @@ class GoogleNestSubscriber:
         self, message: pubsub_v1.subscriber.message.Message
     ) -> None:
         """Handle a received message."""
-        DIAGNOSTICS.increment("message_received")
         payload = json.loads(bytes.decode(message.data))
         event = EventMessage(payload, self._auth)
+        recv = time.perf_counter()
+        latency_ms = int((recv - event.timestamp.timestamp()) * 1000)
+        DIAGNOSTICS.elapsed("message_received", latency_ms)
         # Only accept device events once the Device Manager has been loaded.
         # We are ok with missing messages on startup since the device manager
         # will do a live read .
         if self._device_manager_task and self._device_manager_task.done():
             await self._device_manager_task.result().async_handle_event(event)
-        message.ack()
-        DIAGNOSTICS.increment("message_acked")
+            message.ack()
+        ack_latency_ms = int((time.perf_counter() - recv) * 1000)
+        DIAGNOSTICS.elapsed("message_acked", ack_latency_ms)
