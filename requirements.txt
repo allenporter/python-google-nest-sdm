@@ -18,7 +18,7 @@ libcst==0.4.9
 mock==4.0.3
 mypy==0.982
 mypy-extensions==0.4.3
-pre-commit==2.20.0
+pre-commit==2.21.0
 protobuf==4.21.12
 pytest==7.2.0
 pytest-aiohttp==1.0.4
