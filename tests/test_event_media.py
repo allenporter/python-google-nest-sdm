@@ -171,6 +171,7 @@ async def test_event_manager_image(
                 "event.new": 2,
                 "get_media": 2,
                 "load_events": 1,
+                f"{test_event_trait}_count": 2,
             },
         },
     )
@@ -491,6 +492,7 @@ async def test_event_manager_cache_expiration(
                 "fetch_image": 10,
                 "fetch_image.save": 10,
                 "load_events": 1,
+                "sdm.devices.events.CameraMotion.Motion_count": 10,
             },
         },
     )
@@ -656,6 +658,7 @@ async def test_event_manager_prefetch_image_failure(
                 "fetch_image.save": 4,
                 "get_media": 3,
                 "load_events": 1,
+                "sdm.devices.events.CameraMotion.Motion_count": 5,
             },
         },
     )
@@ -1010,6 +1013,8 @@ async def test_camera_active_clip_preview_threads(
                 "event.update": 1,
                 "get_media": 1,
                 "load_events": 1,
+                "sdm.devices.events.CameraClipPreview.ClipPreview_count": 2,
+                f"{test_event_trait}_count": 2,
             },
             "data": {
                 "name": "**REDACTED**",

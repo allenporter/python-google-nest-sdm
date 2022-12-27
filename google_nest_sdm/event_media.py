@@ -6,6 +6,7 @@ import asyncio
 import datetime
 import itertools
 import logging
+import time
 from abc import ABC
 from collections import OrderedDict
 from collections.abc import Iterable
@@ -839,14 +840,16 @@ class EventMediaManager:
         if not event_sessions:
             return
         _LOGGER.debug("Event Update %s", event_sessions.keys())
+        recv_latency_ms = int((time.time() - event_message.timestamp.timestamp()) * 100)
 
         # Notify traits to cache most recent event
         pairs = list(event_sessions.items())
         for event_session_id, event_dict in pairs:
             supported = False
             for event_name, event in event_dict.items():
+                self._diagnostics.elapsed(event_name, recv_latency_ms)
                 if not (trait := self._event_trait_map.get(event_name)):
-                    self._diagnostics.increment("event.unsupported_trait")
+                    self._diagnostics.increment(f"event.unsupported.{event_name}")
                     _LOGGER.debug("Unsupported event trait: %s", event_name)
                     continue
                 supported = True
