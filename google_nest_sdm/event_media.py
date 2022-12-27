@@ -847,7 +847,10 @@ class EventMediaManager:
         for event_session_id, event_dict in pairs:
             supported = False
             for event_name, event in event_dict.items():
-                self._diagnostics.elapsed(event_name, recv_latency_ms)
+                if not event.is_expired:
+                    self._diagnostics.elapsed(event_name, recv_latency_ms)
+                else:
+                    self._diagnostics.elapsed(f"{event_name}_expired", recv_latency_ms)
                 if not (trait := self._event_trait_map.get(event_name)):
                     self._diagnostics.increment(f"event.unsupported.{event_name}")
                     _LOGGER.debug("Unsupported event trait: %s", event_name)
