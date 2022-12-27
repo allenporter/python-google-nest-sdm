@@ -514,7 +514,7 @@ class GoogleNestSubscriber:
         """Handle a received message."""
         payload = json.loads(bytes.decode(message.data))
         event = EventMessage(payload, self._auth)
-        recv = time.perf_counter()
+        recv = time.time()
         latency_ms = int((recv - event.timestamp.timestamp()) * 1000)
         DIAGNOSTICS.elapsed("message_received", latency_ms)
         # Only accept device events once the Device Manager has been loaded.
@@ -523,5 +523,5 @@ class GoogleNestSubscriber:
         if self._device_manager_task and self._device_manager_task.done():
             await self._device_manager_task.result().async_handle_event(event)
             message.ack()
-        ack_latency_ms = int((time.perf_counter() - recv) * 1000)
+        ack_latency_ms = int((time.time() - recv) * 1000)
         DIAGNOSTICS.elapsed("message_acked", ack_latency_ms)
