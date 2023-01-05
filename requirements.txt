@@ -9,7 +9,7 @@ flake8-black==0.3.5
 google-api-core==2.11.0
 google-auth==2.15.0
 google-cloud-pubsub==2.13.11
-googleapis-common-protos==1.57.0
+googleapis-common-protos==1.57.1
 grpc-google-iam-v1==0.12.4
 grpcio==1.51.1
 grpcio-status==1.51.1
