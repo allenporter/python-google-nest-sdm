@@ -468,7 +468,9 @@ class CameraClipPreviewTrait(EventImageGenerator):
                     preview_event = session_event
                     break
             if preview_event is None:
-                _LOGGER.debug("Ignoring event, not the right type: %s", event)
+                _LOGGER.debug(
+                    "Event did not contain fetchable camera clip preview: %s", event
+                )
                 return None
         # Clip preview events have the url baked in without an additional
         # step to generate the image

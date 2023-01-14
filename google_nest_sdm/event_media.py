@@ -869,23 +869,22 @@ class EventMediaManager:
         # to downstream subscribers the first time they are seen to avoid
         # firing on updated event threads multiple times.
         suppress_keys: set[str] = set({})
-        valid_events = 0
+        notifiable_events: dict[str, int] = {}  # Notifiable events for each session
         for event_session_id, event_dict in event_sessions.items():
-
             # Track all related events together with the same session
             if model_item := await self._async_load_item(event_session_id):
                 self._diagnostics.increment("event.update")
                 # Update the existing event session with new/updated events. Only
                 # new events are published.
                 suppress_keys |= set(model_item.events.keys())
-                valid_events += len(
+                notifiable_events[event_session_id] = len(
                     set(event_dict.keys()) - set(model_item.events.keys())
                 )
                 model_item.events.update(event_dict)
             else:
                 self._diagnostics.increment("event.new")
                 # A new event session
-                valid_events += len(event_dict.keys())
+                notifiable_events[event_session_id] = len(event_dict.keys())
                 model_item = EventMediaModelItem(
                     event_session_id,
                     event_dict,
@@ -907,8 +906,20 @@ class EventMediaManager:
                         event.event_session_id,
                         str(err),
                     )
+
                 # Update any new media keys
                 await self._async_update_item(model_item)
+
+                # If no media was fetched, then pause until we get a message that contains
+                # media or the thread ends.
+                if (
+                    model_item.any_media_key is None
+                    and not event_message.is_thread_ended
+                ):
+                    _LOGGER.debug(
+                        "Skipping notification without media; Will deliver later"
+                    )
+                    notifiable_events[event_session_id] = 0
 
         await self._expire_cache()
 
@@ -917,9 +928,14 @@ class EventMediaManager:
         # Notify any listeners about the arrival of a new event
         if suppress_keys:
             event_message = event_message.omit_events(suppress_keys)
-        if valid_events > 0:
+        if any(notifiable_events.values()):
+            _LOGGER.debug("Message contains notifiable events: %s", notifiable_events)
             self._diagnostics.increment("event.notify")
             await self._callback(event_message)
+        else:
+            _LOGGER.debug(
+                "Message did not contain notifiable events: %s", notifiable_events
+            )
 
     @property
     def active_event_trait(self) -> EventImageGenerator | None:
