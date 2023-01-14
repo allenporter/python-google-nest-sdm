@@ -1,6 +1,6 @@
+import asyncio
 from unittest.mock import Mock, patch
 
-import asynctest
 import pytest
 
 from google_nest_sdm.exceptions import TranscodeException
@@ -33,7 +33,7 @@ async def test_transcoder(tmp_path: str) -> None:
         "google_nest_sdm.transcoder.asyncio.create_subprocess_shell"
     ) as mock_shell:
         process_mock = Mock()
-        future = asynctest.asyncio.Future()
+        future: asyncio.Future = asyncio.Future()
         future.set_result(("", ""))
         process_mock.communicate.return_value = future
         process_mock.returncode = 0
@@ -49,7 +49,7 @@ async def test_transcoder_failure(tmp_path: str) -> None:
         "google_nest_sdm.transcoder.asyncio.create_subprocess_shell"
     ) as mock_shell, pytest.raises(TranscodeException):
         process_mock = Mock()
-        future = asynctest.asyncio.Future()
+        future: asyncio.Future = asyncio.Future()
         future.set_result(("", ""))
         process_mock.communicate.return_value = future
         process_mock.returncode = 1
