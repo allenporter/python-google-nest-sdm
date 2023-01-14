@@ -1726,8 +1726,8 @@ async def test_event_session_without_clip(
     )
 
     # The event ENDED without any media, so notify
-    assert callback.invoked
-    assert len(callback.messages) == 1
+    assert callback.invoked  # type: ignore[unreachable]
+    assert len(callback.messages) == 1  # type: ignore[unreachable]
 
     event_media_manager = device.event_media_manager
 
@@ -1836,8 +1836,8 @@ async def test_event_session_clip_preview_in_second_message(
     )
 
     # Callback invoked now that media arrived
-    assert callback.invoked
-    assert_diagnostics(
+    assert callback.invoked  # type: ignore[unreachable]
+    assert_diagnostics(  # type: ignore[unreachable]
         device.get_diagnostics().get("event_media", {}),
         {
             "event": 2,
