@@ -25,7 +25,7 @@ from google_nest_sdm.google_nest_subscriber import (
     get_api_env,
 )
 
-from .conftest import DeviceHandler, StructureHandler, assert_diagnostics
+from .conftest import DeviceHandler, EventCallback, StructureHandler, assert_diagnostics
 
 PROJECT_ID = "project-id1"
 SUBSCRIBER_ID = "projects/some-project-id/subscriptions/subscriber-id1"
@@ -439,13 +439,8 @@ async def test_subscribe_thread_update(
     devices = device_manager.devices
     assert device_id in devices
 
-    messages: list[EventMessage] = []
-
-    async def receive_message(message: EventMessage) -> None:
-        assert isinstance(message, EventMessage)
-        messages.append(message)
-
-    subscriber.set_update_callback(receive_message)
+    callback = EventCallback()
+    subscriber.set_update_callback(callback.async_handle_event)
 
     event = {
         "eventId": "6f29332e-5537-47f6-a3f9-840c307340f5",
@@ -498,8 +493,8 @@ async def test_subscribe_thread_update(
     }
     await subscriber_factory.async_push_event(event)
 
-    assert len(messages) == 1
-    message: EventMessage = messages[0]
+    assert len(callback.messages) == 1
+    message: EventMessage = callback.messages[0]
     assert message.event_id == "6f29332e-5537-47f6-a3f9-840c307340f5"
     assert message.event_sessions
     assert len(message.event_sessions) == 1
@@ -535,13 +530,8 @@ async def test_subscribe_thread_update_new_events(
     devices = device_manager.devices
     assert device_id in devices
 
-    messages: list[EventMessage] = []
-
-    async def receive_message(message: EventMessage) -> None:
-        assert isinstance(message, EventMessage)
-        messages.append(message)
-
-    subscriber.set_update_callback(receive_message)
+    callback = EventCallback()
+    subscriber.set_update_callback(callback.async_handle_event)
 
     event = {
         "eventId": "6f29332e-5537-47f6-a3f9-840c307340f5",
@@ -598,8 +588,8 @@ async def test_subscribe_thread_update_new_events(
     }
     await subscriber_factory.async_push_event(event2)
 
-    assert len(messages) == 2
-    message: EventMessage = messages[0]
+    assert len(callback.messages) == 2
+    message: EventMessage = callback.messages[0]
     assert message.event_id == "6f29332e-5537-47f6-a3f9-840c307340f5"
     assert message.event_sessions
     assert len(message.event_sessions) == 1
@@ -609,7 +599,7 @@ async def test_subscribe_thread_update_new_events(
     assert "sdm.devices.events.CameraMotion.Motion" in events
     assert "sdm.devices.events.CameraClipPreview.ClipPreview" in events
 
-    message = messages[1]
+    message = callback.messages[1]
     assert message.event_id == "7f29332e-5537-47f6-a3f9-840c307340f5"
     assert message.event_sessions
     assert len(message.event_sessions) == 1

@@ -32,6 +32,8 @@ SUBJECT = "subject"
 OBJECT = "object"
 PREVIEW_URL = "previewUrl"
 ZONES = "zones"
+EVENT_THREAD_STATE = "eventThreadState"
+EVENT_THREAD_STATE_ENDED = "ENDED"
 
 # Event images expire 30 seconds after the event is published
 EVENT_IMAGE_EXPIRE_SECS = 30
@@ -451,3 +453,8 @@ class EventMessage:
             del events[key]
         raw_data[RESOURCE_UPDATE][EVENTS] = events
         return EventMessage(raw_data, self._auth)
+
+    @property
+    def is_thread_ended(self) -> bool:
+        """Return true if the message indicates the thread is ended."""
+        return self._raw_data.get(EVENT_THREAD_STATE) == EVENT_THREAD_STATE_ENDED

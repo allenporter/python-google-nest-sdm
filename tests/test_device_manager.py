@@ -9,6 +9,8 @@ from google_nest_sdm.device_traits import ConnectivityTrait
 from google_nest_sdm.event import EventMessage
 from google_nest_sdm.structure import Structure
 
+from .conftest import EventCallback
+
 
 @pytest.fixture
 def event_message_with_time(
@@ -220,14 +222,7 @@ async def test_device_event_callback(
     trait = device.traits["sdm.devices.traits.Connectivity"]
     assert "OFFLINE" == trait.status
 
-    class MyCallback:
-        def __init__(self) -> None:
-            self.invoked = False
-
-        async def async_handle_event(self, event_message: EventMessage) -> None:
-            self.invoked = True
-
-    callback = MyCallback()
+    callback = EventCallback()
     unregister = device.add_event_callback(callback.async_handle_event)
     assert not callback.invoked
 
@@ -330,7 +325,6 @@ async def test_device_update_listener(
             self.invoked = False
 
         def async_handle_event(self) -> None:
-            print("async_handle_event")
             self.invoked = True
 
     callback = MyCallback()
@@ -524,14 +518,7 @@ async def test_device_added_after_callback(
 ) -> None:
     """Test event callback is registered before the device is added."""
 
-    class MyCallback:
-        def __init__(self) -> None:
-            self.invoked = False
-
-        async def async_handle_event(self, event_message: EventMessage) -> None:
-            self.invoked = True
-
-    callback = MyCallback()
+    callback = EventCallback()
     mgr = DeviceManager()
     mgr.set_update_callback(callback.async_handle_event)
     assert not callback.invoked
@@ -587,14 +574,7 @@ async def test_publish_without_media(
 ) -> None:
     """Test event callback is registered before the device is added."""
 
-    class MyCallback:
-        def __init__(self) -> None:
-            self.invoked = False
-
-        async def async_handle_event(self, event_message: EventMessage) -> None:
-            self.invoked = True
-
-    callback = MyCallback()
+    callback = EventCallback()
     mgr = DeviceManager()
     mgr.set_update_callback(callback.async_handle_event)
     assert not callback.invoked

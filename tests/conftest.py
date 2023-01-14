@@ -322,13 +322,33 @@ def reset_diagnostics() -> Generator[None, None, None]:
 
 def assert_diagnostics(actual: dict[str, Any], expected: dict[str, Any]) -> None:
     """Helper method for stripping timing based daignostics."""
+
+    def scrub_dict(data: dict[str, Any]) -> dict[str, Any]:
+        drop_keys = []
+        for k1, v1 in data.items():
+            if k1.endswith("_sum"):
+                drop_keys.append(k1)
+        for k in drop_keys:
+            del data[k]
+        return data
+
+    actual = scrub_dict(actual)
+
     for k1, v1 in actual.items():
         if isinstance(v1, dict):
-            drop_keys = []
-            for k2, v2 in v1.items():
-                if k2.endswith("_sum"):
-                    drop_keys.append(k2)
-            for k in drop_keys:
-                del v1[k]
+            actual[k1] = scrub_dict(v1)
 
     assert actual == expected
+
+
+class EventCallback:
+    """A callback that can be used in tests for assertions."""
+
+    def __init__(self) -> None:
+        """Initialize EventCallback."""
+        self.invoked = False
+        self.messages: list[EventMessage] = []
+
+    async def async_handle_event(self, event_message: EventMessage) -> None:
+        self.invoked = True
+        self.messages.append(event_message)
