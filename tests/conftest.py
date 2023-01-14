@@ -346,7 +346,7 @@ class EventCallback:
 
     def __init__(self) -> None:
         """Initialize EventCallback."""
-        self.invoked = False
+        self.invoked: bool = False
         self.messages: list[EventMessage] = []
 
     async def async_handle_event(self, event_message: EventMessage) -> None:
