@@ -897,24 +897,27 @@ class EventMediaManager:
 
             if self._support_fetch and self._cache_policy.fetch:
                 self._diagnostics.increment("event.fetch")
+                failure = False
                 try:
                     await self._fetch_media(model_item)
                 except GoogleNestException as err:
                     self._diagnostics.increment("event.fetch_error")
+                    failure = True
                     _LOGGER.warning(
                         "Failure when pre-fetching event '%s': %s",
                         event.event_session_id,
                         str(err),
                     )
-
                 # Update any new media keys
                 await self._async_update_item(model_item)
 
                 # If no media was fetched, then pause until we get a message that contains
-                # media or the thread ends.
+                # media or the thread ends. If we attempted then failed, then pass on since
+                # the event could have been ready to go.
                 if (
                     model_item.any_media_key is None
                     and not event_message.is_thread_ended
+                    and not failure
                 ):
                     _LOGGER.debug(
                         "Skipping notification without media; Will deliver later"
