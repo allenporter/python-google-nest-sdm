@@ -140,7 +140,7 @@ async def test_client_error(
     # No server endpoint registered
     api = await api_client()
     with patch(
-        "google_nest_sdm.google_nest_api.AbstractAuth.request",
+        "google_nest_sdm.google_nest_api.AbstractAuth._request",
         side_effect=aiohttp.ClientConnectionError(),
     ), pytest.raises(ApiException):
         await api.async_get_structures()
