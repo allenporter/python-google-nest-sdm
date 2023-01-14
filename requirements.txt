@@ -4,8 +4,8 @@ asynctest==0.13.0
 attrs==22.2.0
 black==22.12.0
 coverage==7.0.5
-flake8==5.0.4
-flake8-black==0.3.5
+flake8==6.0.0
+flake8-black==0.3.6
 google-api-core==2.11.0
 google-auth==2.15.0
 google-cloud-pubsub==2.13.12
