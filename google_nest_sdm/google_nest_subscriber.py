@@ -527,8 +527,6 @@ class GoogleNestSubscriber:
         ):
             await self._device_manager_task.result().async_handle_event(event)
             message.ack()
-        else:
-            _LOGGER.debug("Ignoring message since device manager is not ready")
 
         ack_latency_ms = int((time.time() - recv) * 1000)
         DIAGNOSTICS.elapsed("message_acked", ack_latency_ms)
