@@ -518,9 +518,15 @@ class GoogleNestSubscriber:
         DIAGNOSTICS.elapsed("message_received", latency_ms)
         # Only accept device events once the Device Manager has been loaded.
         # We are ok with missing messages on startup since the device manager
-        # will do a live read .
-        if self._device_manager_task and self._device_manager_task.done():
+        # will do a live read. This checks for an exception to avoid throwing
+        # inside the pubsub callback and further weding the pubsub client library.
+        if (
+            self._device_manager_task
+            and self._device_manager_task.done()
+            and not self._device_manager_task.exception()
+        ):
             await self._device_manager_task.result().async_handle_event(event)
             message.ack()
+
         ack_latency_ms = int((time.time() - recv) * 1000)
         DIAGNOSTICS.elapsed("message_acked", ack_latency_ms)

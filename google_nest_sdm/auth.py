@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from asyncio import TimeoutError
 from typing import Any, List, Mapping, Optional
 
 import aiohttp
@@ -53,6 +54,8 @@ class AbstractAuth(ABC):
         if AUTHORIZATION_HEADER not in headers:
             try:
                 access_token = await self.async_get_access_token()
+            except TimeoutError as err:
+                raise ApiException(f"Timeout requesting API token: {err}") from err
             except ClientError as err:
                 raise AuthException(f"Access token failure: {err}") from err
             headers[AUTHORIZATION_HEADER] = f"Bearer {access_token}"
@@ -61,16 +64,25 @@ class AbstractAuth(ABC):
         _LOGGER.debug("request[%s]=%s", method, url)
         if method == "post" and "json" in kwargs:
             _LOGGER.debug("request[post json]=%s", kwargs["json"])
+        try:
+            return await self._request(method, url, headers=headers, **kwargs)
+        except (ClientError, TimeoutError) as err:
+            raise ApiException(f"Error connecting to API: {err}") from err
+
+    async def _request(
+        self,
+        method: str,
+        url: str,
+        headers: dict[str, str],
+        **kwargs: Optional[Mapping[str, Any]],
+    ) -> aiohttp.ClientResponse:
         return await self._websession.request(method, url, **kwargs, headers=headers)
 
     async def get(
         self, url: str, **kwargs: Mapping[str, Any]
     ) -> aiohttp.ClientResponse:
         """Make a get request."""
-        try:
-            resp = await self.request("get", url, **kwargs)
-        except ClientError as err:
-            raise ApiException(f"Error connecting to API: {err}") from err
+        resp = await self.request("get", url, **kwargs)
         return await AbstractAuth._raise_for_status(resp)
 
     async def get_json(self, url: str, **kwargs: Mapping[str, Any]) -> dict[str, Any]:
@@ -89,10 +101,7 @@ class AbstractAuth(ABC):
         self, url: str, **kwargs: Mapping[str, Any]
     ) -> aiohttp.ClientResponse:
         """Make a post request."""
-        try:
-            resp = await self.request("post", url, **kwargs)
-        except ClientError as err:
-            raise ApiException(f"Error connecting to API: {err}") from err
+        resp = await self.request("post", url, **kwargs)
         return await AbstractAuth._raise_for_status(resp)
 
     async def post_json(self, url: str, **kwargs: Mapping[str, Any]) -> dict[str, Any]:
