@@ -906,16 +906,12 @@ class EventMediaManager:
                         event.event_session_id,
                         str(err),
                     )
-                    # Fall through and deliver notifications. The model
-                    # item was not changed since no new media was fetched
-                    # await self._async_update_item(model_item)
+
                 # Update any new media keys
                 await self._async_update_item(model_item)
 
-                # We typicaly wait to deliver notifications until media
-                # is fetched, however there are a couple corner cases:
-                # - if we intended to fetch media and it failed, deliver anyway
-                # - if the thread is ending and there was no media, deliver anyway
+                # If no media was fetched, then pause until we get a message that contains
+                # media or the thread ends.
                 if (
                     model_item.any_media_key is None
                     and not event_message.is_thread_ended
