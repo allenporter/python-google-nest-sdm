@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Any, Final, List, Mapping, cast
 
 import aiohttp
@@ -21,10 +21,12 @@ class ThermostatHeatCoolTrait(ABC):
     """Parent class for traits related to temperature set points."""
 
     @property
+    @abstractmethod
     def heat_celsius(self) -> float:
         """Lowest temperature where Eco mode begins heating."""
 
     @property
+    @abstractmethod
     def cool_celsius(self) -> float:
         """Highest cooling temperature where Eco mode begins cooling."""
 

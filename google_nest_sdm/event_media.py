@@ -7,7 +7,7 @@ import datetime
 import itertools
 import logging
 import time
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections import OrderedDict
 from collections.abc import Iterable
 from typing import Any, Awaitable, Callable, Dict
@@ -228,12 +228,15 @@ class EventMedia:
 class EventMediaStore(ABC):
     """Interface for external storage."""
 
+    @abstractmethod
     async def async_load(self) -> dict | None:
         """Load data."""
 
+    @abstractmethod
     async def async_save(self, data: dict) -> None:
         """Save data."""
 
+    @abstractmethod
     def get_media_key(self, device_id: str, event: ImageEventBase) -> str:
         """Return the filename to use for the device and event."""
 

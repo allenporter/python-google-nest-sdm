@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import (
     Any,
     AsyncGenerator,
@@ -163,6 +163,7 @@ class JsonHandler(ABC):
         self.token: str = FAKE_TOKEN
         self.recorder = recorder
 
+    @abstractmethod
     def get_response(self) -> dict[str, Any]:
         """Implemented by subclasses to return a response."""
 
