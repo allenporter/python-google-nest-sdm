@@ -251,7 +251,6 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
         def callback_wrapper(message: pubsub_v1.subscriber.message.Message) -> None:
             if loop.is_closed():
                 return
-            assert async_callback
             future: concurrent.futures.Future = asyncio.run_coroutine_threadsafe(
                 async_callback(message), loop
             )
