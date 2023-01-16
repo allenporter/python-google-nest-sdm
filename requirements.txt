@@ -6,7 +6,7 @@ coverage==7.0.5
 flake8==6.0.0
 flake8-black==0.3.6
 google-api-core==2.11.0
-google-auth==2.15.0
+google-auth==2.16.0
 google-cloud-pubsub==2.13.12
 googleapis-common-protos==1.58.0
 grpc-google-iam-v1==0.12.6
