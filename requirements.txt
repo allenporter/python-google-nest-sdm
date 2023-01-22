@@ -28,8 +28,8 @@ PyYAML==6.0
 regex==2022.10.31
 typed-ast==1.5.4
 types-futures==3.3.8
-types-protobuf==4.21.0.2
-types-PyYAML==6.0.12.2
+types-protobuf==4.21.0.3
+types-PyYAML==6.0.12.3
 typing-extensions==4.4.0
 typing-inspect==0.8.0
 urllib3==1.26.14
