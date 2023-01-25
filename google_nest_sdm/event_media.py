@@ -21,6 +21,7 @@ from .camera_traits import (
 from .diagnostics import EVENT_MEDIA_DIAGNOSTICS as DIAGNOSTICS
 from .diagnostics import Diagnostics
 from .event import (
+    CameraClipPreviewEvent,
     CameraMotionEvent,
     CameraPersonEvent,
     CameraSoundEvent,
@@ -325,6 +326,7 @@ class EventMediaModelItem:
         media_key: str | None,
         event_media_keys: dict[str, str],
         thumbnail_media_key: str | None,
+        pending_event_keys: set[str] | None = None,
     ) -> None:
         """Initialize EventMediaModelItem."""
         self._event_session_id = event_session_id
@@ -332,6 +334,7 @@ class EventMediaModelItem:
         self._media_key = media_key
         self._event_media_keys = event_media_keys if event_media_keys else {}
         self._thumbnail_media_key = thumbnail_media_key
+        self._pending_event_keys = pending_event_keys if pending_event_keys else set({})
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> EventMediaModelItem:
@@ -353,6 +356,7 @@ class EventMediaModelItem:
             data.get("media_key"),
             data.get("event_media_keys", {}),
             data.get("thumbnail_media_key"),
+            set(data.get("pending_event_keys", [])),
         )
 
     @property
@@ -371,6 +375,30 @@ class EventMediaModelItem:
     def events(self) -> dict[str, ImageEventBase]:
         """Return all associated events with this record."""
         return self._events
+
+    def merge_events(self, new_events: dict[str, ImageEventBase]) -> None:
+        """Merge new incoming events with the existing set."""
+        new_keys = new_events.keys() - self._events.keys()
+        self._events.update(new_events)
+        self._pending_event_keys |= new_keys
+
+    @property
+    def pending_event_keys(self) -> set[str]:
+        """Return the set of events that have not yet been notified."""
+        return self._pending_event_keys
+
+    @property
+    def pending_events(self) -> dict[str, ImageEventBase]:
+        """Return all associated events with this record."""
+        return {
+            key: value
+            for key, value in self._events.items()
+            if key in self.pending_event_keys
+        }
+
+    def notified(self, event_keys: Iterable[str]) -> None:
+        """Mark the specified events as notified."""
+        self._pending_event_keys = self._pending_event_keys - set(event_keys)
 
     @property
     def media_key(self) -> str | None:
@@ -438,6 +466,7 @@ class EventMediaModelItem:
             "event_session_id": self._event_session_id,
             "events": dict((k, v.as_dict()) for k, v in self._events.items()),
             "event_media_keys": self._event_media_keys,
+            "pending_event_keys": list(self._pending_event_keys),
         }
         if self._media_key:
             result["media_key"] = self._media_key
@@ -602,16 +631,15 @@ class EventMediaManager:
             if (
                 item.media_key
                 or not item.visible_event
-                or item.visible_event.is_expired
+                or not (clip_event := item.events.get(CameraClipPreviewEvent.NAME))
+                or clip_event.is_expired
             ):
                 self._diagnostics.increment("fetch_clip.skip")
                 return
             clip_preview_trait: CameraClipPreviewTrait = self._traits[
                 CameraClipPreviewTrait.NAME
             ]
-            event_image = await clip_preview_trait.generate_event_image(
-                item.visible_event
-            )
+            event_image = await clip_preview_trait.generate_event_image(clip_event)
             if event_image:
                 content = await event_image.contents()
                 # Caller will persist the media key assignment
@@ -865,39 +893,28 @@ class EventMediaManager:
             if not supported:
                 del event_sessions[event_session_id]
 
-        # Update interal event media representation. Events are only published
-        # to downstream subscribers the first time they are seen to avoid
-        # firing on updated event threads multiple times.
-        suppress_keys: set[str] = set({})
-        notifiable_events: dict[str, int] = {}  # Notifiable events for each session
+        model_items = []
+        failure = False
         for event_session_id, event_dict in event_sessions.items():
             # Track all related events together with the same session
             if model_item := await self._async_load_item(event_session_id):
                 self._diagnostics.increment("event.update")
-                # Update the existing event session with new/updated events. Only
-                # new events are published.
-                suppress_keys |= set(model_item.events.keys())
-                notifiable_events[event_session_id] = len(
-                    set(event_dict.keys()) - set(model_item.events.keys())
-                )
-                model_item.events.update(event_dict)
+                model_item.merge_events(event_dict)
             else:
                 self._diagnostics.increment("event.new")
                 # A new event session
-                notifiable_events[event_session_id] = len(event_dict.keys())
                 model_item = EventMediaModelItem(
                     event_session_id,
                     event_dict,
                     media_key=None,
                     event_media_keys={},
                     thumbnail_media_key=None,
+                    pending_event_keys=set(event_dict.keys()),
                 )
-
-            await self._async_update_item(model_item)
+            model_items.append(model_item)
 
             if self._support_fetch and self._cache_policy.fetch:
                 self._diagnostics.increment("event.fetch")
-                failure = False
                 try:
                     await self._fetch_media(model_item)
                 except GoogleNestException as err:
@@ -911,34 +928,38 @@ class EventMediaManager:
                 # Update any new media keys
                 await self._async_update_item(model_item)
 
-                # If no media was fetched, then pause until we get a message that contains
-                # media or the thread ends. If we attempted then failed, then pass on since
-                # the event could have been ready to go.
-                if (
-                    model_item.any_media_key is None
-                    and not event_message.is_thread_ended
-                    and not failure
-                ):
-                    _LOGGER.debug(
-                        "Skipping notification without media; Will deliver later"
-                    )
-                    notifiable_events[event_session_id] = 0
+        # Send notifications for any undelivered events that have media.
+        pending_events: dict[str, ImageEventBase] = {}
+        for model_item in model_items:
+            if (
+                not model_item.media_key
+                and self._support_fetch
+                and self._cache_policy.fetch
+                and not event_message.is_thread_ended
+                and not failure
+            ):
+                continue
+            pending_events.update(model_item.pending_events)
 
-        await self._expire_cache()
-
-        if not self._callback:
-            return
-        # Notify any listeners about the arrival of a new event
-        if suppress_keys:
-            event_message = event_message.omit_events(suppress_keys)
-        if any(notifiable_events.values()):
-            _LOGGER.debug("Message contains notifiable events: %s", notifiable_events)
-            self._diagnostics.increment("event.notify")
-            await self._callback(event_message)
+        if pending_events:
+            _LOGGER.debug("Message contains notifiable events: %s", pending_events)
+            event_message = event_message.with_events(
+                pending_events.keys(), pending_events
+            )
+            if self._callback:
+                self._diagnostics.increment("event.notify")
+                await self._callback(event_message)
         else:
             _LOGGER.debug(
-                "Message did not contain notifiable events: %s", notifiable_events
+                "Message did not contain notifiable events",
             )
+            # self._diagnostics.increment("event.notify_skip")
+
+        for model_item in model_items:
+            model_item.notified(pending_events.keys())
+            await self._async_update_item(model_item)
+
+        await self._expire_cache()
 
     @property
     def active_event_trait(self) -> EventImageGenerator | None:

@@ -920,6 +920,9 @@ async def test_camera_active_clip_preview_threads(
     device = devices[0]
     assert device.name == device_id
 
+    callback = EventCallback()
+    device.event_media_manager.set_update_callback(callback.async_handle_event)
+
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     await device.async_handle_event(
         await event_message(
@@ -976,6 +979,13 @@ async def test_camera_active_clip_preview_threads(
         )
     )
 
+    assert len(callback.messages) == 1
+    assert callback.messages[0].event_sessions
+    assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." in callback.messages[0].event_sessions
+    session = callback.messages[0].event_sessions["CjY5Y3VKaTZwR3o4Y19YbTVfMF..."]
+    assert test_event_trait in session
+    assert "sdm.devices.events.CameraClipPreview.ClipPreview" in session
+
     # Verify active event traits
     trait = device.traits[test_trait]
     assert trait.active_event is not None
@@ -1020,6 +1030,7 @@ async def test_camera_active_clip_preview_threads(
             "event_media": {
                 "event": 2,
                 "event.new": 1,
+                "event.notify": 1,
                 "event.update": 1,
                 "get_media": 1,
                 "load_events": 1,
@@ -1543,6 +1554,12 @@ async def test_event_session_clip_preview(
     )
     assert callback.invoked
     assert len(callback.messages) == 1
+    assert callback.messages[0].event_sessions
+    assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." in callback.messages[0].event_sessions
+    session = callback.messages[0].event_sessions["CjY5Y3VKaTZwR3o4Y19YbTVfMF..."]
+    assert "sdm.devices.events.CameraMotion.Motion" in session
+    assert "sdm.devices.events.CameraClipPreview.ClipPreview" in session
+
     assert_diagnostics(
         device.get_diagnostics().get("event_media", {}),
         {
@@ -1607,7 +1624,12 @@ async def test_event_session_clip_preview(
             "sdm.devices.events.DoorbellChime.Chime_count": 1,
         },
     )
+    # New event published where we already have media
     assert len(callback.messages) == 2
+    assert callback.messages[1].event_sessions
+    assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." in callback.messages[1].event_sessions
+    session = callback.messages[1].event_sessions["CjY5Y3VKaTZwR3o4Y19YbTVfMF..."]
+    assert "sdm.devices.events.DoorbellChime.Chime" in session
 
     events = list(await event_media_manager.async_clip_preview_sessions())
     assert len(events) == 1
@@ -1695,6 +1717,7 @@ async def test_event_session_without_clip(
             "event.fetch": 1,
             "event.new": 1,
             "fetch_clip": 1,
+            "fetch_clip.skip": 1,
             "sdm.devices.events.CameraMotion.Motion_count": 1,
         },
     )
@@ -1728,6 +1751,11 @@ async def test_event_session_without_clip(
     # The event ENDED without any media, so notify
     assert callback.invoked  # type: ignore[unreachable]
     assert len(callback.messages) == 1  # type: ignore[unreachable]
+    assert callback.messages[0].event_sessions
+    assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." in callback.messages[0].event_sessions
+    session = callback.messages[0].event_sessions["CjY5Y3VKaTZwR3o4Y19YbTVfMF..."]
+    assert "sdm.devices.events.DoorbellChime.Chime" in session
+    assert "sdm.devices.events.CameraMotion.Motion" in session
 
     event_media_manager = device.event_media_manager
 
@@ -1777,7 +1805,7 @@ async def test_event_session_clip_preview_in_second_message(
                 "resourceUpdate": {
                     "name": device_id,
                     "events": {
-                        "sdm.devices.events.CameraMotion.Motion": {
+                        "sdm.devices.events.DoorbellChime.Chime": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
                             "eventId": "n:1",
                         },
@@ -1802,7 +1830,8 @@ async def test_event_session_clip_preview_in_second_message(
             "event.fetch": 1,
             "event.new": 1,
             "fetch_clip": 1,
-            "sdm.devices.events.CameraMotion.Motion_count": 1,
+            "fetch_clip.skip": 1,
+            "sdm.devices.events.DoorbellChime.Chime_count": 1,
         },
     )
 
@@ -1815,10 +1844,6 @@ async def test_event_session_clip_preview_in_second_message(
                 "resourceUpdate": {
                     "name": device_id,
                     "events": {
-                        "sdm.devices.events.DoorbellChime.Chime": {
-                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
-                            "eventId": "n:2",
-                        },
                         "sdm.devices.events.CameraClipPreview.ClipPreview": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
                             "previewUrl": "image-url-1",
@@ -1835,6 +1860,154 @@ async def test_event_session_clip_preview_in_second_message(
         )
     )
 
+    # Callback invoked now that media arrived. The previous events are now received.
+    assert callback.invoked  # type: ignore[unreachable]
+    assert len(callback.messages) == 1
+    assert callback.messages[0].event_sessions
+    assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." in callback.messages[0].event_sessions
+    session = callback.messages[0].event_sessions["CjY5Y3VKaTZwR3o4Y19YbTVfMF..."]
+    assert "sdm.devices.events.CameraClipPreview.ClipPreview" in session
+    assert "sdm.devices.events.DoorbellChime.Chime" in session
+
+    assert_diagnostics(  # type: ignore[unreachable]
+        device.get_diagnostics().get("event_media", {}),
+        {
+            "event": 2,
+            "event.fetch": 2,
+            "event.new": 1,
+            "event.update": 1,
+            "event.notify": 1,
+            "fetch_clip": 2,
+            "fetch_clip.skip": 1,
+            "fetch_clip.save": 1,
+            "sdm.devices.events.CameraClipPreview.ClipPreview_count": 1,
+            "sdm.devices.events.DoorbellChime.Chime_count": 1,
+        },
+    )
+
+    event_media_manager = device.event_media_manager
+
+    events = list(await event_media_manager.async_clip_preview_sessions())
+    assert len(events) == 1
+    event = events[0]
+    event_token = EventToken.decode(event.event_token)
+    assert event_token.event_session_id == "CjY5Y3VKaTZwR3o4Y19YbTVfMF..."
+    assert event_token.event_id == "n:1"
+    assert event.event_types == [
+        "sdm.devices.events.DoorbellChime.Chime",
+    ]
+    assert event.timestamp.isoformat(timespec="seconds") == ts1.isoformat(
+        timespec="seconds"
+    )
+
+    media = await event_media_manager.get_media_from_token(event.event_token)
+    assert media
+    assert media.contents == b"image-bytes-1"
+    assert media.content_type == "video/mp4"
+
+
+async def test_event_session_clip_preview_issue(
+    app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+    """Exercise event session clip preview event ordering behavior.
+
+    Reproduces issue https://github.com/home-assistant/core/issues/86314
+    """
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.CameraClipPreview": {},
+            "sdm.devices.traits.DoorbellChime": {},
+            "sdm.devices.traits.CameraMotion": {},
+        }
+    )
+
+    async def img_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
+        return aiohttp.web.Response(body=b"image-bytes-1")
+
+    app.router.add_get("/image-url-1", img_handler)
+
+    api = await api_client()
+    devices = await api.async_get_devices()
+    assert len(devices) == 1
+    device = devices[0]
+    assert device.name == device_id
+
+    # Enable pre-fetch
+    device.event_media_manager.cache_policy.fetch = True
+
+    callback = EventCallback()
+    device.event_media_manager.set_update_callback(callback.async_handle_event)
+
+    ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": ts1.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": device_id,
+                    "events": {
+                        "sdm.devices.events.DoorbellChime.Chime": {
+                            "eventSessionId": "1635497756",
+                            "eventId": "n:1",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+                "eventThreadId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                "resourcegroup": [
+                    "enterprises/project-id1/devices/device-id1",
+                ],
+                "eventThreadState": "STARTED",
+            }
+        )
+    )
+
+    assert_diagnostics(
+        device.get_diagnostics().get("event_media", {}),
+        {
+            "event": 1,
+            "event.fetch": 1,
+            "event.new": 1,
+            "fetch_clip": 1,
+            "fetch_clip.skip": 1,
+            "sdm.devices.events.DoorbellChime.Chime_count": 1,
+        },
+    )
+
+    ts2 = ts1 + datetime.timedelta(seconds=5)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": ts2.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": device_id,
+                    "events": {
+                        "sdm.devices.events.DoorbellChime.Chime": {
+                            "eventSessionId": "1635497756",
+                            "eventId": "n:1",
+                        },
+                        "sdm.devices.events.CameraClipPreview.ClipPreview": {
+                            "eventSessionId": "1635497756",
+                            "previewUrl": "image-url-1",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+                "eventThreadId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                "resourcegroup": [
+                    "enterprises/project-id1/devices/device-id1",
+                ],
+                "eventThreadState": "UPDATED",
+            }
+        )
+    )
+
     # Callback invoked now that media arrived
     assert callback.invoked  # type: ignore[unreachable]
     assert_diagnostics(  # type: ignore[unreachable]
@@ -1846,34 +2019,19 @@ async def test_event_session_clip_preview_in_second_message(
             "event.update": 1,
             "event.notify": 1,
             "fetch_clip": 2,
+            "fetch_clip.skip": 1,
             "fetch_clip.save": 1,
             "sdm.devices.events.CameraClipPreview.ClipPreview_count": 1,
-            "sdm.devices.events.CameraMotion.Motion_count": 1,
-            "sdm.devices.events.DoorbellChime.Chime_count": 1,
+            "sdm.devices.events.DoorbellChime.Chime_count": 2,
         },
     )
+    # Event containing the media is delivered
     assert len(callback.messages) == 1
-
-    event_media_manager = device.event_media_manager
-
-    events = list(await event_media_manager.async_clip_preview_sessions())
-    assert len(events) == 1
-    event = events[0]
-    event_token = EventToken.decode(event.event_token)
-    assert event_token.event_session_id == "CjY5Y3VKaTZwR3o4Y19YbTVfMF..."
-    assert event_token.event_id == "n:1"
-    assert event.event_types == [
-        "sdm.devices.events.CameraMotion.Motion",
-        "sdm.devices.events.DoorbellChime.Chime",
-    ]
-    assert event.timestamp.isoformat(timespec="seconds") == ts1.isoformat(
-        timespec="seconds"
-    )
-
-    media = await event_media_manager.get_media_from_token(event.event_token)
-    assert media
-    assert media.contents == b"image-bytes-1"
-    assert media.content_type == "video/mp4"
+    assert callback.messages[0].event_sessions
+    assert "1635497756" in callback.messages[0].event_sessions
+    message = callback.messages[0].event_sessions["1635497756"]
+    assert "sdm.devices.events.CameraClipPreview.ClipPreview" in message
+    assert "sdm.devices.events.DoorbellChime.Chime" in message
 
 
 async def test_persisted_storage_image_event_media_keys(
