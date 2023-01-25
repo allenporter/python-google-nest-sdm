@@ -925,14 +925,12 @@ class EventMediaManager:
                         event.event_session_id,
                         str(err),
                     )
-                # Update any new media keys
-                await self._async_update_item(model_item)
 
         # Send notifications for any undelivered events that have media.
         pending_events: dict[str, ImageEventBase] = {}
         for model_item in model_items:
             if (
-                not model_item.media_key
+                model_item.any_media_key is None
                 and self._support_fetch
                 and self._cache_policy.fetch
                 and not event_message.is_thread_ended
