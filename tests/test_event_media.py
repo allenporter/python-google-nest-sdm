@@ -1862,7 +1862,7 @@ async def test_event_session_clip_preview_in_second_message(
 
     # Callback invoked now that media arrived. The previous events are now received.
     assert callback.invoked  # type: ignore[unreachable]
-    assert len(callback.messages) == 1
+    assert len(callback.messages) == 1  # type: ignore[unreachable]
     assert callback.messages[0].event_sessions
     assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." in callback.messages[0].event_sessions
     session = callback.messages[0].event_sessions["CjY5Y3VKaTZwR3o4Y19YbTVfMF..."]
