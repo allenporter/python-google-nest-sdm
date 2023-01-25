@@ -51,24 +51,15 @@ class EventProcessingError(Exception):
     """Raised when there was an error handling an event."""
 
 
+@dataclass
 class EventImageContentType:
     """Event image content type."""
 
-    def __init__(self, content_type: str) -> None:
-        """Initialize EventImageContentType."""
-        self._content_type = content_type
+    content_type: str
 
     def __str__(self) -> str:
         """Return a string representation of the event image type."""
-        return self._content_type
-
-    def __repr__(self) -> str:
-        return "<EventImageContentType %s>" % self._content_type
-
-    @property
-    def content_type(self) -> str:
-        """Return the content type of the image."""
-        return self._content_type
+        return self.content_type
 
 
 class EventImageType:

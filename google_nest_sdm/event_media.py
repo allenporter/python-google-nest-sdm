@@ -10,6 +10,7 @@ import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from collections.abc import Iterable
+from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Dict
 
 from .camera_traits import (
@@ -54,176 +55,49 @@ VISIBLE_EVENTS = [
 EXPIRE_CACHE_BATCH_SIZE = 0.05
 
 
-class CachePolicy:
-    """Policy for how many local objects to cache in memory."""
-
-    def __init__(self, event_cache_size: int = DEFAULT_CACHE_SIZE, fetch: bool = False):
-        self._event_cache_size = event_cache_size
-        self._fetch = fetch
-        self._store: EventMediaStore = InMemoryEventMediaStore()
-        self._transcoder: Transcoder | None = None
-
-    @property
-    def event_cache_size(self) -> int:
-        """Number of events to keep in memory per device."""
-        return self._event_cache_size
-
-    @event_cache_size.setter
-    def event_cache_size(self, value: int) -> None:
-        """Set the number of events to keep in memory per device."""
-        self._event_cache_size = value
-
-    @property
-    def event_cache_expire_count(self) -> int:
-        """Number of events to keep in memory per device."""
-        return max(int(self._event_cache_size * EXPIRE_CACHE_BATCH_SIZE), 1)
-
-    @property
-    def fetch(self) -> bool:
-        """Return true if event media should be pre-fetched."""
-        return self._fetch
-
-    @fetch.setter
-    def fetch(self, value: bool) -> None:
-        """Update the value for whether event media should be pre-fetched."""
-        self._fetch = value
-
-    @property
-    def store(self) -> EventMediaStore:
-        """Return the EventMediaStore object."""
-        return self._store
-
-    @store.setter
-    def store(self, value: EventMediaStore) -> None:
-        """Update the EventMediaStore."""
-        self._store = value
-
-    @property
-    def transcoder(self) -> Transcoder | None:
-        """Return the transcoder."""
-        return self._transcoder
-
-    @transcoder.setter
-    def transcoder(self, value: Transcoder) -> None:
-        """Update the Transcoder."""
-        self._transcoder = value
-
-
+@dataclass
 class Media:
     """Represents media related to an event."""
 
-    def __init__(
-        self, contents: bytes, event_image_type: EventImageContentType
-    ) -> None:
-        """Initialize Media."""
-        self._contents = contents
-        self._event_image_type = event_image_type
+    contents: bytes
+    """Media content."""
 
-    @property
-    def contents(self) -> bytes:
-        """Media content."""
-        return self._contents
-
-    @property
-    def event_image_type(self) -> EventImageContentType:
-        """Content event image type of the media."""
-        return self._event_image_type
+    event_image_type: EventImageContentType
+    """Content event image type of the media."""
 
     @property
     def content_type(self) -> str:
         """Content type of the media."""
-        return self._event_image_type.content_type
+        return self.event_image_type.content_type
 
 
-class ImageSession(ABC):
+@dataclass
+class ImageSession:
     """An object that holds events that happened within a time range."""
 
-    def __init__(
-        self,
-        event_token: str,
-        event_timestamp: datetime.datetime,
-        event_type: str,
-    ) -> None:
-        self._event_token = event_token
-        self._event_timestamp = event_timestamp
-        self._event_type = event_type
-
-    @property
-    def event_token(self) -> str:
-        return self._event_token
-
-    @property
-    def timestamp(self) -> datetime.datetime:
-        """Return timestamp that the event ocurred."""
-        return self._event_timestamp
-
-    @property
-    def event_type(self) -> str:
-        return self._event_type
+    event_token: str
+    timestamp: datetime.datetime
+    event_type: str
 
 
-class ClipPreviewSession(ABC):
+@dataclass
+class ClipPreviewSession:
     """An object that holds events that happened within a time range."""
 
-    def __init__(
-        self,
-        event_token: str,
-        event_timestamp: datetime.datetime,
-        event_types: list[str],
-    ) -> None:
-        self._event_token = event_token
-        self._event_timestamp = event_timestamp
-        self._event_types = event_types
-
-    @property
-    def event_token(self) -> str:
-        return self._event_token
-
-    @property
-    def timestamp(self) -> datetime.datetime:
-        """Return timestamp that the event ocurred."""
-        return self._event_timestamp
-
-    @property
-    def event_types(self) -> list[str]:
-        return self._event_types
+    event_token: str
+    timestamp: datetime.datetime
+    event_types: list[str]
 
 
+@dataclass
 class EventMedia:
     """Represents an event and its associated media."""
 
-    def __init__(
-        self,
-        event_session_id: str,
-        event_id: str,
-        event_type: str,
-        event_timestamp: datetime.datetime,
-        media: Media,
-    ) -> None:
-        self._event_session_id = event_session_id
-        self._event_id = event_id
-        self._event_type = event_type
-        self._event_timestamp = event_timestamp
-        self._media = media
-
-    @property
-    def event_session_id(self) -> str:
-        """Return the event session id."""
-        return self._event_session_id
-
-    @property
-    def event_type(self) -> str:
-        """Return the event type."""
-        return self._event_type
-
-    @property
-    def event_timestamp(self) -> datetime.datetime:
-        """Return timestamp that the event ocurred."""
-        return self._event_timestamp
-
-    @property
-    def media(self) -> Media:
-        return self._media
+    event_session_id: str
+    event_id: str
+    event_type: str
+    event_timestamp: datetime.datetime
+    media: Media
 
 
 class EventMediaStore(ABC):
@@ -316,25 +190,38 @@ class InMemoryEventMediaStore(EventMediaStore):
                 del self._media[media_key]
 
 
+@dataclass
+class CachePolicy:
+    """Policy for how many local objects to cache in memory."""
+
+    event_cache_size: int = DEFAULT_CACHE_SIZE
+    """Number of events to keep in memory per device."""
+
+    fetch: bool = False
+    """Determine if event media should be pre-fetched."""
+
+    store: EventMediaStore = field(default_factory=InMemoryEventMediaStore)
+    """The EventMediaStore object for storing media content."""
+
+    transcoder: Transcoder | None = None
+    """The transcoder for encoding media."""
+
+    @property
+    def event_cache_expire_count(self) -> int:
+        """Number of events to keep in memory per device."""
+        return max(int(self.event_cache_size * EXPIRE_CACHE_BATCH_SIZE), 1)
+
+
+@dataclass
 class EventMediaModelItem:
     """Structure used to persist the event in EventMediaStore."""
 
-    def __init__(
-        self,
-        event_session_id: str,
-        events: dict[str, ImageEventBase],
-        media_key: str | None,
-        event_media_keys: dict[str, str],
-        thumbnail_media_key: str | None,
-        pending_event_keys: set[str] | None = None,
-    ) -> None:
-        """Initialize EventMediaModelItem."""
-        self._event_session_id = event_session_id
-        self._events = events
-        self._media_key = media_key
-        self._event_media_keys = event_media_keys if event_media_keys else {}
-        self._thumbnail_media_key = thumbnail_media_key
-        self._pending_event_keys = pending_event_keys if pending_event_keys else set({})
+    event_session_id: str
+    events: dict[str, ImageEventBase]
+    media_key: str | None
+    event_media_keys: dict[str, str]
+    thumbnail_media_key: str | None
+    pending_event_keys: set[str]
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> EventMediaModelItem:
@@ -360,74 +247,47 @@ class EventMediaModelItem:
         )
 
     @property
-    def event_session_id(self) -> str:
-        return self._event_session_id
-
-    @property
     def visible_event(self) -> ImageEventBase | None:
         """Get the primary visible event for this item."""
         for event_type in VISIBLE_EVENTS:
-            if event := self._events.get(event_type):
+            if event := self.events.get(event_type):
                 return event
         return None
 
-    @property
-    def events(self) -> dict[str, ImageEventBase]:
-        """Return all associated events with this record."""
-        return self._events
-
     def merge_events(self, new_events: dict[str, ImageEventBase]) -> None:
         """Merge new incoming events with the existing set."""
-        new_keys = new_events.keys() - self._events.keys()
-        self._events.update(new_events)
-        self._pending_event_keys |= new_keys
-
-    @property
-    def pending_event_keys(self) -> set[str]:
-        """Return the set of events that have not yet been notified."""
-        return self._pending_event_keys
+        new_keys = new_events.keys() - self.events.keys()
+        self.events.update(new_events)
+        self.pending_event_keys |= new_keys
 
     @property
     def pending_events(self) -> dict[str, ImageEventBase]:
         """Return all associated events with this record."""
         return {
             key: value
-            for key, value in self._events.items()
+            for key, value in self.events.items()
             if key in self.pending_event_keys
         }
 
     def notified(self, event_keys: Iterable[str]) -> None:
         """Mark the specified events as notified."""
-        self._pending_event_keys = self._pending_event_keys - set(event_keys)
-
-    @property
-    def media_key(self) -> str | None:
-        return self._media_key
-
-    @media_key.setter
-    def media_key(self, value: str) -> None:
-        """Update the media_key."""
-        self._media_key = value
-
-    @property
-    def event_media_keys(self) -> dict[str, str]:
-        return self._event_media_keys
+        self.pending_event_keys = self.pending_event_keys - set(event_keys)
 
     def media_key_for_token(self, token: EventToken) -> str | None:
         """Return media key for the specified event token."""
         if token.event_id:
-            if token.event_id in self._event_media_keys:
-                return self._event_media_keys[token.event_id]
+            if token.event_id in self.event_media_keys:
+                return self.event_media_keys[token.event_id]
             # Fallback to legacy single event per session
-        return self._media_key
+        return self.media_key
 
     @property
     def any_media_key(self) -> str | None:
         """Return any media item for compatibility with legacy APIs."""
-        if self._media_key:
-            return self._media_key
-        if self._event_media_keys.values():
-            return next(iter(self._event_media_keys.values()))
+        if self.media_key:
+            return self.media_key
+        if self.event_media_keys.values():
+            return next(iter(self.event_media_keys.values()))
         return None
 
     @property
@@ -436,15 +296,6 @@ class EventMediaModelItem:
         keys: list[str | None] = [self.media_key, self.thumbnail_media_key]
         keys.extend(self.event_media_keys.values())
         return [key for key in keys if key is not None]
-
-    @property
-    def thumbnail_media_key(self) -> str | None:
-        return self._thumbnail_media_key
-
-    @thumbnail_media_key.setter
-    def thumbnail_media_key(self, value: str) -> None:
-        """Update the thumbnail_media_key."""
-        self._thumbnail_media_key = value
 
     def get_media(self, content: bytes) -> Media:
         assert self.visible_event
@@ -463,25 +314,16 @@ class EventMediaModelItem:
     def as_dict(self) -> dict[str, Any]:
         """Return a EventMediaModelItem as a serializable dict."""
         result: dict[str, Any] = {
-            "event_session_id": self._event_session_id,
-            "events": dict((k, v.as_dict()) for k, v in self._events.items()),
-            "event_media_keys": self._event_media_keys,
-            "pending_event_keys": list(self._pending_event_keys),
+            "event_session_id": self.event_session_id,
+            "events": dict((k, v.as_dict()) for k, v in self.events.items()),
+            "event_media_keys": self.event_media_keys,
+            "pending_event_keys": list(self.pending_event_keys),
         }
-        if self._media_key:
-            result["media_key"] = self._media_key
-        if self._thumbnail_media_key:
-            result["thumbnail_media_key"] = self._thumbnail_media_key
+        if self.media_key:
+            result["media_key"] = self.media_key
+        if self.thumbnail_media_key:
+            result["thumbnail_media_key"] = self.thumbnail_media_key
         return result
-
-    def __repr__(self) -> str:
-        return (
-            "<EventMediaModelItem events="
-            + str(self._events)
-            + " media_key="
-            + str(self._media_key)
-            + ">"
-        )
 
 
 class EventMediaManager:
@@ -538,7 +380,7 @@ class EventMediaManager:
         if not store_data:
             store_data = {}
         store_data[self._device_id] = device_data
-        await self._cache_policy._store.async_save(store_data)
+        await self._cache_policy.store.async_save(store_data)
 
     async def _async_load_item(
         self, event_session_id: str
@@ -600,7 +442,7 @@ class EventMediaManager:
             return None
         media_key = item.any_media_key
         if media_key:
-            contents = await self._cache_policy._store.async_load_media(media_key)
+            contents = await self._cache_policy.store.async_load_media(media_key)
             if contents:
                 return item.get_event_media(contents)
 
@@ -617,7 +459,7 @@ class EventMediaManager:
         if not event_image:
             return None
         contents = await event_image.contents(width=width, height=height)
-        media_key = self._cache_policy._store.get_media_key(self._device_id, event)
+        media_key = self._cache_policy.store.get_media_key(self._device_id, event)
         await self._cache_policy.store.async_save_media(media_key, contents)
         item.media_key = media_key
         await self._async_update_item(item)
@@ -687,7 +529,7 @@ class EventMediaManager:
             self._diagnostics.increment("get_media.no_media")
             _LOGGER.debug("No persisted media for event id %s", token)
             return None
-        contents = await self._cache_policy._store.async_load_media(media_key)
+        contents = await self._cache_policy.store.async_load_media(media_key)
         if not contents:
             self._diagnostics.increment("get_media.empty")
             _LOGGER.debug(
@@ -717,7 +559,7 @@ class EventMediaManager:
 
         if item.thumbnail_media_key:
             # Load cached thumbnail
-            contents = await self._cache_policy._store.async_load_media(
+            contents = await self._cache_policy.store.async_load_media(
                 item.thumbnail_media_key
             )
             if contents:
@@ -735,7 +577,7 @@ class EventMediaManager:
             return None
 
         thumbnail_media_key = (
-            self._cache_policy._store.get_clip_preview_thumbnail_media_key(
+            self._cache_policy.store.get_clip_preview_thumbnail_media_key(
                 self._device_id, item.visible_event
             )
         )
@@ -753,7 +595,7 @@ class EventMediaManager:
             _LOGGER.debug("Failure to transcode clip thumbnail: %s", str(err))
             return None
 
-        contents = await self._cache_policy._store.async_load_media(thumbnail_media_key)
+        contents = await self._cache_policy.store.async_load_media(thumbnail_media_key)
         if not contents:
             self._diagnostics.increment("get_clip.load_error")
             _LOGGER.debug(
