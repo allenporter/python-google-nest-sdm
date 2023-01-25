@@ -443,18 +443,30 @@ class EventMessage:
         """Return raw data for the event."""
         return dict(self._raw_data)
 
-    def omit_events(self, omit_event_keys: Iterable[str]) -> EventMessage:
+    def with_events(
+        self,
+        event_keys: Iterable[str],
+        merge_data: dict[str, ImageEventBase] | None = None,
+    ) -> EventMessage:
         """Create a new EventMessage minus some existing events by key."""
         raw_data = dict(self._raw_data)
-        events = raw_data[RESOURCE_UPDATE].get(EVENTS, {})
-        for key in omit_event_keys:
-            if key not in events:
-                continue
-            del events[key]
-        raw_data[RESOURCE_UPDATE][EVENTS] = events
+        if not merge_data:
+            merge_data = {}
+        existing = self._raw_data[RESOURCE_UPDATE][EVENTS]
+        result = {}
+        for key in event_keys:
+            if key in existing:
+                result[key] = existing[key]
+            elif key in merge_data:
+                result[key] = merge_data[key].as_dict()["event_data"]
+        raw_data[RESOURCE_UPDATE][EVENTS] = result
         return EventMessage(raw_data, self._auth)
 
     @property
     def is_thread_ended(self) -> bool:
         """Return true if the message indicates the thread is ended."""
         return self._raw_data.get(EVENT_THREAD_STATE) == EVENT_THREAD_STATE_ENDED
+
+    def __repr__(self) -> str:
+        """Debug information."""
+        return f"EventMessage{self.raw_data}"

@@ -302,14 +302,9 @@ def test_update_from_events(
         }
     )
 
-    event = event.omit_events(
-        [
-            "sdm.devices.events.CameraSound.Sound",
-            "sdm.devices.events.CameraPerson.Person",
-            "not-found",
-        ]
+    event = event.with_events(
+        set({"sdm.devices.events.CameraMotion.Motion", "not-found"})
     )
-
     assert "0120ecc7-3b57-4eb4-9941-91609f189fb4" == event.event_id
     ts = datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.timezone.utc)
 
@@ -329,12 +324,7 @@ def test_update_from_events(
     assert event_token.event_id == "EXXVQVUdGNUlTU2V4MGV2aTNXV..."
     assert event_token.event_session_id == "DkX5Y3VKaTZwR3o4Y19YbTVfMF..."
 
-    event = event.omit_events(["unknown"])
-    events = event.resource_update_events
-    assert events is not None
-    assert len(events) == 1
-
-    event = event.omit_events(["sdm.devices.events.CameraMotion.Motion"])
+    event = event.with_events(set(["unknown"]))
     events = event.resource_update_events
     assert not events
 
