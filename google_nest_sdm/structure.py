@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping, Optional
+from typing import Any, Final, Mapping, Optional
 
 from pydantic import BaseModel, Field
 
@@ -16,14 +16,26 @@ class StructureTrait(BaseModel):
     """Name of the structure."""
 
 
+class InfoTrait(StructureTrait):
+    """This trait belongs to any structure for structure-related information."""
+
+    NAME: Final = "sdm.structures.traits.Info"
+
+
+class RoomInfoTrait(StructureTrait):
+    """This trait belongs to any structure for room-related information."""
+
+    NAME: Final = "sdm.structures.traits.RoomInfo"
+
+
 class Structure(TraitModel):
     """Class that represents a structure object in the Google Nest SDM API."""
 
     name: str
     """Resource name of the structure e.g. 'enterprises/XYZ/structures/123'."""
 
-    info: Optional[StructureTrait] = Field(alias="sdm.structures.traits.Info")
-    room_info: Optional[StructureTrait] = Field(alias="sdm.structures.traits.RoomInfo")
+    info: Optional[InfoTrait] = Field(alias="sdm.structures.traits.Info")
+    room_info: Optional[RoomInfoTrait] = Field(alias="sdm.structures.traits.RoomInfo")
 
     @staticmethod
     def MakeStructure(raw_data: Mapping[str, Any]) -> Structure:

@@ -30,3 +30,6 @@ class TraitModel(BaseModel):
         if traits := values.get(TRAITS):
             values.update(traits)
         return values
+
+    class Config:
+        extra = "allow"
