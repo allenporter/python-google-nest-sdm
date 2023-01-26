@@ -7,7 +7,7 @@ from typing import Awaitable, Callable, Dict, Optional
 from .device import Device
 from .event import EventMessage, RelationUpdate
 from .event_media import CachePolicy
-from .structure import InfoTrait, RoomInfoTrait, Structure
+from .structure import Structure
 
 
 class DeviceManager:
@@ -74,9 +74,9 @@ class DeviceManager:
     def _structure_name(self, relation_subject: str) -> Optional[str]:
         if relation_subject in self._structures:
             structure = self._structures[relation_subject]
-            for trait_name in [InfoTrait.NAME, RoomInfoTrait.NAME]:
-                if trait_name in structure.traits:
-                    return structure.traits[trait_name].custom_name
+            for trait in [structure.info, structure.room_info]:
+                if trait and trait.custom_name:
+                    return trait.custom_name
         return "Unknown"
 
     def _handle_device_relation(self, relation: RelationUpdate) -> None:
