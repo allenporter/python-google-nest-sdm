@@ -1,5 +1,7 @@
 """Decorator for creating a registry of objects."""
 
+from __future__ import annotations
+
 from typing import Callable, TypeVar
 
 CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # pylint: disable=invalid-name
