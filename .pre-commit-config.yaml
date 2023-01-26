@@ -19,9 +19,14 @@ repos:
   rev: 3.9.2
   hooks:
   - id: flake8
-- repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v0.910
+- repo: local
   hooks:
   - id: mypy
-    additional_dependencies: [types-PyYAML,pytest-aiohttp,types-protobuf]
-    args: ['--no-warn-unused-ignores']
+    name: mypy
+    entry: "./run-mypy"
+    language: python
+    additional_dependencies: ["mypy==0.991"]
+    types: [python]
+    # use require_serial so that script
+    # is only called once per commit
+    require_serial: true

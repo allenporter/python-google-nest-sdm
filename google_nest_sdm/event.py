@@ -12,12 +12,14 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Mapping, Optional
 
+from pydantic import BaseModel, Field, root_validator, validate_arguments, validator
+
 from .auth import AbstractAuth
 from .diagnostics import EVENT_DIAGNOSTICS as DIAGNOSTICS
 from .exceptions import DecodeException
 from .registry import Registry
 from .traits import BuildTraits, Command
-from .typing import cast_assert, cast_optional
+from .typing import cast_assert
 
 EVENT_ID = "eventId"
 EVENT_SESSION_ID = "eventSessionId"
@@ -26,13 +28,8 @@ RESOURCE_UPDATE = "resourceUpdate"
 NAME = "name"
 TRAITS = "traits"
 EVENTS = "events"
-RELATION_UPDATE = "relationUpdate"
-TYPE = "type"
-SUBJECT = "subject"
-OBJECT = "object"
 PREVIEW_URL = "previewUrl"
 ZONES = "zones"
-EVENT_THREAD_STATE = "eventThreadState"
 EVENT_THREAD_STATE_ENDED = "ENDED"
 
 # Event images expire 30 seconds after the event is published
@@ -84,8 +81,8 @@ class EventImageType:
 class EventToken:
     """Identifier for a unique event."""
 
-    event_session_id: str
-    event_id: str
+    event_session_id: str = Field(alias="eventSessionId")
+    event_id: str = Field(alias="eventId")
 
     def encode(self) -> str:
         """Encode the event token as a serialized string."""
@@ -305,27 +302,17 @@ class EventTrait(ABC):
         self._last_event = event
 
 
-class RelationUpdate:
+class RelationUpdate(BaseModel):
     """Represents a relational update for a resource."""
 
-    def __init__(self, raw_data: Mapping[str, Any]):
-        """Initialize the RelationUpdate."""
-        self._raw_data = raw_data
+    type: str
+    """Type of relation event 'CREATED', 'UPDATED', 'DELETED'."""
 
-    @property
-    def type(self) -> str:
-        """Type of relation event 'CREATED', 'UPDATED', 'DELETED'."""
-        return cast_assert(str, self._raw_data[TYPE])
+    subject: str
+    """Resource that the object is now in relation with."""
 
-    @property
-    def subject(self) -> str:
-        """Resource that the object is now in relation with."""
-        return cast_assert(str, self._raw_data.get(SUBJECT))
-
-    @property
-    def object(self) -> str:
-        """Resource that triggered the event."""
-        return cast_assert(str, self._raw_data[OBJECT])
+    object: str
+    """Resource that triggered the event."""
 
 
 def _BuildEvents(
@@ -359,41 +346,53 @@ def session_event_image_type(events: Iterable[ImageEventBase]) -> EventImageCont
     return EventImageType.IMAGE
 
 
-class EventMessage:
+@validate_arguments
+def _validate_datetime(value: datetime.datetime) -> datetime.datetime:
+    return value
+
+
+class EventMessage(BaseModel):
     """Event for a change in trait value or device action."""
 
-    def __init__(self, raw_data: Mapping[str, Any], auth: AbstractAuth):
+    event_id: str = Field(alias="eventId")
+    timestamp: datetime.datetime
+    resource_update_name: Optional[str]
+    resource_update_events: Optional[dict[str, ImageEventBase]]
+    resource_update_traits: Optional[dict[str, Any]]
+    event_thread_state: Optional[str] = Field(alias="eventThreadState")
+    relation_update: Optional[RelationUpdate] = Field(alias="relationUpdate")
+
+    def __init__(self, raw_data: Mapping[str, Any], auth: AbstractAuth) -> None:
         """Initialize an EventMessage."""
         _LOGGER.debug("EventMessage raw_data=%s", raw_data)
-        self._raw_data = raw_data
+        super().__init__(**raw_data, auth=auth)
         self._auth = auth
 
-    @property
-    def event_id(self) -> Optional[str]:
-        """Event identifier."""
-        return self._raw_data.get(EVENT_ID)
+    @root_validator(pre=True)
+    def _parse_resource_update(cls, values: dict[str, Any]) -> dict[str, Any]:
+        """Parse resource updates."""
+        if update := values.get(RESOURCE_UPDATE):
+            if name := update.get(NAME):
+                values["resource_update_name"] = name
+            if events := update.get(EVENTS):
+                values["resource_update_events"] = events
+                values["resource_update_events"][TIMESTAMP] = values.get(TIMESTAMP)
+            if traits := update.get(TRAITS):
+                values["resource_update_traits"] = traits
+                values["resource_update_traits"][NAME] = update.get(NAME)
+                values["resource_update_traits"]["auth"] = values["auth"]
+        return values
 
-    @property
-    def timestamp(self) -> datetime.datetime:
-        """Time when the event was published."""
-        event_timestamp = self._raw_data[TIMESTAMP]
-        return datetime.datetime.fromisoformat(event_timestamp.replace("Z", "+00:00"))
+    @validator("resource_update_events", pre=True)
+    def _parse_resource_update_events(cls, values: dict[str, Any]) -> dict[str, Any]:
+        """Parse resource updates for events."""
+        return _BuildEvents(values, _validate_datetime(values[TIMESTAMP]))
 
-    @property
-    def resource_update_name(self) -> Optional[str]:
-        """Return the id of the device that was updated."""
-        if RESOURCE_UPDATE not in self._raw_data:
-            return None
-        return cast_optional(str, self._raw_data[RESOURCE_UPDATE].get(NAME))
-
-    @property
-    def resource_update_events(self) -> Optional[Dict[str, ImageEventBase]]:
-        """Return the set of events that happened."""
-        if RESOURCE_UPDATE not in self._raw_data:
-            return None
-        events = self._raw_data[RESOURCE_UPDATE].get(EVENTS, {})
-        assert isinstance(events, dict)
-        return _BuildEvents(events, self.timestamp)
+    @validator("resource_update_traits", pre=True)
+    def _parse_resource_update_traits(cls, values: dict[str, Any]) -> dict[str, Any]:
+        """Parse resource updates to traits."""
+        cmd = Command(values[NAME], values["auth"], DIAGNOSTICS)
+        return BuildTraits(values, cmd)
 
     @property
     def event_sessions(self) -> Optional[dict[str, dict[str, ImageEventBase]]]:
@@ -414,25 +413,9 @@ class EventMessage:
         return event_sessions
 
     @property
-    def resource_update_traits(self) -> Optional[dict]:
-        """Return the set of traits that were updated."""
-        if not self.resource_update_name:
-            return None
-        cmd = Command(self.resource_update_name, self._auth, DIAGNOSTICS)
-        events = self._raw_data[RESOURCE_UPDATE].get(TRAITS, {})
-        return BuildTraits(events, cmd)
-
-    @property
-    def relation_update(self) -> Optional[RelationUpdate]:
-        """Represent a relational update for a resource."""
-        if RELATION_UPDATE not in self._raw_data:
-            return None
-        return RelationUpdate(self._raw_data[RELATION_UPDATE])
-
-    @property
     def raw_data(self) -> Dict[str, Any]:
         """Return raw data for the event."""
-        return dict(self._raw_data)
+        return self.dict()
 
     def with_events(
         self,
@@ -440,24 +423,30 @@ class EventMessage:
         merge_data: dict[str, ImageEventBase] | None = None,
     ) -> EventMessage:
         """Create a new EventMessage minus some existing events by key."""
-        raw_data = dict(self._raw_data)
+        new_message = self.copy()
         if not merge_data:
             merge_data = {}
-        existing = self._raw_data[RESOURCE_UPDATE][EVENTS]
-        result = {}
+        new_events = {}
         for key in event_keys:
-            if key in existing:
-                result[key] = existing[key]
-            elif key in merge_data:
-                result[key] = merge_data[key].as_dict()["event_data"]
-        raw_data[RESOURCE_UPDATE][EVENTS] = result
-        return EventMessage(raw_data, self._auth)
+            if (
+                new_message.resource_update_events
+                and key in new_message.resource_update_events
+            ):
+                new_events[key] = new_message.resource_update_events[key]
+            elif merge_data and key in merge_data:
+                new_events[key] = merge_data[key]
+        new_message.resource_update_events = new_events
+        return new_message
 
     @property
     def is_thread_ended(self) -> bool:
         """Return true if the message indicates the thread is ended."""
-        return self._raw_data.get(EVENT_THREAD_STATE) == EVENT_THREAD_STATE_ENDED
+        return self.event_thread_state == EVENT_THREAD_STATE_ENDED
 
     def __repr__(self) -> str:
         """Debug information."""
         return f"EventMessage{self.raw_data}"
+
+    class Config:
+        arbitrary_types_allowed = True
+        extra = "allow"

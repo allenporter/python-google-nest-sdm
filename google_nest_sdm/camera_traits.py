@@ -6,6 +6,7 @@ import datetime
 import logging
 import urllib.parse as urlparse
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, List, Mapping, Optional, cast
 
@@ -45,6 +46,7 @@ MEDIA_SESSION_ID = "mediaSessionId"
 EVENT_IMAGE_CLIP_PREVIEW = "clip_preview"
 
 
+@dataclass
 class Resolution:
     """Maximum Resolution of an image or stream."""
 
