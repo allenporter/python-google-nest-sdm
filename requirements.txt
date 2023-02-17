@@ -15,8 +15,8 @@ grpcio-status==1.51.1
 isort==5.12.0
 libcst==0.4.9
 mock==5.0.1
-mypy==0.991
-mypy-extensions==0.4.4
+mypy==1.0.1
+mypy-extensions==1.0.0
 pre-commit==3.0.4
 protobuf==4.21.12
 pydantic==1.10.4
