@@ -33,6 +33,6 @@ types-protobuf==4.22.0.0
 types-PyYAML==6.0.12.8
 typing-extensions==4.5.0
 typing-inspect==0.8.0
-urllib3==1.26.14
+urllib3==1.26.15
 virtualenv==20.20.0
 yarl==1.8.2
