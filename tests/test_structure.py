@@ -7,7 +7,7 @@ def test_no_traits() -> None:
     }
     structure = Structure.MakeStructure(raw)
     assert "my/structure/name" == structure.name
-    assert not ("sdm.structures.traits.Info" in structure.traits)
+    assert "sdm.structures.traits.Info" not in structure.traits
 
 
 def test_empty_traits() -> None:
@@ -17,7 +17,7 @@ def test_empty_traits() -> None:
     }
     structure = Structure.MakeStructure(raw)
     assert "my/structure/name" == structure.name
-    assert not ("sdm.structures.traits.Info" in structure.traits)
+    assert "sdm.structures.traits.Info" not in structure.traits
 
 
 def test_info_traits() -> None:

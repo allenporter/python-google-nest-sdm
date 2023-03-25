@@ -161,7 +161,10 @@ class InMemoryEventMediaStore(EventMediaStore):
 
     def get_image_media_key(self, device_id: str, event: ImageEventBase) -> str:
         """Return the media key to use for the device and event."""
-        return f"{device_id}_{event.timestamp}_{event.event_session_id}_{event.event_id}.jpg"
+        return (
+            f"{device_id}_{event.timestamp}_{event.event_session_id}_"
+            f"{event.event_id}.jpg"
+        )
 
     def get_clip_preview_media_key(self, device_id: str, event: ImageEventBase) -> str:
         """Return the media key to use for the device and event."""
@@ -228,7 +231,7 @@ class EventMediaModelItem:
         """Read from serialized dictionary."""
         events: dict[str, ImageEventBase] = {}
         input_events = data.get("events", {})
-        for (event_type, event_data) in input_events.items():
+        for event_type, event_data in input_events.items():
             if not (event := ImageEventBase.from_dict(event_data)):
                 continue
             events[event_type] = event

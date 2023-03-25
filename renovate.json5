@@ -5,24 +5,8 @@
   "rangeStrategy": "replace",
   "timezone": "America/Los_Angeles",
   "assignees": ["allenporter"],
-  "dependencyDashboard": true,
-  "dependencyDashboardTitle": "Renovate Dashboard",
   "branchConcurrentLimit": 20,
   "packageRules": [
-    {
-      "groupName": "group:flake8",
-      "matchPackageNames": ["flake8"],
-      "matchPackagePrefixes": [
-          "flake8",
-          "pyflakes",
-          "mccabe",
-          "pycodestyle",
-      ],
-      "branchPrefix": "flake8",
-      "groupSlug": "flake8",
-      "separateMajorMinor": false,
-      "separateMinorPatch": false,
-    },
     {
       "groupName": "group:pytest",
       "matchPackageNames": ["pytest"],
@@ -50,10 +34,6 @@
       "additionalBranchPrefix": "major",
       "matchUpdateTypes": ["major"],
       "excludePackagePrefixes": [
-        "flake8",
-        "pyflakes",
-        "mccabe",
-        "pycodestyle",
         "mypy",
         "types-",
         "typing-",
@@ -72,4 +52,7 @@
       "matchUpdateTypes": ["minor", "major", "patch"],
     },
   ],
+  "pre-commit": {
+    "enabled": true
+  },
 }
