@@ -1,3 +1,4 @@
+"""Tests for event_media.py"""
 import datetime
 import itertools
 from typing import Any, Awaitable, Callable, Dict
@@ -783,7 +784,6 @@ async def test_multi_device_events(
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-
     device_id1 = device_handler.add_device(
         traits={
             "sdm.devices.traits.CameraEventImage": {},
@@ -2080,8 +2080,12 @@ async def test_persisted_storage_image_event_media_keys(
                     },
                 },
                 "event_media_keys": {
-                    "CiUA2vuxrwjZjb0daCbmE...": "AVPHwEtyzgSxu6EuaIOfvzmr7-CiUA2vuxrwjZjb0daCbmE-motion.jpg",
-                    "CiUA2vuxr_zoChpekrBmo...": "AVPHwEtyzgSxu6EuaIOfvzmr7-CiUA2vuxr_zoChpekrBmo-doorbell.jpg",
+                    "CiUA2vuxrwjZjb0daCbmE...": (
+                        "AVPHwEtyzgSxu6EuaIOfvzmr7-CiUA2vuxrwjZjb0daCbmE-motion.jpg"
+                    ),
+                    "CiUA2vuxr_zoChpekrBmo...": (
+                        "AVPHwEtyzgSxu6EuaIOfvzmr7-CiUA2vuxr_zoChpekrBmo-doorbell.jpg"
+                    ),
                 },
             },
         ],
@@ -2187,7 +2191,9 @@ async def test_persisted_storage_image(
                         "event_image_type": "image/jpeg",
                     },
                 },
-                "media_key": "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA-doorbell_chime.jpg",
+                "media_key": (
+                    "AVPHwEtyzgSxu6EuaIOfvzmr7oaxdtpvXrJCJXcjIwQ4RQ6CMZW97Gb2dupC4uHJcx_NrAPRAPyD7KFraR32we-LAFgMjA-doorbell_chime.jpg"
+                ),
             },
         ],
     }
@@ -2284,7 +2290,9 @@ async def test_persisted_storage_clip_preview(
                         "event_image_type": "video/mp4",
                     },
                     "sdm.devices.events.CameraClipPreview.ClipPreview": {
-                        "event_type": "sdm.devices.events.CameraClipPreview.ClipPreview",
+                        "event_type": (
+                            "sdm.devices.events.CameraClipPreview.ClipPreview"
+                        ),
                         "event_data": {
                             "eventSessionId": "1632710204",
                             "previewUrl": "https://127.0.0.1/example",
@@ -2615,7 +2623,6 @@ async def test_event_manager_event_expiration_with_transcode(
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-
     device_id = device_handler.add_device(
         traits={
             "sdm.devices.traits.CameraClipPreview": {},

@@ -423,7 +423,6 @@ async def test_subscribe_thread_update(
     subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
     subscriber_factory: FakeSubscriberFactory,
 ) -> None:
-
     device_id = device_handler.add_device(
         traits={
             "sdm.devices.traits.CameraClipPreview": {},
@@ -629,9 +628,9 @@ def test_api_env_prod() -> None:
 
 def test_api_env_preprod() -> None:
     env = get_api_env("preprod")
-    assert (
-        env.authorize_url_format
-        == "https://sdmresourcepicker-preprod.sandbox.google.com/partnerconnections/{project_id}/auth"
+    assert env.authorize_url_format == (
+        "https://sdmresourcepicker-preprod.sandbox.google.com/partnerconnections/"
+        "{project_id}/auth"
     )
     assert env.api_url == "https://preprod-smartdevicemanagement.googleapis.com/v1"
 

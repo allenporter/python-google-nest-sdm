@@ -23,7 +23,7 @@ def test_no_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
         }
     )
     assert "my/device/name" == device.name
-    assert not ("sdm.devices.traits.Info" in device.traits)
+    assert "sdm.devices.traits.Info" not in device.traits
 
 
 def test_empty_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
@@ -34,7 +34,7 @@ def test_empty_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
         }
     )
     assert "my/device/name" == device.name
-    assert not ("sdm.devices.traits.Info" in device.traits)
+    assert "sdm.devices.traits.Info" not in device.traits
 
 
 def test_no_parent_relations(fake_device: Callable[[Dict[str, Any]], Device]) -> None:

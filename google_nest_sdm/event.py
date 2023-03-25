@@ -151,7 +151,7 @@ class ImageEventBase(ABC):
 
     @property
     def timestamp(self) -> datetime.datetime:
-        """Timestap when the event occurred."""
+        """Timestamp when the event occurred."""
         return self._timestamp
 
     @property
@@ -298,7 +298,7 @@ class EventTrait(ABC):
         return self._last_event
 
     def handle_event(self, event: ImageEventBase) -> None:
-        """Recieve an event message."""
+        """Receive an event message."""
         self._last_event = event
 
 
@@ -321,7 +321,7 @@ def _BuildEvents(
 ) -> Dict[str, ImageEventBase]:
     """Build a trait map out of a response dict."""
     result = {}
-    for (event_type, event_data) in events.items():
+    for event_type, event_data in events.items():
         image_event = _BuildEvent(event_type, event_data, timestamp)
         if not image_event:
             continue
@@ -400,7 +400,7 @@ class EventMessage(BaseModel):
         if not events:
             return None
         event_sessions: dict[str, dict[str, ImageEventBase]] = {}
-        for (event_name, event) in events.items():
+        for event_name, event in events.items():
             d = event_sessions.get(event.event_session_id, {})
             d[event_name] = event
             event_sessions[event.event_session_id] = d

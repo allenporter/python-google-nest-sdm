@@ -406,7 +406,7 @@ async def test_event_image_tracking(
     fake_device: Callable[[Dict[str, Any]], Device],
     fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> None:
-    """Hold on to the last receieved event image."""
+    """Hold on to the last received event image."""
     device = fake_device(
         {
             "name": "my/device/name1",
@@ -489,7 +489,7 @@ async def test_update_trait_ordering(
         event_message_with_time("2019-01-01T00:00:04Z", "OFFLINE")
     )
     assert get_connectivity().status == "OFFLINE"
-    # Event in past is igored
+    # Event in past is ignored
     await mgr.async_handle_event(
         event_message_with_time("2019-01-01T00:00:01Z", "ONLINE")
     )

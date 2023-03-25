@@ -18,7 +18,7 @@ class Diagnostics:
         self._subkeys: dict[str, Diagnostics] = {}
 
     def increment(self, key: str, count: int = 1) -> None:
-        """Increment a counter for the spcified key/event."""
+        """Increment a counter for the specified key/event."""
         self._counter.update(Counter({key: count}))
 
     def elapsed(self, key_prefix: str, elapsed_ms: int = 1) -> None:

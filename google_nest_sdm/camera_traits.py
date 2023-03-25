@@ -166,7 +166,7 @@ class WebRtcStream(Stream):
 
     @property
     def answer_sdp(self) -> str:
-        """An SDP answer to use with the local device dispalying the stream."""
+        """An SDP answer to use with the local device displaying the stream."""
         answer_sdp = self._data[ANSWER_SDP]
         assert isinstance(answer_sdp, str)
         return answer_sdp

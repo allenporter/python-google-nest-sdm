@@ -24,7 +24,7 @@ class Transcoder:
         if not os.path.exists(full_input_file):
             raise TranscodeException(f"Input file does not exist: {full_input_file}")
         if os.path.exists(full_output_file):
-            raise TranscodeException(f"Ouput file already exists: {full_output_file}")
+            raise TranscodeException(f"Output file already exists: {full_output_file}")
         cmd = " ".join(
             [
                 self._ffmpeg_binary,
