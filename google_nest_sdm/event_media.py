@@ -678,7 +678,7 @@ class EventMediaManager:
         return valid_clips
 
     async def _visible_items(self) -> list[EventMediaModelItem]:
-        """Return items in the modle that are visible events for serving."""
+        """Return items in the model that are visible events for serving."""
 
         def _filter(x: EventMediaModelItem) -> bool:
             """Return events already fetched or that could be fetched."""
@@ -690,7 +690,7 @@ class EventMediaManager:
         return list(filter(_filter, event_data.values()))
 
     async def _items_with_media(self) -> list[EventMediaModelItem]:
-        """Return items in the modle that have media for serving."""
+        """Return items in the model that have media for serving."""
 
         def _filter(x: EventMediaModelItem) -> bool:
             """Return events already fetched or that could be fetched."""
