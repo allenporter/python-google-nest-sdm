@@ -10,7 +10,7 @@ google-cloud-pubsub==2.15.2
 googleapis-common-protos==1.59.0
 grpc-google-iam-v1==0.12.6
 grpcio==1.53.0
-grpcio-status==1.51.3
+grpcio-status==1.53.0
 libcst==0.4.9
 mock==5.0.1
 mypy==1.1.1
