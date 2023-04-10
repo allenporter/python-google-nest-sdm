@@ -9,7 +9,7 @@ google-cloud-pubsub==2.16.0
 googleapis-common-protos==1.59.0
 grpcio==1.53.0
 grpcio-status==1.53.0
-mypy==1.1.1
+mypy==1.2.0
 pre-commit==3.2.2
 protobuf==4.22.1
 pydantic==1.10.7
@@ -21,7 +21,7 @@ pytest-mock==3.10.0
 PyYAML==6.0
 typed-ast==1.5.4
 types-futures==3.3.8
-types-protobuf==4.22.0.0
+types-protobuf==4.22.0.2
 types-PyYAML==6.0.12.9
 typing-extensions==4.5.0
 typing-inspect==0.8.0
