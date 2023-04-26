@@ -7,7 +7,7 @@ repos:
   - id: check-yaml
   - id: check-added-large-files
 - repo: https://github.com/charliermarsh/ruff-pre-commit
-  rev: v0.0.262
+  rev: v0.0.263
   hooks:
   - id: ruff
     args:
