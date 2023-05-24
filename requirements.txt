@@ -25,5 +25,5 @@ types-protobuf==4.23.0.1
 types-PyYAML==6.0.12.9
 typing-extensions==4.5.0
 typing-inspect==0.8.0
-urllib3==1.26.15
+urllib3==1.26.16
 ruff==0.0.269
