@@ -13,7 +13,7 @@ from typing import Awaitable, Callable, Optional
 
 from aiohttp.client_exceptions import ClientError
 from google.api_core.exceptions import GoogleAPIError, NotFound, Unauthenticated
-from google.auth.exceptions import RefreshError
+from google.auth.exceptions import RefreshError, GoogleAuthError, TransportError
 from google.auth.transport.requests import Request
 from google.cloud import pubsub_v1
 from google.oauth2.credentials import Credentials
@@ -117,6 +117,26 @@ def _validate_topic_name(topic_name: str) -> None:
             f"match '{EXPECTED_TOPIC_REGEXP.pattern}' but was "
             f"'{topic_name}'."
         )
+
+
+def refresh_creds(creds: Credentials) -> Credentials:
+    """Refresh credentials.
+
+    This is not part of the subscriber API, exposed only to facilitate testing.
+    """
+    try:
+        creds.refresh(Request())
+    except RefreshError as err:
+        raise AuthException(f"Authenticaiton refresh failure: {err}") from err
+    except TransportError as err:
+        raise SubscriberException(
+            f"Connectivity error during authentication refresh: {err}"
+        ) from err
+    except GoogleAuthError as err:
+        raise SubscriberException(
+            f"Error during authentication refresh: {err}"
+        ) from err
+    return creds
 
 
 class AbstractSubscriberFactory(ABC):
@@ -232,7 +252,7 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
         subscription_name: str,
     ) -> None:
         """Deletes a subscription."""
-        creds = self._refresh_creds(creds)
+        creds = refresh_creds(creds)
         subscriber = pubsub_v1.SubscriberClient(credentials=creds)
         _LOGGER.debug(f"Deleting subscription '{subscription_name}'")
         subscriber.delete_subscription(subscription=subscription_name)
@@ -265,14 +285,6 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
                 callback_wrapper,
             )
 
-    def _refresh_creds(self, creds: Credentials) -> Credentials:
-        """Refresh credentials."""
-        try:
-            creds.refresh(Request())
-        except RefreshError as err:
-            raise AuthException(f"Access token failure: {err}") from err
-        return creds
-
     def _new_subscriber(
         self,
         creds: Credentials,
@@ -280,7 +292,7 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
         callback_wrapper: Callable[[pubsub_v1.subscriber.message.Message], None],
     ) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
         """Issue a command to verify subscriber creds are correct."""
-        creds = self._refresh_creds(creds)
+        creds = refresh_creds(creds)
         subscriber = pubsub_v1.SubscriberClient(credentials=creds)
         subscription = subscriber.get_subscription(subscription=subscription_name)
         if subscription.topic:
