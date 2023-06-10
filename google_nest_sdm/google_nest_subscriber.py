@@ -127,7 +127,7 @@ def refresh_creds(creds: Credentials) -> Credentials:
     try:
         creds.refresh(Request())
     except RefreshError as err:
-        raise AuthException(f"Authenticaiton refresh failure: {err}") from err
+        raise AuthException(f"Authentication refresh failure: {err}") from err
     except TransportError as err:
         raise SubscriberException(
             f"Connectivity error during authentication refresh: {err}"
