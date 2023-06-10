@@ -3,10 +3,11 @@ from __future__ import annotations
 import asyncio
 import json
 from typing import Any, Awaitable, Callable, Dict, Optional
-from unittest.mock import create_autospec
+from unittest.mock import create_autospec, Mock
 
 import aiohttp
 import pytest
+from google.auth.exceptions import RefreshError, GoogleAuthError, TransportError
 from google.api_core.exceptions import ClientError, Unauthenticated
 from google.cloud import pubsub_v1
 from google.oauth2.credentials import Credentials
@@ -23,6 +24,7 @@ from google_nest_sdm.google_nest_subscriber import (
     AbstractSubscriberFactory,
     GoogleNestSubscriber,
     get_api_env,
+    refresh_creds,
 )
 
 from .conftest import DeviceHandler, EventCallback, StructureHandler, assert_diagnostics
@@ -90,6 +92,33 @@ def subscriber_client(
         return GoogleNestSubscriber(auth, PROJECT_ID, SUBSCRIBER_ID, factory)
 
     return make_subscriber
+
+
+async def test_refresh_creds() -> None:
+    """Test low level refresh errors."""
+    mock_refresh = Mock()
+    mock_creds = Mock()
+    mock_creds.refresh = mock_refresh
+    refresh_creds(mock_creds)
+    assert mock_refresh.call_count == 1
+
+
+@pytest.mark.parametrize(
+    ("raised", "expected"),
+    [
+        (RefreshError(), AuthException),
+        (TransportError(), SubscriberException),
+        (GoogleAuthError(), SubscriberException),
+    ],
+)
+async def test_refresh_creds_error(raised: Exception, expected: Any) -> None:
+    """Test low level refresh errors."""
+    mock_refresh = Mock()
+    mock_refresh.side_effect = raised
+    mock_creds = Mock()
+    mock_creds.refresh = mock_refresh
+    with pytest.raises(expected):
+        refresh_creds(mock_creds)
 
 
 async def test_subscribe_no_events(
