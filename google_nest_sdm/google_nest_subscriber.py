@@ -92,7 +92,7 @@ def get_api_env(env: str | None) -> ApiEnv:
 
 
 def _validate_subscription_name(subscription_name: str) -> None:
-    """Validates that a subcription name is correct.
+    """Validates that a subscription name is correct.
 
     Raises ConfigurationException on failure.
     """
