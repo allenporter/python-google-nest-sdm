@@ -17,7 +17,7 @@ pytest==7.3.2
 pytest-aiohttp==1.0.4
 pytest-asyncio==0.21.0
 pytest-cov==4.1.0
-pytest-mock==3.10.0
+pytest-mock==3.11.1
 PyYAML==6.0
 typed-ast==1.5.4
 types-futures==3.3.8
