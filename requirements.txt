@@ -12,7 +12,7 @@ grpcio-status==1.56.0
 mypy==1.4.1
 pre-commit==3.3.3
 protobuf==4.23.4
-pydantic==1.10.11
+pydantic==2.0.3
 pytest==7.4.0
 pytest-aiohttp==1.0.4
 pytest-asyncio==0.21.0
