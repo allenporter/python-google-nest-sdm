@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, root_validator
+try:
+    from pydantic.v1 import BaseModel, root_validator
+except ImportError:
+    from pydantic import BaseModel, root_validator  # type: ignore
 
 TRAITS = "traits"
 

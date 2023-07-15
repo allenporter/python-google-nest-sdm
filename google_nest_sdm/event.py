@@ -12,7 +12,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Mapping, Optional
 
-from pydantic import BaseModel, Field, root_validator, validate_arguments, validator
+try:
+    from pydantic.v1 import BaseModel, Field, root_validator, validate_arguments, validator
+except ImportError:
+    from pydantic import BaseModel, Field, root_validator, validate_arguments, validator  # type: ignore
 
 from .auth import AbstractAuth
 from .diagnostics import EVENT_DIAGNOSTICS as DIAGNOSTICS

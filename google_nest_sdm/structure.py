@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from typing import Any, Final, Mapping, Optional
 
-from pydantic import BaseModel, Field
+try:
+    from pydantic.v1 import BaseModel, Field
+except ImportError:
+    from pydantic import BaseModel, Field  # type: ignore
 
 from .model import TraitModel
 
