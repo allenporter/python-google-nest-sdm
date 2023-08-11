@@ -1,6 +1,6 @@
 -e .
 aiohttp==3.8.5
-async-timeout==4.0.2
+async-timeout==4.0.3
 black==23.7.0
 coverage==7.2.7
 google-api-core==2.11.1
