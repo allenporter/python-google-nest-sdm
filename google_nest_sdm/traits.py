@@ -5,12 +5,19 @@ from __future__ import annotations
 from typing import Any, Dict, Mapping, Optional
 
 import aiohttp
+try:
+    from pydantic.v1 import BaseModel, root_validator
+except ImportError:
+    from pydantic import BaseModel, root_validator  # type: ignore
+
 
 from .auth import AbstractAuth
 from .diagnostics import Diagnostics
 from .registry import Registry
+from .model import TraitModel
 
 DEVICE_TRAITS = "traits"
+TRAITS = "traits"
 
 TRAIT_MAP = Registry()
 
@@ -50,6 +57,22 @@ class Command:
             return await resp.read()
 
 
+class CommandModel(TraitModel):
+    """Base model that supports commands."""
+
+    _cmd: Command | None = None
+    """Helper for executing commands"""
+
+    class Config:
+        extra = "allow"
+        arbitrary_types_allowed = True
+        fields = {
+            '_cmd': {
+                'exclude': True,
+            }
+        }
+
+
 def _TraitsDict(
     traits: Mapping[str, Any], trait_map: Mapping[str, Any], cmd: Command
 ) -> Dict[str, Any]:
@@ -58,7 +81,13 @@ def _TraitsDict(
         if trait not in trait_map:
             continue
         cls = trait_map[trait]
-        d[trait] = cls(trait_data, cmd)
+        if issubclass(cls, TraitModel):
+            obj = cls(**trait_data)
+            if hasattr(obj, "_cmd"):
+                obj._cmd = cmd
+        else:
+            obj = cls(trait_data, cmd)
+        d[trait] = obj
     return d
 
 
