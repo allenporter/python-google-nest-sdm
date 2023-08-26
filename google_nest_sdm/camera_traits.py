@@ -86,7 +86,7 @@ class Stream(CommandModel, ABC):
 
 @dataclass
 class StreamUrls:
-    """Resposne object for stream urls"""
+    """Response object for stream urls"""
 
     rtsp_url: str = Field(alias="rtspUrl")
     """RTSP live stream URL."""
