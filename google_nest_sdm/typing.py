@@ -1,6 +1,6 @@
 """Libraries for helping with typing API responses."""
 
-from typing import Any, Optional, Type, TypeVar
+from typing import Any, Type, TypeVar
 
 T = TypeVar("T")
 
