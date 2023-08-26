@@ -12,9 +12,9 @@ from enum import Enum
 from typing import Final
 
 try:
-    from pydantic.v1 import Field, validator
+    from pydantic.v1 import BaseModel, Field, validator
 except ImportError:
-    from pydantic import Field, validator  # type: ignore
+    from pydantic import BaseModel, Field, validator  # type: ignore
 
 from .event import (
     CameraClipPreviewEvent,
@@ -27,7 +27,6 @@ from .event import (
     ImageEventBase,
 )
 from .traits import TRAIT_MAP, CommandModel
-from .model import TraitModel
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,7 +59,7 @@ class Resolution:
 
 
 @TRAIT_MAP.register()
-class CameraImageTrait(TraitModel):
+class CameraImageTrait(BaseModel):
     """This trait belongs to any device that supports taking images."""
 
     NAME: Final = "sdm.devices.traits.CameraImage"
@@ -334,7 +333,7 @@ class EventImageGenerator(EventTrait, EventImageCreator, ABC):
 
 
 @TRAIT_MAP.register()
-class CameraMotionTrait(TraitModel, EventImageGenerator):
+class CameraMotionTrait(BaseModel, EventImageGenerator):
     """For any device that supports motion detection events."""
 
     NAME: Final = "sdm.devices.traits.CameraMotion"
@@ -352,11 +351,12 @@ class CameraMotionTrait(TraitModel, EventImageGenerator):
         return await self.event_image_creator.generate_event_image(event)
 
     class Config:
+        extra = "allow"
         arbitrary_types_allowed = True
 
 
 @TRAIT_MAP.register()
-class CameraPersonTrait(TraitModel, EventImageGenerator):
+class CameraPersonTrait(BaseModel, EventImageGenerator):
     """For any device that supports person detection events."""
 
     NAME: Final = "sdm.devices.traits.CameraPerson"
@@ -374,11 +374,12 @@ class CameraPersonTrait(TraitModel, EventImageGenerator):
         return await self.event_image_creator.generate_event_image(event)
 
     class Config:
+        extra = "allow"
         arbitrary_types_allowed = True
 
 
 @TRAIT_MAP.register()
-class CameraSoundTrait(TraitModel, EventImageGenerator):
+class CameraSoundTrait(BaseModel, EventImageGenerator):
     """For any device that supports sound detection events."""
 
     NAME: Final = "sdm.devices.traits.CameraSound"
@@ -396,6 +397,7 @@ class CameraSoundTrait(TraitModel, EventImageGenerator):
         return await self.event_image_creator.generate_event_image(event)
 
     class Config:
+        extra = "allow"
         arbitrary_types_allowed = True
 
 

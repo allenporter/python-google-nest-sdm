@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Awaitable, Callable, Dict, Optional
+from typing import Awaitable, Callable, Dict
 
-from .device import Device
+from .device import Device, ParentRelation
 from .event import EventMessage, RelationUpdate
 from .event_media import CachePolicy
 from .structure import Structure
@@ -71,7 +71,7 @@ class DeviceManager:
                 device = self._devices[device_id]
                 await device.async_handle_event(event_message)
 
-    def _structure_name(self, relation_subject: str) -> Optional[str]:
+    def _structure_name(self, relation_subject: str) -> str:
         if relation_subject in self._structures:
             structure = self._structures[relation_subject]
             for trait in [structure.info, structure.room_info]:
@@ -86,12 +86,14 @@ class DeviceManager:
         device = self._devices[relation.object]
         if relation.type == "DELETED":
             # Delete device from room/structure
-            if relation.subject in device.parent_relations:
-                del device.parent_relations[relation.subject]
+            device.delete_relation(relation.subject)
 
         if relation.type == "UPDATED" or relation.type == "CREATED":
             # Device moved to a room
             assert relation.subject
-            device.parent_relations[relation.subject] = self._structure_name(
-                relation.subject
+            device.create_relation(
+                ParentRelation(
+                    parent=relation.subject,
+                    displayName=self._structure_name(relation.subject),
+                )
             )

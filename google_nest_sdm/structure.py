@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Final, Mapping, Optional
+from typing import Any, Final, Mapping
 
 try:
     from pydantic.v1 import BaseModel, Field
@@ -37,15 +37,10 @@ class Structure(TraitModel):
     name: str
     """Resource name of the structure e.g. 'enterprises/XYZ/structures/123'."""
 
-    info: Optional[InfoTrait] = Field(alias="sdm.structures.traits.Info")
-    room_info: Optional[RoomInfoTrait] = Field(alias="sdm.structures.traits.RoomInfo")
+    info: InfoTrait | None = Field(alias="sdm.structures.traits.Info")
+    room_info: RoomInfoTrait | None = Field(alias="sdm.structures.traits.RoomInfo")
 
     @staticmethod
     def MakeStructure(raw_data: Mapping[str, Any]) -> Structure:
         """Create a structure with the appropriate traits."""
         return Structure.parse_obj(raw_data)
-
-    @property
-    def raw_data(self) -> dict[str, Any]:
-        """Return raw data for the structure."""
-        return self.dict()
