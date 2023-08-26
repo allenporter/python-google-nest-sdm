@@ -93,7 +93,7 @@ class ThermostatTemperatureSetpointTrait(ThermostatHeatCoolTrait):
             "command": "sdm.devices.commands.ThermostatTemperatureSetpoint.SetHeat",
             "params": {"heatCelsius": heat},
         }
-        return await self._cmd.execute(data)
+        return await self.cmd.execute(data)
 
     async def set_cool(self, cool: float) -> aiohttp.ClientResponse:
         """Change the thermostat Eco mode."""
@@ -101,7 +101,7 @@ class ThermostatTemperatureSetpointTrait(ThermostatHeatCoolTrait):
             "command": "sdm.devices.commands.ThermostatTemperatureSetpoint.SetCool",
             "params": {"coolCelsius": cool},
         }
-        return await self._cmd.execute(data)
+        return await self.cmd.execute(data)
 
     async def set_range(self, heat: float, cool: float) -> aiohttp.ClientResponse:
         """Change the thermostat Eco mode."""
@@ -112,4 +112,4 @@ class ThermostatTemperatureSetpointTrait(ThermostatHeatCoolTrait):
                 "coolCelsius": cool,
             },
         }
-        return await self._cmd.execute(data)
+        return await self.cmd.execute(data)
