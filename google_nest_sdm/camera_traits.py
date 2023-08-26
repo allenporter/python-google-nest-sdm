@@ -6,9 +6,15 @@ import datetime
 import logging
 import urllib.parse as urlparse
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, List, Mapping, Optional, cast
+from typing import Final
+
+try:
+    from pydantic.v1 import Field, validator
+except ImportError:
+    from pydantic import Field, validator  # type: ignore
 
 from .event import (
     CameraClipPreviewEvent,
@@ -20,8 +26,8 @@ from .event import (
     EventTrait,
     ImageEventBase,
 )
-from .traits import TRAIT_MAP, Command
-from .typing import cast_assert, cast_optional
+from .traits import TRAIT_MAP, CommandModel
+from .model import TraitModel
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,7 +45,6 @@ STREAM_EXTENSION_TOKEN = "streamExtensionToken"
 STREAM_TOKEN = "streamToken"
 URL = "url"
 TOKEN = "token"
-EXPIRES_AT = "expiresAt"
 ANSWER_SDP = "answerSdp"
 MEDIA_SESSION_ID = "mediaSessionId"
 
@@ -50,41 +55,25 @@ EVENT_IMAGE_CLIP_PREVIEW = "clip_preview"
 class Resolution:
     """Maximum Resolution of an image or stream."""
 
-    width: Optional[int] = None
-    height: Optional[int] = None
+    width: int | None = None
+    height: int | None = None
 
 
 @TRAIT_MAP.register()
-class CameraImageTrait:
+class CameraImageTrait(TraitModel):
     """This trait belongs to any device that supports taking images."""
 
-    NAME = "sdm.devices.traits.CameraImage"
+    NAME: Final = "sdm.devices.traits.CameraImage"
 
-    def __init__(self, data: Mapping[str, Any], cmd: Command):
-        """Initialize CameraImageTrait."""
-        self._data = data
-        self._cmd = cmd
-
-    @property
-    def max_image_resolution(self) -> Resolution:
-        """Maximum resolution of the camera image."""
-        res = Resolution()
-        res.width = self._data[MAX_IMAGE_RESOLUTION][WIDTH]
-        res.height = self._data[MAX_IMAGE_RESOLUTION][HEIGHT]
-        return res
+    max_image_resolution: Resolution = Field(alias="maxImageResolution")
+    """Maximum resolution of the camera image."""
 
 
-class Stream(ABC):
+class Stream(CommandModel, ABC):
     """Base class for streams."""
 
-    def __init__(self, data: Mapping[str, Any]):
-        self._data = data
-
-    @property
-    def expires_at(self) -> datetime.datetime:
-        """Time at which both streamExtensionToken and streamToken expire."""
-        expires_at = self._data[EXPIRES_AT]
-        return datetime.datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+    expires_at: datetime.datetime = Field(alias="expiresAt")
+    """Time at which both streamExtensionToken and streamToken expire."""
 
     @abstractmethod
     async def extend_stream(self) -> Stream:
@@ -95,32 +84,30 @@ class Stream(ABC):
         """Invalidate the stream."""
 
 
+@dataclass
+class StreamUrls:
+    """Response object for stream urls"""
+
+    rtsp_url: str = Field(alias="rtspUrl")
+    """RTSP live stream URL."""
+
+
 class RtspStream(Stream):
     """Provides access an RTSP live stream URL."""
 
-    def __init__(self, data: Mapping[str, Any], cmd: Command):
-        """Initialize RstpStream."""
-        super().__init__(data)
-        self._cmd = cmd
+    stream_urls: StreamUrls = Field(alias="streamUrls")
+    """Stream urls to access the live stream."""
+
+    stream_token: str = Field(alias="streamToken")
+    """Token to use to access an RTSP live stream."""
+
+    stream_extension_token: str = Field(alias="streamExtensionToken")
+    """Token to use to extend access to an RTSP live stream."""
 
     @property
     def rtsp_stream_url(self) -> str:
         """RTSP live stream URL."""
-        rtsp_stream_url = self._data[STREAM_URLS][RTSP_URL]
-        assert isinstance(rtsp_stream_url, str)
-        return rtsp_stream_url
-
-    @property
-    def stream_token(self) -> str:
-        """Token to use to access an RTSP live stream."""
-        stream_token = self._data[STREAM_TOKEN]
-        assert isinstance(stream_token, str)
-        return stream_token
-
-    @property
-    def stream_extension_token(self) -> str:
-        """Token to use to access an RTSP live stream."""
-        return cast_assert(str, self._data[STREAM_EXTENSION_TOKEN])
+        return self.stream_urls.rtsp_url
 
     async def extend_stream(self) -> Stream | RtspStream:
         """Extend the lifetime of the stream."""
@@ -132,7 +119,7 @@ class RtspStream(Stream):
             "command": "sdm.devices.commands.CameraLiveStream.ExtendRtspStream",
             "params": {"streamExtensionToken": self.stream_extension_token},
         }
-        response_data = await self._cmd.execute_json(data)
+        response_data = await self.cmd.execute_json(data)
         results = response_data[RESULTS]
         # Update the stream url with the new token
         stream_token = results[STREAM_TOKEN]
@@ -141,7 +128,9 @@ class RtspStream(Stream):
         url = urlparse.urlunparse(parsed)
         results[STREAM_URLS] = {}
         results[STREAM_URLS][RTSP_URL] = url
-        return RtspStream(results, self._cmd)
+        obj = RtspStream(**results)
+        obj._cmd = self.cmd
+        return obj
 
     async def stop_stream(self) -> None:
         """Invalidate the stream."""
@@ -153,30 +142,17 @@ class RtspStream(Stream):
             "command": "sdm.devices.commands.CameraLiveStream.StopRtspStream",
             "params": {"streamExtensionToken": self.stream_extension_token},
         }
-        await self._cmd.execute(data)
+        await self.cmd.execute(data)
 
 
 class WebRtcStream(Stream):
     """Provides access an RTSP live stream URL."""
 
-    def __init__(self, data: Mapping[str, Any], cmd: Command):
-        """Initialize RstpStream."""
-        super().__init__(data)
-        self._cmd = cmd
+    answer_sdp: str = Field(alias="answerSdp")
+    """An SDP answer to use with the local device displaying the stream."""
 
-    @property
-    def answer_sdp(self) -> str:
-        """An SDP answer to use with the local device displaying the stream."""
-        answer_sdp = self._data[ANSWER_SDP]
-        assert isinstance(answer_sdp, str)
-        return answer_sdp
-
-    @property
-    def media_session_id(self) -> str:
-        """Media Session ID of the live stream."""
-        media_session_id = self._data[MEDIA_SESSION_ID]
-        assert isinstance(media_session_id, str)
-        return media_session_id
+    media_session_id: str = Field(alias="mediaSessionId")
+    """Media Session ID of the live stream."""
 
     async def extend_stream(self) -> WebRtcStream:
         """Request a new RTSP live stream URL access token."""
@@ -184,12 +160,14 @@ class WebRtcStream(Stream):
             "command": "sdm.devices.commands.CameraLiveStream.ExtendWebRtcStream",
             "params": {MEDIA_SESSION_ID: self.media_session_id},
         }
-        response_data = await self._cmd.execute_json(data)
+        response_data = await self.cmd.execute_json(data)
         # Preserve original answerSdp, and merge with response that contains
         # the other fields (expiresAt, and mediaSessionId.
         results = response_data[RESULTS]
         results[ANSWER_SDP] = self.answer_sdp
-        return WebRtcStream(results, self._cmd)
+        obj = WebRtcStream(**results)
+        obj._cmd = self.cmd
+        return obj
 
     async def stop_stream(self) -> None:
         """Invalidates a valid RTSP access token and stops the RTSP live stream."""
@@ -197,54 +175,48 @@ class WebRtcStream(Stream):
             "command": "sdm.devices.commands.CameraLiveStream.StopWebRtcStream",
             "params": {MEDIA_SESSION_ID: self.media_session_id},
         }
-        await self._cmd.execute(data)
+        await self.cmd.execute(data)
 
 
-class StreamingProtocol(Enum):
+class StreamingProtocol(str, Enum):
     """Streaming protocols supported by the device."""
 
-    RTSP = (1,)
-    WEB_RTC = (2,)
+    RTSP = "RTSP"
+    WEB_RTC = "WEB_RTC"
 
 
 @TRAIT_MAP.register()
-class CameraLiveStreamTrait:
+class CameraLiveStreamTrait(CommandModel):
     """This trait belongs to any device that supports live streaming."""
 
-    NAME = "sdm.devices.traits.CameraLiveStream"
+    NAME: Final = "sdm.devices.traits.CameraLiveStream"
 
-    def __init__(self, data: Mapping[str, Any], cmd: Command):
-        """Initialize CameraLiveStreamTrait."""
-        self._data = data
-        self._cmd = cmd
+    max_video_resolution: Resolution = Field(
+        alias="maxVideoResolution", default_factory=dict
+    )
+    """Maximum resolution of the video live stream."""
 
-    @property
-    def max_video_resolution(self) -> Resolution:
-        """Maximum resolution of the video live stream."""
-        res = Resolution()
-        res.width = self._data[MAX_VIDEO_RESOLUTION][WIDTH]
-        res.height = self._data[MAX_VIDEO_RESOLUTION][HEIGHT]
-        return res
+    video_codecs: list[str] = Field(alias="videoCodecs", default_factory=list)
+    """Video codecs supported for the live stream."""
 
-    @property
-    def video_codecs(self) -> List[str]:
-        """Video codecs supported for the live stream."""
-        assert isinstance(self._data[VIDEO_CODECS], list)
-        return cast(List[str], self._data[VIDEO_CODECS])
+    audio_codecs: list[str] = Field(alias="audioCodecs", default_factory=list)
+    """Audio codecs supported for the live stream."""
 
-    @property
-    def audio_codecs(self) -> List[str]:
-        """Audio codecs supported for the live stream."""
-        return cast(List[str], self._data[AUDIO_CODECS])
+    supported_protocols: list[StreamingProtocol] = Field(
+        alias="supportedProtocols",
+        default_factory=list,
+    )
+    """Streaming protocols supported for the live stream."""
 
-    @property
-    def supported_protocols(self) -> List[StreamingProtocol]:
-        """Streaming protocols supported for the live stream."""
+    @validator("supported_protocols", pre=True, always=True)
+    def validate_supported_protocols(
+        cls, val: Iterable[str] | None
+    ) -> list[StreamingProtocol]:
         return [
             StreamingProtocol[x]
-            for x in self._data.get(SUPPORTED_PROTOCOLS, ["RTSP"])
+            for x in val or []
             if x in StreamingProtocol.__members__
-        ]
+        ] or [StreamingProtocol.RTSP]
 
     async def generate_rtsp_stream(self) -> RtspStream:
         """Request a token to access an RTSP live stream URL."""
@@ -254,9 +226,11 @@ class CameraLiveStreamTrait:
             "command": "sdm.devices.commands.CameraLiveStream.GenerateRtspStream",
             "params": {},
         }
-        response_data = await self._cmd.execute_json(data)
+        response_data = await self.cmd.execute_json(data)
         results = response_data[RESULTS]
-        return RtspStream(results, self._cmd)
+        obj = RtspStream(**results)
+        obj._cmd = self.cmd
+        return obj
 
     async def generate_web_rtc_stream(self, offer_sdp: str) -> WebRtcStream:
         """Request a token to access a Web RTC live stream URL."""
@@ -266,12 +240,14 @@ class CameraLiveStreamTrait:
             "command": "sdm.devices.commands.CameraLiveStream.GenerateWebRtcStream",
             "params": {"offerSdp": offer_sdp},
         }
-        response_data = await self._cmd.execute_json(data)
+        response_data = await self.cmd.execute_json(data)
         results = response_data[RESULTS]
-        return WebRtcStream(results, self._cmd)
+        obj = WebRtcStream(**results)
+        obj._cmd = self.cmd
+        return obj
 
 
-class EventImage:
+class EventImage(CommandModel):
     """Provides access to an image in response to an event.
 
     Use a ?width or ?height query parameters to customize the resolution
@@ -283,34 +259,19 @@ class EventImage:
     Authorization: Basic <token>
     """
 
-    def __init__(
-        self,
-        data: Mapping[str, Any],
-        cmd: Command,
-        event_image_type: EventImageContentType,
-    ):
-        """Initialize the EventImage."""
-        self._data = data
-        self._cmd = cmd
-        self._event_image_type = event_image_type
+    event_image_type: EventImageContentType
+    """Return the type of event image."""
 
-    @property
-    def event_image_type(self) -> EventImageContentType:
-        """Return the type of event image."""
-        return self._event_image_type
+    url: str | None = Field(default=None)
+    """URL to download the camera image from."""
 
-    @property
-    def url(self) -> Optional[str]:
-        """URL to download the camera image from."""
-        return cast_optional(str, self._data.get(URL))
-
-    @property
-    def token(self) -> Optional[str]:
-        """Token to use in the HTTP Authorization header when downloading."""
-        return cast_optional(str, self._data.get(TOKEN))
+    token: str | None = Field(default=None)
+    """Token to use in the HTTP Authorization header when downloading."""
 
     async def contents(
-        self, width: Optional[int] = None, height: Optional[int] = None
+        self,
+        width: int | None = None,
+        height: int | None = None,
     ) -> bytes:
         """Download the image bytes."""
         if width:
@@ -320,26 +281,21 @@ class EventImage:
         else:
             assert self.url
             fetch_url = self.url
-        return await self._cmd.fetch_image(fetch_url, basic_auth=self.token)
+        return await self.cmd.fetch_image(fetch_url, basic_auth=self.token)
 
 
 class EventImageCreator(ABC):
     """Responsible for turning events into an EventImage."""
 
-    async def generate_event_image(self, event: ImageEventBase) -> Optional[EventImage]:
+    async def generate_event_image(self, event: ImageEventBase) -> EventImage | None:
         """Provide an object that can be used to fetch media for an event."""
 
 
 @TRAIT_MAP.register()
-class CameraEventImageTrait(EventImageCreator):
+class CameraEventImageTrait(CommandModel, EventImageCreator):
     """This trait belongs to any device that generates images from events."""
 
-    NAME = "sdm.devices.traits.CameraEventImage"
-
-    def __init__(self, data: Mapping[str, Any], cmd: Command):
-        """Initialize CameraEventImageTrait."""
-        self._data = data
-        self._cmd = cmd
+    NAME: Final = "sdm.devices.traits.CameraEventImage"
 
     async def generate_image(self, event_id: str) -> EventImage:
         """Provide a URL to download a camera image."""
@@ -349,11 +305,13 @@ class CameraEventImageTrait(EventImageCreator):
                 "eventId": event_id,
             },
         }
-        response_data = await self._cmd.execute_json(data)
+        response_data = await self.cmd.execute_json(data)
         results = response_data[RESULTS]
-        return EventImage(results, self._cmd, EventImageType.IMAGE)
+        img = EventImage(**results, event_image_type=EventImageType.IMAGE)
+        img._cmd = self.cmd
+        return img
 
-    async def generate_event_image(self, event: ImageEventBase) -> Optional[EventImage]:
+    async def generate_event_image(self, event: ImageEventBase) -> EventImage | None:
         """Provide a URL to download a camera image from an event."""
         return await self.generate_image(event.event_id)
 
@@ -366,7 +324,7 @@ class EventImageGenerator(EventTrait, EventImageCreator, ABC):
     def event_type(self) -> str:
         """Event types supported by this trait."""
 
-    async def generate_active_event_image(self) -> Optional[EventImage]:
+    async def generate_active_event_image(self) -> EventImage | None:
         """Provide a URL to download a camera image from the active event."""
         event = self.active_event
         if not event:
@@ -376,20 +334,15 @@ class EventImageGenerator(EventTrait, EventImageCreator, ABC):
 
 
 @TRAIT_MAP.register()
-class CameraMotionTrait(EventImageGenerator):
+class CameraMotionTrait(TraitModel, EventImageGenerator):
     """For any device that supports motion detection events."""
 
-    NAME = "sdm.devices.traits.CameraMotion"
-    EVENT_NAME = CameraMotionEvent.NAME
-    event_type = EVENT_NAME
+    NAME: Final = "sdm.devices.traits.CameraMotion"
+    EVENT_NAME: Final[str] = CameraMotionEvent.NAME
+    event_type: Final[str] = CameraMotionEvent.NAME
     event_image_creator: EventImageCreator | None = None
 
-    def __init__(self, data: Mapping[str, Any], cmd: Command):
-        """Initialize CameraClipPreviewTrait."""
-        super().__init__()
-        self._event_image = CameraEventImageTrait({}, cmd)
-
-    async def generate_event_image(self, event: ImageEventBase) -> Optional[EventImage]:
+    async def generate_event_image(self, event: ImageEventBase) -> EventImage | None:
         """Provide a URL to download a camera image from the active event."""
         if not isinstance(event, CameraMotionEvent):
             return None
@@ -398,22 +351,20 @@ class CameraMotionTrait(EventImageGenerator):
             raise ValueError("Camera does not have trait to fetch snapshots")
         return await self.event_image_creator.generate_event_image(event)
 
+    class Config:
+        arbitrary_types_allowed = True
+
 
 @TRAIT_MAP.register()
-class CameraPersonTrait(EventImageGenerator):
+class CameraPersonTrait(TraitModel, EventImageGenerator):
     """For any device that supports person detection events."""
 
-    NAME = "sdm.devices.traits.CameraPerson"
-    EVENT_NAME = CameraPersonEvent.NAME
-    event_type = EVENT_NAME
+    NAME: Final = "sdm.devices.traits.CameraPerson"
+    EVENT_NAME: Final[str] = CameraPersonEvent.NAME
+    event_type: Final[str] = CameraPersonEvent.NAME
     event_image_creator: EventImageCreator | None = None
 
-    def __init__(self, data: Mapping[str, Any], cmd: Command):
-        """Initialize CameraClipPreviewTrait."""
-        super().__init__()
-        self._event_image = CameraEventImageTrait({}, cmd)
-
-    async def generate_event_image(self, event: ImageEventBase) -> Optional[EventImage]:
+    async def generate_event_image(self, event: ImageEventBase) -> EventImage | None:
         """Provide a URL to download a camera image from the active event."""
         if not isinstance(event, CameraPersonEvent):
             return None
@@ -422,21 +373,20 @@ class CameraPersonTrait(EventImageGenerator):
             raise ValueError("Camera does not have trait to fetch snapshots")
         return await self.event_image_creator.generate_event_image(event)
 
+    class Config:
+        arbitrary_types_allowed = True
+
 
 @TRAIT_MAP.register()
-class CameraSoundTrait(EventImageGenerator):
+class CameraSoundTrait(TraitModel, EventImageGenerator):
     """For any device that supports sound detection events."""
 
-    NAME = "sdm.devices.traits.CameraSound"
-    EVENT_NAME = CameraSoundEvent.NAME
-    event_type = EVENT_NAME
+    NAME: Final = "sdm.devices.traits.CameraSound"
+    EVENT_NAME: Final[str] = CameraSoundEvent.NAME
+    event_type: Final[str] = CameraSoundEvent.NAME
     event_image_creator: EventImageCreator | None = None
 
-    def __init__(self, data: Mapping[str, Any], cmd: Command):
-        """Initialize CameraClipPreviewTrait."""
-        super().__init__()
-
-    async def generate_event_image(self, event: ImageEventBase) -> Optional[EventImage]:
+    async def generate_event_image(self, event: ImageEventBase) -> EventImage | None:
         """Provide a URL to download a camera image from the active event."""
         if not isinstance(event, CameraSoundEvent):
             return None
@@ -445,21 +395,19 @@ class CameraSoundTrait(EventImageGenerator):
             raise ValueError("Camera does not have trait to fetch snapshots")
         return await self.event_image_creator.generate_event_image(event)
 
+    class Config:
+        arbitrary_types_allowed = True
+
 
 @TRAIT_MAP.register()
-class CameraClipPreviewTrait(EventImageGenerator):
+class CameraClipPreviewTrait(CommandModel, EventImageGenerator):
     """For any device that supports a clip preview."""
 
-    NAME = "sdm.devices.traits.CameraClipPreview"
-    EVENT_NAME = CameraClipPreviewEvent.NAME
-    event_type = EVENT_NAME
+    NAME: Final = "sdm.devices.traits.CameraClipPreview"
+    EVENT_NAME: Final[str] = CameraClipPreviewEvent.NAME
+    event_type: Final[str] = CameraClipPreviewEvent.NAME
 
-    def __init__(self, data: Mapping[str, Any], cmd: Command):
-        """Initialize CameraClipPreviewTrait."""
-        super().__init__()
-        self._cmd = cmd
-
-    async def generate_event_image(self, event: ImageEventBase) -> Optional[EventImage]:
+    async def generate_event_image(self, event: ImageEventBase) -> EventImage | None:
         """Provide a URL to download a camera image from the active event."""
         preview_event: CameraClipPreviewEvent | None = None
         if isinstance(event, CameraClipPreviewEvent):
@@ -477,6 +425,8 @@ class CameraClipPreviewTrait(EventImageGenerator):
         # Clip preview events have the url baked in without an additional
         # step to generate the image
         assert preview_event
-        return EventImage(
-            {"url": preview_event.preview_url}, self._cmd, EventImageType.CLIP_PREVIEW
+        img = EventImage(
+            url=preview_event.preview_url, event_image_type=EventImageType.CLIP_PREVIEW
         )
+        img._cmd = self.cmd
+        return img
