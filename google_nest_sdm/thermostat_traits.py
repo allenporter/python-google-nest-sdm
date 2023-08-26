@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from typing import Any, Final, List, Mapping, cast
+from abc import ABC
+from typing import Final
 
 import aiohttp
 try:
@@ -11,8 +11,7 @@ try:
 except ImportError:
     from pydantic import Field  # type: ignore
 
-from .traits import TRAIT_MAP, Command, CommandModel
-from .typing import cast_assert
+from .traits import TRAIT_MAP, CommandModel
 from .model import TraitModel
 
 STATUS: Final = "status"
