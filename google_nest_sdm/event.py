@@ -36,6 +36,18 @@ from .registry import Registry
 from .traits import BuildTraits, Command
 from .typing import cast_assert
 
+__all__ = [
+    "EventToken",
+    "EventImageType",
+    "EventProcessingError",
+    "CameraMotionEvent",
+    "CameraPersonEvent",
+    "CameraSoundEvent",
+    "DoorbellChimeEvent",
+    "CameraClipPreviewEvent",
+    "EventMessage",
+]
+
 EVENT_ID = "eventId"
 EVENT_SESSION_ID = "eventSessionId"
 TIMESTAMP = "timestamp"

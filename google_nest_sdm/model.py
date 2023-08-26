@@ -10,6 +10,7 @@ try:
 except ImportError:
     from pydantic import BaseModel, root_validator  # type: ignore
 
+
 TRAITS = "traits"
 SDM_PREFIX = "sdm."
 

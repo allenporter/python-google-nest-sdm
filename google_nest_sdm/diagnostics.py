@@ -8,6 +8,9 @@ from collections.abc import Mapping
 from contextlib import contextmanager
 from typing import Any, Generator, TypeVar, cast
 
+__all__ = [
+    "get_diagnostics",
+]
 
 class Diagnostics:
     """Information for the library."""
@@ -78,6 +81,7 @@ def reset() -> None:
 
 
 def get_diagnostics() -> dict[str, Any]:
+    """Produce diagnostics information for the library."""
     return {k: v.as_dict() for (k, v) in MAP.items() if v.as_dict()}
 
 

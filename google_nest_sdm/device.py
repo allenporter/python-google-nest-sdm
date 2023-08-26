@@ -10,11 +10,7 @@ try:
 except ImportError:
     from pydantic import BaseModel, Field  # type: ignore
 
-# Import traits for registration
-from . import camera_traits  # noqa: F401
-from . import device_traits  # noqa: F401
-from . import doorbell_traits  # noqa: F401
-from . import thermostat_traits  # noqa: F401
+from . import camera_traits, device_traits, doorbell_traits, thermostat_traits
 from .auth import AbstractAuth
 from .diagnostics import Diagnostics, redact_data
 from .event import EventMessage, EventProcessingError, EventTrait
@@ -23,13 +19,6 @@ from .traits import Command
 from .model import TraitModel
 
 _LOGGER = logging.getLogger(__name__)
-
-DEVICE_NAME = "name"
-DEVICE_TYPE = "type"
-DEVICE_TRAITS = "traits"
-DEVICE_PARENT_RELATIONS = "parentRelations"
-PARENT = "parent"
-DISPLAYNAME = "displayName"
 
 
 def _MakeEventTraitMap(
