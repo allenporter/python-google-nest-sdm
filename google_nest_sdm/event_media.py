@@ -36,6 +36,16 @@ from .event import (
 from .exceptions import GoogleNestException, TranscodeException
 from .transcoder import Transcoder
 
+__all__ = [
+    "EventMediaStore",
+    "InMemoryEventMediaStore",
+    "CachePolicy",
+    "EventMediaManager",
+    "Media",
+    "ImageSession",
+    "ClipPreviewSession",
+]
+
 _LOGGER = logging.getLogger(__name__)
 
 # Should be large enough for processing, but not too large to be a size issue
@@ -73,20 +83,30 @@ class Media:
 
 @dataclass
 class ImageSession:
-    """An object that holds events that happened within a time range."""
+    """An object that holds an image based event."""
 
     event_token: str
+    """A token that can be used to fetch the media for the event."""
+
     timestamp: datetime.datetime
+    """Timestamp when the event happened."""
+
     event_type: str
+    """A label for the type of event."""
 
 
 @dataclass
 class ClipPreviewSession:
-    """An object that holds events that happened within a time range."""
+    """An object that holds a clip based event."""
 
     event_token: str
+    """A token that can be used to fetch the media for the event."""
+
     timestamp: datetime.datetime
+    """Timestamp when the event happened."""
+
     event_types: list[str]
+    """A label for the type of event."""
 
 
 @dataclass

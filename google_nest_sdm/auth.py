@@ -1,4 +1,10 @@
-"""Authentication library, implemented by users of the API."""
+"""Authentication library, implemented by users of the API.
+
+This library is a simple `aiohttp` that handles authentication when talking 
+to the API. Users are expected to provide their own implementation that provides
+credentials obtained using the standard Google authentication approaches
+described at https://developers.google.com/nest/device-access/api/authorization
+"""
 
 from __future__ import annotations
 
@@ -15,6 +21,8 @@ from google.oauth2.credentials import Credentials as OAuthCredentials
 from .exceptions import ApiException, AuthException
 
 _LOGGER = logging.getLogger(__name__)
+
+__all__ = ["AbstractAuth"]
 
 HTTP_UNAUTHORIZED = 401
 AUTHORIZATION_HEADER = "Authorization"

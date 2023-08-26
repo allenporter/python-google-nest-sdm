@@ -14,6 +14,13 @@ except ImportError:
 from .traits import TRAIT_MAP, CommandModel
 from .model import TraitModel
 
+__all__ = [
+    "ThermostatEcoTrait",
+    "ThermostatHvacTrait",
+    "ThermostatModeTrait",
+    "ThermostatTemperatureSetpointTrait",
+]
+
 STATUS: Final = "status"
 AVAILABLE_MODES: Final = "availableModes"
 MODE: Final = "mode"
