@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
-import datetime
 import logging
-from typing import Any, Awaitable, Callable, Dict, List, Mapping, Optional, cast
+from typing import Any, Awaitable, Callable, Mapping
+
+try:
+    from pydantic.v1 import BaseModel, Field
+except ImportError:
+    from pydantic import BaseModel, Field  # type: ignore
 
 # Import traits for registration
 from . import camera_traits  # noqa: F401
@@ -15,8 +19,8 @@ from .auth import AbstractAuth
 from .diagnostics import Diagnostics, redact_data
 from .event import EventMessage, EventProcessingError, EventTrait
 from .event_media import EventMediaManager
-from .traits import BuildTraits, Command
-from .typing import cast_assert
+from .traits import Command
+from .model import TraitModel
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,98 +34,140 @@ DISPLAYNAME = "displayName"
 
 def _MakeEventTraitMap(
     traits: Mapping[str, Any]
-) -> Dict[str, camera_traits.EventImageGenerator]:
-    event_trait_map: Dict[str, Any] = {}
-    for (trait_name, trait) in traits.items():
+) -> dict[str, camera_traits.EventImageGenerator]:
+    event_trait_map: dict[str, Any] = {}
+    for trait_name, trait in traits.items():
         if not isinstance(trait, camera_traits.EventImageGenerator):
             continue
         event_trait_map[trait.event_type] = trait
     return event_trait_map
 
 
-class Device:
+class ParentRelation(BaseModel):
+    """Represents the parent structure/room of the current resource."""
+
+    parent: str
+    display_name: str = Field(alias="displayName")
+
+
+class Device(TraitModel):
     """Class that represents a device object in the Google Nest SDM API."""
+
+    name: str = Field(alias="name")
+    """Resource name of the device such as 'enterprises/XYZ/devices/123'."""
+
+    type: str | None = Field(alias="type")
+    """Type of device for display purposes.
+
+    The device type should not be used to deduce or infer functionality of
+    the actual device it is assigned to. Instead, use the returned traits for
+    the device.
+    """
+
+    # Device Traits
+    connectivity: device_traits.ConnectivityTrait | None = Field(
+        alias="sdm.devices.traits.Connectivity", exclude=True
+    )
+    fan: device_traits.FanTrait | None = Field(
+        alias="sdm.devices.traits.Fan", exclude=True
+    )
+    info: device_traits.InfoTrait | None = Field(
+        alias="sdm.devices.traits.Info", exclude=True
+    )
+    humidity: device_traits.HumidityTrait | None = Field(
+        alias="sdm.devices.traits.Humidity", exclude=True
+    )
+    temperature: device_traits.TemperatureTrait | None = Field(
+        alias="sdm.devices.traits.Temperature", exclude=True
+    )
+
+    # Thermostat Traits
+    thermostat_eco: thermostat_traits.ThermostatEcoTrait | None = Field(
+        alias="sdm.devices.traits.ThermostatEco", exclude=True
+    )
+    thermostat_hvac: thermostat_traits.ThermostatHvacTrait | None = Field(
+        alias="sdm.devices.traits.ThermostatHvac", exclude=True
+    )
+    thermostat_mode: thermostat_traits.ThermostatModeTrait | None = Field(
+        alias="sdm.devices.traits.ThermostatMode", exclude=True
+    )
+    thermostat_temperature_setpoint: thermostat_traits.ThermostatTemperatureSetpointTrait | None = Field(  # noqa: E501
+        alias="sdm.devices.traits.ThermostatTemperatureSetpoint", exclude=True
+    )
+
+    # Camera Traits
+    camera_image: camera_traits.CameraImageTrait | None = Field(
+        alias="sdm.devices.traits.CameraImage", exclude=True
+    )
+    camera_live_stream: camera_traits.CameraLiveStreamTrait | None = Field(
+        alias="sdm.devices.traits.CameraLiveStream", exclude=True
+    )
+    camera_event_image: camera_traits.CameraEventImageTrait | None = Field(
+        alias="sdm.devices.traits.CameraEventImage", exclude=True
+    )
+    camera_motion: camera_traits.CameraMotionTrait | None = Field(
+        alias="sdm.devices.traits.CameraMotion", exclude=True
+    )
+    camera_person: camera_traits.CameraPersonTrait | None = Field(
+        alias="sdm.devices.traits.CameraPerson", exclude=True
+    )
+    camera_sound: camera_traits.CameraSoundTrait | None = Field(
+        alias="sdm.devices.traits.CameraSound", exclude=True
+    )
+    camera_clip_preview: camera_traits.CameraClipPreviewTrait | None = Field(
+        alias="sdm.devices.traits.CameraClipPreview", exclude=True
+    )
+
+    # Doorbell Traits
+    doorbell_chime: doorbell_traits.DoorbellChimeTrait | None = Field(
+        alias="sdm.devices.traits.DoorbellChime", exclude=True
+    )
+
+    relations: list[ParentRelation] = Field(
+        alias="parentRelations", default_factory=list
+    )
+    """Represents the parent structure or room of the device."""
 
     def __init__(
         self,
-        raw_data: Mapping[str, Any],
-        traits: Dict[str, Any],
-        event_media_manager: EventMediaManager,
-        diagnostics: Diagnostics,
+        auth: AbstractAuth,
+        **raw_data: Mapping[str, Any],
     ) -> None:
         """Initialize a device."""
-        self._raw_data = raw_data
-        self._traits = traits
-        self._trait_event_ts: Dict[str, datetime.datetime] = {}
-        self._relations = {}
-        for relation in self._raw_data.get(DEVICE_PARENT_RELATIONS, []):
-            if PARENT not in relation or DISPLAYNAME not in relation:
-                continue
-            self._relations[relation[PARENT]] = relation[DISPLAYNAME]
-        self._callbacks: List[Callable[[EventMessage], Awaitable[None]]] = []
-        self._event_media_manager = event_media_manager
-        self._diagnostics = diagnostics
+        super().__init__(**raw_data)
+        self._auth = auth
+        self._diagnostics = Diagnostics()
+
+        self._cmd = Command(self.name, auth, self._diagnostics.subkey("command"))
+
+        # Propagate command and image creator to appropriate traits
+        event_image_trait: camera_traits.EventImageCreator | None = None
+        if self.camera_event_image:
+            event_image_trait = self.camera_event_image
+        elif self.camera_clip_preview:
+            event_image_trait = self.camera_clip_preview
+        for trait in self.traits.values():
+            if hasattr(trait, "_cmd"):
+                trait._cmd = self._cmd
+            if hasattr(trait, "event_image_creator") and event_image_trait:
+                trait.event_image_creator = event_image_trait
+
+        self._event_media_manager = EventMediaManager(
+            self.name,
+            self.traits,
+            _MakeEventTraitMap(self.traits),
+            support_fetch=(event_image_trait is not None),
+            diagnostics=self._diagnostics.subkey("event_media"),
+        )
+        self._callbacks: list[Callable[[EventMessage], Awaitable[None]]] = []
+
+        if self.type and self.type == "sdm.devices.types.DOORBELL":
+            self.doorbell_chime = doorbell_traits.DoorbellChimeTrait()
 
     @staticmethod
     def MakeDevice(raw_data: Mapping[str, Any], auth: AbstractAuth) -> Device:
         """Create a device with the appropriate traits."""
-        device_id = raw_data.get(DEVICE_NAME)
-        if not device_id:
-            raise ValueError(f"raw_data missing field '{DEVICE_NAME}'")
-        diagnostics = Diagnostics()
-        cmd = Command(device_id, auth, diagnostics.subkey("command"))
-        traits = raw_data.get(DEVICE_TRAITS, {})
-        traits_dict = BuildTraits(traits, cmd, raw_data.get(DEVICE_TYPE))
-
-        # Hack to wire up camera traits to the event image generator
-        event_image_trait: camera_traits.EventImageCreator | None = None
-        if camera_traits.CameraEventImageTrait.NAME in traits_dict:
-            event_image_trait = traits_dict[camera_traits.CameraEventImageTrait.NAME]
-        elif camera_traits.CameraClipPreviewTrait.NAME in traits_dict:
-            event_image_trait = traits_dict[camera_traits.CameraClipPreviewTrait.NAME]
-        if event_image_trait:
-            for trait_class in traits_dict.values():
-                if hasattr(trait_class, "event_image_creator"):
-                    trait_class.event_image_creator = event_image_trait
-        event_trait_map = _MakeEventTraitMap(traits_dict)
-        event_media_manager = EventMediaManager(
-            device_id,
-            traits_dict,
-            event_trait_map,
-            support_fetch=(event_image_trait is not None),
-            diagnostics=diagnostics.subkey("event_media"),
-        )
-        return Device(raw_data, traits_dict, event_media_manager, diagnostics)
-
-    @property
-    def name(self) -> str:
-        """Resource name of the device such as 'enterprises/XYZ/devices/123'."""
-        return cast_assert(str, self._raw_data[DEVICE_NAME])
-
-    @property
-    def type(self) -> str:
-        """Type of device for display purposes.
-
-        The device type should not be used to deduce or infer functionality of
-        the actual device it is assigned to. Instead, use the returned traits for
-        the device.
-        """
-        return cast_assert(str, self._raw_data[DEVICE_TYPE])
-
-    @property
-    def traits(self) -> Dict[str, Any]:
-        """Return a trait mixin or None."""
-        return self._traits
-
-    def _traits_data(self, trait: str) -> Dict[str, Any]:
-        """Return the raw dictionary for the specified trait."""
-        traits_dict = self._raw_data.get(DEVICE_TRAITS, {})
-        return cast(Dict[str, Any], traits_dict.get(trait, {}))
-
-    @property
-    def parent_relations(self) -> dict:
-        """Room or structure for the device."""
-        return self._relations
+        return Device(auth=auth, **raw_data)
 
     def add_update_listener(self, target: Callable[[], None]) -> Callable[[], None]:
         """Register a simple event listener notified on updates.
@@ -170,34 +216,52 @@ class Device:
         if not traits:
             return
         _LOGGER.debug("Trait update %s", traits)
-        for (trait_name, trait) in traits.items():
-            # Discard updates older than prior events
-            # Note: There is still a race where traits read from the API on
-            # startup are overwritten with old messages. We assume that the
-            # event messages will eventually correct that.
-            if trait_name in self._trait_event_ts:
-                ts = self._trait_event_ts[trait_name]
-                if ts > event_message.timestamp:
-                    continue
-            self._traits[trait_name] = trait
-            self._trait_event_ts[trait_name] = event_message.timestamp
+        self.update_traits(traits, event_message.timestamp)
 
     @property
     def event_media_manager(self) -> EventMediaManager:
         return self._event_media_manager
 
     @property
-    def active_event_trait(self) -> Optional[EventTrait]:
+    def active_event_trait(self) -> EventTrait | None:
         """Return trait with the most recently received active event."""
         return self._event_media_manager.active_event_trait
 
     @property
-    def raw_data(self) -> Dict[str, Any]:
-        """Return raw data for the device."""
-        return dict(self._raw_data)
+    def parent_relations(self) -> dict:
+        """Room or structure for the device."""
+        return {relation.parent: relation.display_name for relation in self.relations}
 
-    def get_diagnostics(self) -> Dict[str, Any]:
+    def delete_relation(self, parent: str) -> None:
+        """Remove a device relationship with the parent."""
+        self.relations = [
+            relation for relation in self.relations if relation.parent != parent
+        ]
+
+    def create_relation(self, relation: ParentRelation) -> None:
+        """Add a new device relation."""
+        self.relations.append(relation)
+
+    @property
+    def raw_data(self) -> dict[str, Any]:
+        """Return raw data for the device."""
+        return self.dict(
+            by_alias=True,
+            exclude=Device._EXCLUDE_FIELDS,
+            exclude_unset=True,
+            exclude_defaults=True,
+        )
+
+    def get_diagnostics(self) -> dict[str, Any]:
         return {
             "data": redact_data(self.raw_data),
             **self._diagnostics.as_dict(),
         }
+
+    _EXCLUDE_FIELDS = (
+        set({"_auth", "_callbacks", "_cmd", "_diagnostics", "_event_media_manager"})
+        | TraitModel._EXCLUDE_FIELDS
+    )
+
+    class Config:
+        extra = "allow"

@@ -3,20 +3,18 @@
 import datetime
 from typing import Any, Dict, Final
 
-
 try:
-    from pydantic.v1 import Field
+    from pydantic.v1 import BaseModel, Field
 except ImportError:
-    from pydantic import Field  # type: ignore
+    from pydantic import BaseModel, Field  # type: ignore
 
 import aiohttp
 
 from .traits import TRAIT_MAP, CommandModel
-from .model import TraitModel
 
 
 @TRAIT_MAP.register()
-class ConnectivityTrait(TraitModel):
+class ConnectivityTrait(BaseModel):
     """This trait belongs to any device that has connectivity information."""
 
     NAME: Final = "sdm.devices.traits.Connectivity"
@@ -60,7 +58,7 @@ class FanTrait(CommandModel):
 
 
 @TRAIT_MAP.register()
-class InfoTrait(TraitModel):
+class InfoTrait(BaseModel):
     """This trait belongs to any device for device-related information."""
 
     NAME: Final = "sdm.devices.traits.Info"
@@ -70,7 +68,7 @@ class InfoTrait(TraitModel):
 
 
 @TRAIT_MAP.register()
-class HumidityTrait(TraitModel):
+class HumidityTrait(BaseModel):
     """This trait belongs to any device that has a sensor to measure humidity."""
 
     NAME: Final = "sdm.devices.traits.Humidity"
@@ -80,7 +78,7 @@ class HumidityTrait(TraitModel):
 
 
 @TRAIT_MAP.register()
-class TemperatureTrait(TraitModel):
+class TemperatureTrait(BaseModel):
     """This trait belongs to any device that has a sensor to measure temperature."""
 
     NAME: Final = "sdm.devices.traits.Temperature"

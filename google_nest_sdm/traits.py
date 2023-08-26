@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Mapping
 
 import aiohttp
+
+try:
+    from pydantic.v1 import BaseModel
+except ImportError:
+    from pydantic import BaseModel  # type: ignore
 
 from .auth import AbstractAuth
 from .diagnostics import Diagnostics
 from .registry import Registry
-from .model import TraitModel
 
 DEVICE_TRAITS = "traits"
 TRAITS = "traits"
@@ -42,9 +46,9 @@ class Command:
                 f"{self._device_id}:executeCommand", json=data
             )
 
-    async def fetch_image(self, url: str, basic_auth: Optional[str] = None) -> bytes:
+    async def fetch_image(self, url: str, basic_auth: str | None = None) -> bytes:
         """Fetch an image at the specified url."""
-        headers: Dict[str, Any] = {}
+        headers: dict[str, Any] = {}
         if basic_auth:
             headers = {"Authorization": f"Basic {basic_auth}"}
         with self._diagnostics.timer("fetch_image"):
@@ -52,7 +56,7 @@ class Command:
             return await resp.read()
 
 
-class CommandModel(TraitModel):
+class CommandModel(BaseModel):
     """Base model that supports commands."""
 
     _cmd: Command | None = None
@@ -71,19 +75,19 @@ class CommandModel(TraitModel):
         fields = {
             "_cmd": {
                 "exclude": True,
-            }
+            },
         }
 
 
 def _TraitsDict(
     traits: Mapping[str, Any], trait_map: Mapping[str, Any], cmd: Command
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     d = {}
     for trait, trait_data in traits.items():
         if trait not in trait_map:
             continue
         cls = trait_map[trait]
-        if issubclass(cls, TraitModel):
+        if issubclass(cls, BaseModel):
             obj = cls(**trait_data)
             if hasattr(obj, "_cmd"):
                 obj._cmd = cmd
@@ -94,12 +98,7 @@ def _TraitsDict(
 
 
 def BuildTraits(
-    traits: Mapping[str, Any], cmd: Command, device_type: Optional[str] = None
-) -> Dict[str, Any]:
+    traits: Mapping[str, Any], cmd: Command, device_type: str | None = None
+) -> dict[str, Any]:
     """Build a trait map out of a response dict."""
-    # There is a bug where doorbells do not return the DoorbellChime trait.  Simulate
-    # that it was returned
-    if device_type and device_type == "sdm.devices.types.DOORBELL":
-        traits = dict(traits)
-        traits["sdm.devices.traits.DoorbellChime"] = {}
     return _TraitsDict(traits, TRAIT_MAP, cmd)

@@ -480,24 +480,20 @@ async def test_update_trait_ordering(
         assert isinstance(trait, ConnectivityTrait)
         return trait
 
+    now = datetime.datetime.now(datetime.timezone.utc)
     assert get_connectivity().status == "OFFLINE"
-    await mgr.async_handle_event(
-        event_message_with_time("2019-01-01T00:00:03Z", "ONLINE")
-    )
+    await mgr.async_handle_event(event_message_with_time(now.isoformat(), "ONLINE"))
     assert get_connectivity().status == "ONLINE"
-    await mgr.async_handle_event(
-        event_message_with_time("2019-01-01T00:00:04Z", "OFFLINE")
-    )
+    now += datetime.timedelta(seconds=1)
+    await mgr.async_handle_event(event_message_with_time(now.isoformat(), "OFFLINE"))
     assert get_connectivity().status == "OFFLINE"
     # Event in past is ignored
-    await mgr.async_handle_event(
-        event_message_with_time("2019-01-01T00:00:01Z", "ONLINE")
-    )
+    now -= datetime.timedelta(minutes=1)
+    await mgr.async_handle_event(event_message_with_time(now.isoformat(), "ONLINE"))
     assert get_connectivity().status == "OFFLINE"
     # Event in future is applied
-    await mgr.async_handle_event(
-        event_message_with_time("2019-01-01T00:00:05Z", "ONLINE")
-    )
+    now += datetime.timedelta(hours=1)
+    await mgr.async_handle_event(event_message_with_time(now.isoformat(), "ONLINE"))
     assert get_connectivity().status == "ONLINE"
 
 
