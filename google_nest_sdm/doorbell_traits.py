@@ -3,28 +3,23 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Mapping, Optional
+from typing import Optional, Final
 
 from .camera_traits import EventImage, EventImageCreator, EventImageGenerator
 from .event import DoorbellChimeEvent, ImageEventBase
-from .traits import TRAIT_MAP, Command
+from .traits import TRAIT_MAP, TraitModel
 
 _LOGGER = logging.getLogger(__name__)
 
 
 @TRAIT_MAP.register()
-class DoorbellChimeTrait(EventImageGenerator):
+class DoorbellChimeTrait(TraitModel, EventImageGenerator):
     """For any device that supports a doorbell chime and related press events."""
 
-    NAME = "sdm.devices.traits.DoorbellChime"
-    EVENT_NAME = DoorbellChimeEvent.NAME
-    event_type = EVENT_NAME
+    NAME: Final = "sdm.devices.traits.DoorbellChime"
+    EVENT_NAME: Final[str] = DoorbellChimeEvent.NAME
+    event_type: Final[str] = DoorbellChimeEvent.NAME
     event_image_creator: EventImageCreator | None = None
-
-    def __init__(self, data: Mapping[str, Any], cmd: Command):
-        """Initialize DoorbellChime."""
-        super().__init__()
-        self._data = data
 
     async def generate_event_image(self, event: ImageEventBase) -> Optional[EventImage]:
         """Provide a URL to download a camera image from the active event."""
@@ -35,3 +30,6 @@ class DoorbellChimeTrait(EventImageGenerator):
         if not self.event_image_creator:
             raise ValueError("Camera does not have trait to fetch snapshots")
         return await self.event_image_creator.generate_event_image(event)
+
+    class Config:
+        arbitrary_types_allowed = True

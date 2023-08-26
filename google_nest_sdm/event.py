@@ -10,7 +10,7 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, Mapping, Optional
+from typing import Any, Iterable, Mapping, Final
 
 try:
     from pydantic.v1 import (
@@ -229,7 +229,7 @@ class ImageEventBase(ABC):
 class CameraMotionEvent(ImageEventBase):
     """Motion has been detected by the camera."""
 
-    NAME = "sdm.devices.events.CameraMotion.Motion"
+    NAME: Final = "sdm.devices.events.CameraMotion.Motion"
     event_type = NAME
     event_image_type = EventImageType.IMAGE
 
@@ -238,7 +238,7 @@ class CameraMotionEvent(ImageEventBase):
 class CameraPersonEvent(ImageEventBase):
     """A person has been detected by the camera."""
 
-    NAME = "sdm.devices.events.CameraPerson.Person"
+    NAME: Final = "sdm.devices.events.CameraPerson.Person"
     event_type = NAME
     event_image_type = EventImageType.IMAGE
 
@@ -247,7 +247,7 @@ class CameraPersonEvent(ImageEventBase):
 class CameraSoundEvent(ImageEventBase):
     """Sound has been detected by the camera."""
 
-    NAME = "sdm.devices.events.CameraSound.Sound"
+    NAME: Final = "sdm.devices.events.CameraSound.Sound"
     event_type = NAME
     event_image_type = EventImageType.IMAGE
 
@@ -256,7 +256,7 @@ class CameraSoundEvent(ImageEventBase):
 class DoorbellChimeEvent(ImageEventBase):
     """The doorbell has been pressed."""
 
-    NAME = "sdm.devices.events.DoorbellChime.Chime"
+    NAME: Final = "sdm.devices.events.DoorbellChime.Chime"
     event_type = NAME
     event_image_type = EventImageType.IMAGE
 
@@ -265,7 +265,7 @@ class DoorbellChimeEvent(ImageEventBase):
 class CameraClipPreviewEvent(ImageEventBase):
     """A video clip is available for preview, without extra download."""
 
-    NAME = "sdm.devices.events.CameraClipPreview.ClipPreview"
+    NAME: Final = "sdm.devices.events.CameraClipPreview.ClipPreview"
     event_type = NAME
     event_image_type = EventImageType.CLIP_PREVIEW
 
@@ -294,17 +294,15 @@ class CameraClipPreviewEvent(ImageEventBase):
 class EventTrait(ABC):
     """Parent class for traits related to handling events."""
 
-    def __init__(self) -> None:
-        """Initialize an EventTrait."""
-        self._last_event: Optional[ImageEventBase] = None
+    _last_event: ImageEventBase | None = None
 
     @property
-    def last_event(self) -> Optional[ImageEventBase]:
+    def last_event(self) -> ImageEventBase | None:
         """Last received event."""
         return self._last_event
 
     @property
-    def active_event(self) -> Optional[ImageEventBase]:
+    def active_event(self) -> ImageEventBase | None:
         """Any current active events."""
         if not self._last_event:
             return None
@@ -333,7 +331,7 @@ class RelationUpdate(BaseModel):
 def _BuildEvents(
     events: Mapping[str, Any],
     timestamp: datetime.datetime,
-) -> Dict[str, ImageEventBase]:
+) -> dict[str, ImageEventBase]:
     """Build a trait map out of a response dict."""
     result = {}
     for event_type, event_data in events.items():
@@ -371,11 +369,11 @@ class EventMessage(BaseModel):
 
     event_id: str = Field(alias="eventId")
     timestamp: datetime.datetime
-    resource_update_name: Optional[str]
-    resource_update_events: Optional[dict[str, ImageEventBase]]
-    resource_update_traits: Optional[dict[str, Any]]
-    event_thread_state: Optional[str] = Field(alias="eventThreadState")
-    relation_update: Optional[RelationUpdate] = Field(alias="relationUpdate")
+    resource_update_name: str | None
+    resource_update_events: dict[str, ImageEventBase] | None
+    resource_update_traits: dict[str, Any] | None
+    event_thread_state: str | None = Field(alias="eventThreadState")
+    relation_update: RelationUpdate | None = Field(alias="relationUpdate")
 
     def __init__(self, raw_data: Mapping[str, Any], auth: AbstractAuth) -> None:
         """Initialize an EventMessage."""
@@ -410,7 +408,7 @@ class EventMessage(BaseModel):
         return BuildTraits(values, cmd)
 
     @property
-    def event_sessions(self) -> Optional[dict[str, dict[str, ImageEventBase]]]:
+    def event_sessions(self) -> dict[str, dict[str, ImageEventBase]] | None:
         events = self.resource_update_events
         if not events:
             return None
@@ -428,7 +426,7 @@ class EventMessage(BaseModel):
         return event_sessions
 
     @property
-    def raw_data(self) -> Dict[str, Any]:
+    def raw_data(self) -> dict[str, Any]:
         """Return raw data for the event."""
         return self.dict()
 
