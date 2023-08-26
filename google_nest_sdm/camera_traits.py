@@ -8,7 +8,7 @@ import urllib.parse as urlparse
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 from typing import Final
 
 try:
@@ -178,7 +178,7 @@ class WebRtcStream(Stream):
         await self.cmd.execute(data)
 
 
-class StreamingProtocol(StrEnum):
+class StreamingProtocol(str, Enum):
     """Streaming protocols supported by the device."""
 
     RTSP = "RTSP"
