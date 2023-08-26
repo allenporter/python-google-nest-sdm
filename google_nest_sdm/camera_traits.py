@@ -35,7 +35,7 @@ __all__ = [
     "CameraMotionTrait",
     "CameraPersonTrait",
     "CameraSoundTrait",
-    "CamearClipPreviewTrait",
+    "CameraClipPreviewTrait",
     "Resolution",
     "Stream",
     "StreamUrls",
