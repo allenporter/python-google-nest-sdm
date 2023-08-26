@@ -1,33 +1,25 @@
 """Library for traits about devices."""
 
 import datetime
-from typing import Any, Dict, Mapping, Optional, cast, Final
+from typing import Any, Dict, Final
 
 
 try:
-    from pydantic.v1 import Field, validator
+    from pydantic.v1 import Field
 except ImportError:
-    from pydantic import Field, validator  # type: ignore
+    from pydantic import Field  # type: ignore
 
 import aiohttp
 
-from .traits import TRAIT_MAP, Command, CommandModel
+from .traits import TRAIT_MAP, CommandModel
 from .model import TraitModel
-from .typing import cast_assert, cast_optional
-
-STATUS = "status"
-TIMER_MODE = "timerMode"
-TIMER_TIMEOUT = "timerTimeout"
-CUSTOM_NAME = "customName"
-AMBIENT_HUMIDITY_PERCENT = "ambientHumidityPercent"
-AMBIENT_TEMPERATURE_CELSIUS = "ambientTemperatureCelsius"
 
 
 @TRAIT_MAP.register()
 class ConnectivityTrait(TraitModel):
     """This trait belongs to any device that has connectivity information."""
 
-    NAME: Final ="sdm.devices.traits.Connectivity"
+    NAME: Final = "sdm.devices.traits.Connectivity"
 
     status: str
     """Device connectivity status.
@@ -43,17 +35,17 @@ class FanTrait(CommandModel):
 
     NAME: Final = "sdm.devices.traits.Fan"
 
-    timer_mode: str | None = Field(alias=TIMER_MODE)
+    timer_mode: str | None = Field(alias="timerMode")
     """Timer mode for the fan.
 
     Return:
         "ON", "OFF"
     """
 
-    timer_timeout: datetime.datetime | None = Field(alias=TIMER_TIMEOUT)
+    timer_timeout: datetime.datetime | None = Field(alias="timerTimeout")
 
     async def set_timer(
-        self, timer_mode: str, duration: Optional[int] = None
+        self, timer_mode: str, duration: int | None = None
     ) -> aiohttp.ClientResponse:
         """Change the fan timer."""
         data: Dict[str, Any] = {
@@ -64,7 +56,7 @@ class FanTrait(CommandModel):
         }
         if duration:
             data["params"]["duration"] = f"{duration}s"
-        return await self._cmd.execute(data)
+        return await self.cmd.execute(data)
 
 
 @TRAIT_MAP.register()
@@ -73,7 +65,7 @@ class InfoTrait(TraitModel):
 
     NAME: Final = "sdm.devices.traits.Info"
 
-    custom_name: str | None = Field(alias=CUSTOM_NAME)
+    custom_name: str | None = Field(alias="customName")
     """Name of the device."""
 
 
@@ -83,7 +75,7 @@ class HumidityTrait(TraitModel):
 
     NAME: Final = "sdm.devices.traits.Humidity"
 
-    ambient_humidity_percent: float = Field(alias=AMBIENT_HUMIDITY_PERCENT)
+    ambient_humidity_percent: float = Field(alias="ambientHumidityPercent")
     """Percent humidity, measured at the device."""
 
 
@@ -93,5 +85,5 @@ class TemperatureTrait(TraitModel):
 
     NAME: Final = "sdm.devices.traits.Temperature"
 
-    ambient_temperature_celsius: float = Field(alias=AMBIENT_TEMPERATURE_CELSIUS)
+    ambient_temperature_celsius: float = Field(alias="ambientTemperatureCelsius")
     """Percent humidity, measured at the device."""

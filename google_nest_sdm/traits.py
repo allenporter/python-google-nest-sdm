@@ -5,11 +5,6 @@ from __future__ import annotations
 from typing import Any, Dict, Mapping, Optional
 
 import aiohttp
-try:
-    from pydantic.v1 import BaseModel, root_validator
-except ImportError:
-    from pydantic import BaseModel, root_validator  # type: ignore
-
 
 from .auth import AbstractAuth
 from .diagnostics import Diagnostics
@@ -63,12 +58,19 @@ class CommandModel(TraitModel):
     _cmd: Command | None = None
     """Helper for executing commands"""
 
+    @property
+    def cmd(self) -> Command:
+        """Helper for executing commands, used internally by the trait"""
+        if not self._cmd:
+            raise ValueError("Device trait in invalid state")
+        return self._cmd
+
     class Config:
         extra = "allow"
         arbitrary_types_allowed = True
         fields = {
-            '_cmd': {
-                'exclude': True,
+            "_cmd": {
+                "exclude": True,
             }
         }
 
@@ -77,7 +79,7 @@ def _TraitsDict(
     traits: Mapping[str, Any], trait_map: Mapping[str, Any], cmd: Command
 ) -> Dict[str, Any]:
     d = {}
-    for (trait, trait_data) in traits.items():
+    for trait, trait_data in traits.items():
         if trait not in trait_map:
             continue
         cls = trait_map[trait]
