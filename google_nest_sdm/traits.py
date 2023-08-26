@@ -9,8 +9,10 @@ import aiohttp
 from .auth import AbstractAuth
 from .diagnostics import Diagnostics
 from .registry import Registry
+from .model import TraitModel
 
 DEVICE_TRAITS = "traits"
+TRAITS = "traits"
 
 TRAIT_MAP = Registry()
 
@@ -50,15 +52,44 @@ class Command:
             return await resp.read()
 
 
+class CommandModel(TraitModel):
+    """Base model that supports commands."""
+
+    _cmd: Command | None = None
+    """Helper for executing commands"""
+
+    @property
+    def cmd(self) -> Command:
+        """Helper for executing commands, used internally by the trait"""
+        if not self._cmd:
+            raise ValueError("Device trait in invalid state")
+        return self._cmd
+
+    class Config:
+        extra = "allow"
+        arbitrary_types_allowed = True
+        fields = {
+            "_cmd": {
+                "exclude": True,
+            }
+        }
+
+
 def _TraitsDict(
     traits: Mapping[str, Any], trait_map: Mapping[str, Any], cmd: Command
 ) -> Dict[str, Any]:
     d = {}
-    for (trait, trait_data) in traits.items():
+    for trait, trait_data in traits.items():
         if trait not in trait_map:
             continue
         cls = trait_map[trait]
-        d[trait] = cls(trait_data, cmd)
+        if issubclass(cls, TraitModel):
+            obj = cls(**trait_data)
+            if hasattr(obj, "_cmd"):
+                obj._cmd = cmd
+        else:
+            obj = cls(trait_data, cmd)
+        d[trait] = obj
     return d
 
 

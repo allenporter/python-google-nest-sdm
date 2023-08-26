@@ -3,6 +3,11 @@
 import datetime
 from typing import Any, Callable, Dict
 
+try:
+    from pydantic.v1 import ValidationError
+except ImportError:
+    from pydantic import ValidationError  # type: ignore
+
 import pytest
 
 from google_nest_sdm.device import Device
@@ -166,8 +171,7 @@ def test_info_traits_type_error(
     assert "my/device/name" == device.name
     assert "sdm.devices.traits.Info" in device.traits
     trait = device.traits["sdm.devices.traits.Info"]
-    with pytest.raises(AssertionError, match="Expected data with type"):
-        trait.custom_name
+    assert trait.custom_name == "12345"
 
 
 def test_info_traits_missing_optional_field(
@@ -190,15 +194,12 @@ def test_info_traits_missing_optional_field(
 def test_connectivity_traits_missing_required_field(
     fake_device: Callable[[Dict[str, Any]], Device]
 ) -> None:
-    device = fake_device(
-        {
-            "name": "my/device/name",
-            "traits": {
-                "sdm.devices.traits.Connectivity": {},
-            },
-        }
-    )
-    assert "sdm.devices.traits.Connectivity" in device.traits
-    trait = device.traits["sdm.devices.traits.Connectivity"]
-    with pytest.raises(KeyError):
-        trait.status
+    with pytest.raises(ValidationError):
+        fake_device(
+            {
+                "name": "my/device/name",
+                "traits": {
+                    "sdm.devices.traits.Connectivity": {},
+                },
+            }
+        )

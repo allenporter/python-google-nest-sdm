@@ -1,71 +1,51 @@
 """Library for traits about devices."""
 
 import datetime
-from typing import Any, Dict, Mapping, Optional, cast
+from typing import Any, Dict, Final
+
+
+try:
+    from pydantic.v1 import Field
+except ImportError:
+    from pydantic import Field  # type: ignore
 
 import aiohttp
 
-from .traits import TRAIT_MAP, Command
-from .typing import cast_assert, cast_optional
-
-STATUS = "status"
-TIMER_MODE = "timerMode"
-TIMER_TIMEOUT = "timerTimeout"
-CUSTOM_NAME = "customName"
-AMBIENT_HUMIDITY_PERCENT = "ambientHumidityPercent"
-AMBIENT_TEMPERATURE_CELSIUS = "ambientTemperatureCelsius"
+from .traits import TRAIT_MAP, CommandModel
+from .model import TraitModel
 
 
 @TRAIT_MAP.register()
-class ConnectivityTrait:
+class ConnectivityTrait(TraitModel):
     """This trait belongs to any device that has connectivity information."""
 
-    NAME = "sdm.devices.traits.Connectivity"
+    NAME: Final = "sdm.devices.traits.Connectivity"
 
-    def __init__(self, data: Mapping[str, Any], cmd: Command):
-        """Initialize ConnectivityTrait."""
-        self._data = data
+    status: str
+    """Device connectivity status.
 
-    @property
-    def status(self) -> str:
-        """Device connectivity status.
-
-        Return:
-          "OFFLINE", "ONLINE"
-        """
-        return cast_assert(str, self._data[STATUS])
+    Return:
+        "OFFLINE", "ONLINE"
+    """
 
 
 @TRAIT_MAP.register()
-class FanTrait:
+class FanTrait(CommandModel):
     """This trait belongs to any device that can control the fan."""
 
-    NAME = "sdm.devices.traits.Fan"
+    NAME: Final = "sdm.devices.traits.Fan"
 
-    def __init__(self, data: Mapping[str, Any], cmd: Command):
-        """Initialize FanTrait."""
-        self._data = data
-        self._cmd = cmd
+    timer_mode: str | None = Field(alias="timerMode")
+    """Timer mode for the fan.
 
-    @property
-    def timer_mode(self) -> Optional[str]:
-        """Timer mode for the fan.
+    Return:
+        "ON", "OFF"
+    """
 
-        Return:
-          "ON", "OFF"
-        """
-        return cast_optional(str, self._data.get(TIMER_MODE))
-
-    @property
-    def timer_timeout(self) -> Optional[datetime.datetime]:
-        """Timestamp at which timer mode will turn to OFF."""
-        if TIMER_TIMEOUT not in self._data:
-            return None
-        timestamp = self._data[TIMER_TIMEOUT]
-        return datetime.datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    timer_timeout: datetime.datetime | None = Field(alias="timerTimeout")
 
     async def set_timer(
-        self, timer_mode: str, duration: Optional[int] = None
+        self, timer_mode: str, duration: int | None = None
     ) -> aiohttp.ClientResponse:
         """Change the fan timer."""
         data: Dict[str, Any] = {
@@ -76,52 +56,34 @@ class FanTrait:
         }
         if duration:
             data["params"]["duration"] = f"{duration}s"
-        return await self._cmd.execute(data)
+        return await self.cmd.execute(data)
 
 
 @TRAIT_MAP.register()
-class InfoTrait:
+class InfoTrait(TraitModel):
     """This trait belongs to any device for device-related information."""
 
-    NAME = "sdm.devices.traits.Info"
+    NAME: Final = "sdm.devices.traits.Info"
 
-    def __init__(self, data: Mapping[str, Any], cmd: Command):
-        """Initialize InfoTrait."""
-        self._data = data
-
-    @property
-    def custom_name(self) -> Optional[str]:
-        """Name of the device."""
-        return cast_optional(str, self._data.get(CUSTOM_NAME))
+    custom_name: str | None = Field(alias="customName")
+    """Name of the device."""
 
 
 @TRAIT_MAP.register()
-class HumidityTrait:
+class HumidityTrait(TraitModel):
     """This trait belongs to any device that has a sensor to measure humidity."""
 
-    NAME = "sdm.devices.traits.Humidity"
+    NAME: Final = "sdm.devices.traits.Humidity"
 
-    def __init__(self, data: Mapping[str, Any], cmd: Command):
-        """Initialize HumidityTrait."""
-        self._data = data
-
-    @property
-    def ambient_humidity_percent(self) -> float:
-        """Percent humidity, measured at the device."""
-        return cast(float, self._data[AMBIENT_HUMIDITY_PERCENT])
+    ambient_humidity_percent: float = Field(alias="ambientHumidityPercent")
+    """Percent humidity, measured at the device."""
 
 
 @TRAIT_MAP.register()
-class TemperatureTrait:
+class TemperatureTrait(TraitModel):
     """This trait belongs to any device that has a sensor to measure temperature."""
 
-    NAME = "sdm.devices.traits.Temperature"
+    NAME: Final = "sdm.devices.traits.Temperature"
 
-    def __init__(self, data: Mapping[str, Any], cmd: Command):
-        """Initialize TemperatureTrait."""
-        self._data = data
-
-    @property
-    def ambient_temperature_celsius(self) -> float:
-        """Percent humidity, measured at the device."""
-        return cast(float, self._data[AMBIENT_TEMPERATURE_CELSIUS])
+    ambient_temperature_celsius: float = Field(alias="ambientTemperatureCelsius")
+    """Percent humidity, measured at the device."""
