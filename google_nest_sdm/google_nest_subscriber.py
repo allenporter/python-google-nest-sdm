@@ -9,7 +9,7 @@ import logging
 import re
 import time
 from abc import ABC, abstractmethod
-from typing import Awaitable, Callable, Optional
+from typing import Awaitable, Callable
 
 from aiohttp.client_exceptions import ClientError
 from google.api_core.exceptions import GoogleAPIError, NotFound, Unauthenticated
@@ -26,6 +26,12 @@ from .event import EventMessage
 from .event_media import CachePolicy
 from .exceptions import AuthException, ConfigurationException, SubscriberException
 from .google_nest_api import GoogleNestAPI
+
+__all__ = [
+    "GoogleNestSubscriber",
+    "ApiEnv",
+]
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -314,7 +320,7 @@ class GoogleNestSubscriber:
         project_id: str,
         subscriber_id: str,
         subscriber_factory: AbstractSubscriberFactory = DefaultSubscriberFactory(),
-        loop: Optional[asyncio.AbstractEventLoop] = None,
+        loop: asyncio.AbstractEventLoop | None = None,
         watchdog_check_interval_seconds: float = WATCHDOG_CHECK_INTERVAL_SECONDS,
         watchdog_restart_delay_min_seconds: float = WATCHDOG_RESTART_DELAY_MIN_SECONDS,
     ):
@@ -324,17 +330,17 @@ class GoogleNestSubscriber:
         self._project_id = project_id
         self._api = GoogleNestAPI(auth, project_id)
         self._loop = loop or asyncio.get_event_loop()
-        self._device_manager_task: Optional[asyncio.Task[DeviceManager]] = None
+        self._device_manager_task: asyncio.Task[DeviceManager] | None = None
         self._subscriber_factory = subscriber_factory
-        self._subscriber_future: Optional[
-            pubsub_v1.subscriber.futures.StreamingPullFuture
-        ] = None
-        self._callback: Optional[Callable[[EventMessage], Awaitable[None]]] = None
+        self._subscriber_future: pubsub_v1.subscriber.futures.StreamingPullFuture | None = (  # noqa: E501
+            None
+        )
+        self._callback: Callable[[EventMessage], Awaitable[None]] | None = None
         self._healthy = True
         self._watchdog_check_interval_seconds = watchdog_check_interval_seconds
         self._watchdog_restart_delay_min_seconds = watchdog_restart_delay_min_seconds
         self._watchdog_restart_delay_seconds = watchdog_restart_delay_min_seconds
-        self._watchdog_task: Optional[asyncio.Task] = None
+        self._watchdog_task: asyncio.Task | None = None
         self._cache_policy = CachePolicy()
 
     @property

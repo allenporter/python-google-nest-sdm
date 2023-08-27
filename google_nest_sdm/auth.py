@@ -1,6 +1,6 @@
 """Authentication library, implemented by users of the API.
 
-This library is a simple `aiohttp` that handles authentication when talking 
+This library is a simple `aiohttp` that handles authentication when talking
 to the API. Users are expected to provide their own implementation that provides
 credentials obtained using the standard Google authentication approaches
 described at https://developers.google.com/nest/device-access/api/authorization
@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from asyncio import TimeoutError
-from typing import Any, List, Mapping, Optional
+from typing import Any, Mapping
 
 import aiohttp
 from aiohttp.client_exceptions import ClientError, ClientResponseError
@@ -49,7 +49,10 @@ class AbstractAuth(ABC):
         return OAuthCredentials(token=token)
 
     async def request(
-        self, method: str, url: str, **kwargs: Optional[Mapping[str, Any]]
+        self,
+        method: str,
+        url: str,
+        **kwargs: Mapping[str, Any] | None,
     ) -> aiohttp.ClientResponse:
         """Make a request."""
         headers = kwargs.get("headers")
@@ -82,7 +85,7 @@ class AbstractAuth(ABC):
         method: str,
         url: str,
         headers: dict[str, str],
-        **kwargs: Optional[Mapping[str, Any]],
+        **kwargs: Mapping[str, Any] | None,
     ) -> aiohttp.ClientResponse:
         return await self._websession.request(method, url, **kwargs, headers=headers)
 
@@ -140,7 +143,7 @@ class AbstractAuth(ABC):
         return resp
 
     @staticmethod
-    async def _error_detail(resp: aiohttp.ClientResponse) -> List[str]:
+    async def _error_detail(resp: aiohttp.ClientResponse) -> list[str]:
         """Returns an error message string from the APi response."""
         if resp.status < 400:
             return []
