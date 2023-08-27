@@ -402,57 +402,6 @@ async def test_device_update_listener(
     assert not callback.invoked
 
 
-async def test_event_image_tracking(
-    fake_device: Callable[[Dict[str, Any]], Device],
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
-) -> None:
-    """Hold on to the last received event image."""
-    device = fake_device(
-        {
-            "name": "my/device/name1",
-            "type": "sdm.devices.types.SomeDeviceType",
-            "traits": {
-                "sdm.devices.traits.CameraEventImage": {},
-                "sdm.devices.traits.CameraMotion": {},
-                "sdm.devices.traits.CameraSound": {},
-            },
-        }
-    )
-    mgr = DeviceManager()
-    mgr.add_device(device)
-    assert 1 == len(mgr.devices)
-    device = mgr.devices["my/device/name1"]
-    trait = device.traits["sdm.devices.traits.CameraMotion"]
-    assert trait.active_event is None
-
-    now = datetime.datetime.now(tz=datetime.timezone.utc)
-    timestamp = now - datetime.timedelta(seconds=10)
-    await mgr.async_handle_event(
-        fake_event_message(
-            {
-                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
-                "timestamp": timestamp.isoformat(timespec="seconds"),
-                "resourceUpdate": {
-                    "name": "my/device/name1",
-                    "events": {
-                        "sdm.devices.events.CameraMotion.Motion": {
-                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
-                            "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
-                        },
-                    },
-                },
-                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
-            }
-        )
-    )
-    device = mgr.devices["my/device/name1"]
-    assert "sdm.devices.traits.CameraMotion" in device.traits
-    trait = device.traits["sdm.devices.traits.CameraMotion"]
-    assert trait.active_event is not None
-
-    assert type(device.active_event_trait) == type(trait)
-
-
 async def test_update_trait_ordering(
     fake_device: Callable[[Dict[str, Any]], Device],
     event_message_with_time: Callable[[str, str], EventMessage],

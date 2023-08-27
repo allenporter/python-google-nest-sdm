@@ -11,13 +11,12 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, Dict
+from typing import Any, Awaitable, Callable, cast
 
 from .camera_traits import (
     CameraClipPreviewTrait,
     CameraEventImageTrait,
     EventImageContentType,
-    EventImageGenerator,
 )
 from .diagnostics import EVENT_MEDIA_DIAGNOSTICS as DIAGNOSTICS
 from .diagnostics import Diagnostics
@@ -107,17 +106,6 @@ class ClipPreviewSession:
 
     event_types: list[str]
     """A label for the type of event."""
-
-
-@dataclass
-class EventMedia:
-    """Represents an event and its associated media."""
-
-    event_session_id: str
-    event_id: str
-    event_type: str
-    event_timestamp: datetime.datetime
-    media: Media
 
 
 class EventMediaStore(ABC):
@@ -320,20 +308,6 @@ class EventMediaModelItem:
         keys.extend(self.event_media_keys.values())
         return [key for key in keys if key is not None]
 
-    def get_media(self, content: bytes) -> Media:
-        assert self.visible_event
-        return Media(content, self.visible_event.event_image_type)
-
-    def get_event_media(self, content: bytes) -> EventMedia:
-        assert self.visible_event
-        return EventMedia(
-            self.visible_event.event_session_id,
-            self.visible_event.event_id,
-            self.visible_event.event_type,
-            self.visible_event.timestamp,
-            self.get_media(content),
-        )
-
     def as_dict(self) -> dict[str, Any]:
         """Return a EventMediaModelItem as a serializable dict."""
         result: dict[str, Any] = {
@@ -355,18 +329,20 @@ class EventMediaManager:
     def __init__(
         self,
         device_id: str,
-        traits: Dict[str, Any],
-        event_trait_map: Dict[str, EventImageGenerator],
-        support_fetch: bool,
+        traits: dict[str, Any],
+        event_traits: set[str],
         diagnostics: Diagnostics,
     ) -> None:
         """Initialize DeviceEventMediaManager."""
         self._device_id = device_id
         self._traits = traits
-        self._event_trait_map = event_trait_map
+        self._event_traits = event_traits
         self._cache_policy = CachePolicy()
         self._callback: Callable[[EventMessage], Awaitable[None]] | None = None
-        self._support_fetch = support_fetch
+        self._support_fetch = (
+            CameraClipPreviewTrait.NAME in traits
+            or CameraEventImageTrait.NAME in traits
+        )
         self._diagnostics = diagnostics
         self._lock: asyncio.Lock | None = None
 
@@ -445,49 +421,6 @@ class EventMediaManager:
                     await self._cache_policy.store.async_remove_media(media_key)
             await self._async_update(event_data)
 
-    async def get_media(
-        self, event_session_id: str, width: int | None = None, height: int | None = None
-    ) -> EventMedia | None:
-        """Get media for the specified event.
-
-        Note that the height and width hints are best effort and may not be
-        honored (e.g. if image is already cached).
-        """
-        self._diagnostics.increment("get_media")
-        if not (item := await self._async_load_item(event_session_id)):
-            return None
-        event = item.visible_event
-        if not event:
-            _LOGGER.debug(
-                "Skipping fetch; No visible event; event_session_id=%s",
-                event_session_id,
-            )
-            return None
-        media_key = item.any_media_key
-        if media_key:
-            contents = await self._cache_policy.store.async_load_media(media_key)
-            if contents:
-                return item.get_event_media(contents)
-
-        if event.is_expired:
-            _LOGGER.debug(
-                "Skipping fetch; Event expired; event_session_id=%s",
-                event_session_id,
-            )
-            return None
-        _LOGGER.debug("Fetching media for event_session_id=%s", event_session_id)
-        if not (generator := self._event_trait_map.get(event.event_type)):
-            return None
-        event_image = await generator.generate_event_image(event)
-        if not event_image:
-            return None
-        contents = await event_image.contents(width=width, height=height)
-        media_key = self._cache_policy.store.get_media_key(self._device_id, event)
-        await self._cache_policy.store.async_save_media(media_key, contents)
-        item.media_key = media_key
-        await self._async_update_item(item)
-        return item.get_event_media(contents)
-
     async def _fetch_media(self, item: EventMediaModelItem) -> None:
         """Fetch media from the server in response to a pubsub event."""
         store = self._cache_policy.store
@@ -496,7 +429,12 @@ class EventMediaManager:
             if (
                 item.media_key
                 or not item.visible_event
-                or not (clip_event := item.events.get(CameraClipPreviewEvent.NAME))
+                or not (
+                    clip_event := cast(
+                        CameraClipPreviewEvent,
+                        item.events.get(CameraClipPreviewEvent.NAME),
+                    )
+                )
                 or clip_event.is_expired
             ):
                 self._diagnostics.increment("fetch_clip.skip")
@@ -504,7 +442,9 @@ class EventMediaManager:
             clip_preview_trait: CameraClipPreviewTrait = self._traits[
                 CameraClipPreviewTrait.NAME
             ]
-            event_image = await clip_preview_trait.generate_event_image(clip_event)
+            event_image = await clip_preview_trait.generate_event_image(
+                clip_event.preview_url
+            )
             if event_image:
                 content = await event_image.contents()
                 # Caller will persist the media key assignment
@@ -747,12 +687,11 @@ class EventMediaManager:
                     self._diagnostics.elapsed(event_name, recv_latency_ms)
                 else:
                     self._diagnostics.elapsed(f"{event_name}_expired", recv_latency_ms)
-                if not (trait := self._event_trait_map.get(event_name)):
+                if event_name not in self._event_traits:
                     self._diagnostics.increment(f"event.unsupported.{event_name}")
                     _LOGGER.debug("Unsupported event trait: %s", event_name)
                     continue
                 supported = True
-                trait.handle_event(event)
 
             # Skip any entirely unsupported events
             if not supported:
@@ -823,31 +762,3 @@ class EventMediaManager:
             await self._async_update_item(model_item)
 
         await self._expire_cache()
-
-    @property
-    def active_event_trait(self) -> EventImageGenerator | None:
-        """Return trait with the most recently received active event."""
-        trait_to_return: EventImageGenerator | None = None
-        for trait in self._event_trait_map.values():
-            if not trait.active_event:
-                continue
-            if trait_to_return is None:
-                trait_to_return = trait
-            else:
-                event = trait.last_event
-                if not event or not trait_to_return.last_event:
-                    continue
-                if event.expires_at > trait_to_return.last_event.expires_at:
-                    trait_to_return = trait
-        return trait_to_return
-
-    async def get_active_event_media(
-        self, width: int | None = None, height: int | None = None
-    ) -> EventMedia | None:
-        """Return a snapshot image for a very recent event if any."""
-        if not (trait := self.active_event_trait):
-            return None
-        event: ImageEventBase | None = trait.last_event
-        if not event:
-            return None
-        return await self.get_media(event.event_session_id, width, height)

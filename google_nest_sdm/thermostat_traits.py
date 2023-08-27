@@ -6,12 +6,13 @@ from abc import ABC
 from typing import Final
 
 import aiohttp
+
 try:
     from pydantic.v1 import Field
 except ImportError:
     from pydantic import Field  # type: ignore
 
-from .traits import TRAIT_MAP, CommandModel
+from .traits import CommandModel
 from .model import TraitModel
 
 __all__ = [
@@ -36,7 +37,6 @@ class ThermostatHeatCoolTrait(CommandModel, ABC):
     """Highest cooling temperature where thermostat begins cooling."""
 
 
-@TRAIT_MAP.register()
 class ThermostatEcoTrait(ThermostatHeatCoolTrait):
     """This trait belongs to any device that has a sensor to measure temperature."""
 
@@ -57,7 +57,6 @@ class ThermostatEcoTrait(ThermostatHeatCoolTrait):
         return await self.cmd.execute(data)
 
 
-@TRAIT_MAP.register()
 class ThermostatHvacTrait(TraitModel):
     """This trait belongs to devices that can report HVAC details."""
 
@@ -67,7 +66,6 @@ class ThermostatHvacTrait(TraitModel):
     """HVAC status of the thermostat."""
 
 
-@TRAIT_MAP.register()
 class ThermostatModeTrait(CommandModel):
     """This trait belongs to devices that support different thermostat modes."""
 
@@ -88,7 +86,6 @@ class ThermostatModeTrait(CommandModel):
         return await self.cmd.execute(data)
 
 
-@TRAIT_MAP.register()
 class ThermostatTemperatureSetpointTrait(ThermostatHeatCoolTrait):
     """This trait belongs to devices that support setting target temperature."""
 

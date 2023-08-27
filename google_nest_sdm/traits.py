@@ -13,12 +13,9 @@ except ImportError:
 
 from .auth import AbstractAuth
 from .diagnostics import Diagnostics
-from .registry import Registry
 
 DEVICE_TRAITS = "traits"
 TRAITS = "traits"
-
-TRAIT_MAP = Registry()
 
 
 class Command:
@@ -77,28 +74,3 @@ class CommandModel(BaseModel):
                 "exclude": True,
             },
         }
-
-
-def _TraitsDict(
-    traits: Mapping[str, Any], trait_map: Mapping[str, Any], cmd: Command
-) -> dict[str, Any]:
-    d = {}
-    for trait, trait_data in traits.items():
-        if trait not in trait_map:
-            continue
-        cls = trait_map[trait]
-        if issubclass(cls, BaseModel):
-            obj = cls(**trait_data)
-            if hasattr(obj, "_cmd"):
-                obj._cmd = cmd
-        else:
-            obj = cls(trait_data, cmd)
-        d[trait] = obj
-    return d
-
-
-def BuildTraits(
-    traits: Mapping[str, Any], cmd: Command, device_type: str | None = None
-) -> dict[str, Any]:
-    """Build a trait map out of a response dict."""
-    return _TraitsDict(traits, TRAIT_MAP, cmd)
