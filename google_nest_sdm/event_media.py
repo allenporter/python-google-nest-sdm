@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, Dict
+from typing import Any, Awaitable, Callable, cast
 
 from .camera_traits import (
     CameraClipPreviewTrait,
@@ -333,7 +333,7 @@ class EventMediaManager:
     def __init__(
         self,
         device_id: str,
-        traits: Dict[str, Any],
+        traits: dict[str, Any],
         event_traits: set[str],
         diagnostics: Diagnostics,
     ) -> None:
@@ -344,7 +344,8 @@ class EventMediaManager:
         self._cache_policy = CachePolicy()
         self._callback: Callable[[EventMessage], Awaitable[None]] | None = None
         self._support_fetch = (
-            CameraClipPreviewTrait.NAME in traits or CameraEventImageTrait.NAME in traits
+            CameraClipPreviewTrait.NAME in traits
+            or CameraEventImageTrait.NAME in traits
         )
         self._diagnostics = diagnostics
         self._lock: asyncio.Lock | None = None
@@ -432,7 +433,12 @@ class EventMediaManager:
             if (
                 item.media_key
                 or not item.visible_event
-                or not (clip_event := item.events.get(CameraClipPreviewEvent.NAME))
+                or not (
+                    clip_event := cast(
+                        CameraClipPreviewEvent,
+                        item.events.get(CameraClipPreviewEvent.NAME),
+                    )
+                )
                 or clip_event.is_expired
             ):
                 self._diagnostics.increment("fetch_clip.skip")
@@ -440,7 +446,9 @@ class EventMediaManager:
             clip_preview_trait: CameraClipPreviewTrait = self._traits[
                 CameraClipPreviewTrait.NAME
             ]
-            event_image = await clip_preview_trait.generate_event_image(clip_event.preview_url)
+            event_image = await clip_preview_trait.generate_event_image(
+                clip_event.preview_url
+            )
             if event_image:
                 content = await event_image.contents()
                 # Caller will persist the media key assignment

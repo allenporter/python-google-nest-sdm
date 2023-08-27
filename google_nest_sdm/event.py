@@ -30,10 +30,8 @@ except ImportError:
     )
 
 from .auth import AbstractAuth
-from .diagnostics import EVENT_DIAGNOSTICS as DIAGNOSTICS
 from .exceptions import DecodeException
 from .registry import Registry
-from .traits import BuildTraits, Command
 
 __all__ = [
     "EventToken",
@@ -367,19 +365,12 @@ class EventMessage(BaseModel):
             if traits := update.get(TRAITS):
                 values["resource_update_traits"] = traits
                 values["resource_update_traits"][NAME] = update.get(NAME)
-                values["resource_update_traits"]["auth"] = values["auth"]
         return values
 
     @validator("resource_update_events", pre=True)
     def _parse_resource_update_events(cls, values: dict[str, Any]) -> dict[str, Any]:
         """Parse resource updates for events."""
         return _BuildEvents(values, _validate_datetime(values[TIMESTAMP]))
-
-    @validator("resource_update_traits", pre=True)
-    def _parse_resource_update_traits(cls, values: dict[str, Any]) -> dict[str, Any]:
-        """Parse resource updates to traits."""
-        cmd = Command(values[NAME], values["auth"], DIAGNOSTICS)
-        return BuildTraits(values, cmd)
 
     @property
     def event_sessions(self) -> dict[str, dict[str, ImageEventBase]] | None:

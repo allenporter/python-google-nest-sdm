@@ -6,16 +6,16 @@ import logging
 from typing import Any, Awaitable, Callable, Mapping
 
 try:
-    from pydantic.v1 import BaseModel, Field, root_validator
+    from pydantic.v1 import BaseModel, Field
 except ImportError:
-    from pydantic import BaseModel, Field, root_validator # type: ignore
+    from pydantic import BaseModel, Field  # type: ignore
 
 from . import camera_traits, device_traits, doorbell_traits, thermostat_traits
 from .auth import AbstractAuth
 from .diagnostics import Diagnostics, redact_data
 from .event import EventMessage, EventProcessingError
 from .event_media import EventMediaManager
-from .traits import Command, CommandModel
+from .traits import Command
 from .model import TraitModel
 
 _LOGGER = logging.getLogger(__name__)
@@ -114,7 +114,7 @@ class Device(TraitModel):
         super().__init__(**raw_data)
         self._auth = auth
         self._diagnostics = Diagnostics()
-        self._cmd = Command(raw_data.get('name'), auth, self._diagnostics.subkey("command"))
+        self._cmd = Command(raw_data["name"], auth, self._diagnostics.subkey("command"))
         for trait in self.traits.values():
             if hasattr(trait, "_cmd"):
                 trait._cmd = self._cmd

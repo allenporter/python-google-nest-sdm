@@ -10,14 +10,11 @@ try:
 except ImportError:
     from pydantic import BaseModel  # type: ignore
 
-from .camera_traits import EventImage
-from .event import DoorbellChimeEvent, ImageEventBase
-from .traits import TRAIT_MAP
+from .event import DoorbellChimeEvent
 
 _LOGGER = logging.getLogger(__name__)
 
 
-@TRAIT_MAP.register()
 class DoorbellChimeTrait(BaseModel):
     """For any device that supports a doorbell chime and related press events."""
 

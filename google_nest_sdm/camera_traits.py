@@ -23,9 +23,8 @@ from .event import (
     CameraSoundEvent,
     EventImageContentType,
     EventImageType,
-    ImageEventBase,
 )
-from .traits import TRAIT_MAP, CommandModel
+from .traits import CommandModel
 
 __all__ = [
     "CameraImageTrait",
@@ -42,7 +41,6 @@ __all__ = [
     "WebRtcStream",
     "StreamingProtocol",
     "EventImage",
-    "EventImageCreator",
 ]
 
 _LOGGER = logging.getLogger(__name__)
@@ -75,7 +73,6 @@ class Resolution:
     height: int | None = None
 
 
-@TRAIT_MAP.register()
 class CameraImageTrait(BaseModel):
     """This trait belongs to any device that supports taking images."""
 
@@ -201,7 +198,6 @@ class StreamingProtocol(str, Enum):
     WEB_RTC = "WEB_RTC"
 
 
-@TRAIT_MAP.register()
 class CameraLiveStreamTrait(CommandModel):
     """This trait belongs to any device that supports live streaming."""
 
@@ -300,7 +296,6 @@ class EventImage(CommandModel):
         return await self.cmd.fetch_image(fetch_url, basic_auth=self.token)
 
 
-@TRAIT_MAP.register()
 class CameraEventImageTrait(CommandModel):
     """This trait belongs to any device that generates images from events."""
 
@@ -321,7 +316,6 @@ class CameraEventImageTrait(CommandModel):
         return img
 
 
-@TRAIT_MAP.register()
 class CameraMotionTrait(BaseModel):
     """For any device that supports motion detection events."""
 
@@ -333,7 +327,6 @@ class CameraMotionTrait(BaseModel):
         arbitrary_types_allowed = True
 
 
-@TRAIT_MAP.register()
 class CameraPersonTrait(BaseModel):
     """For any device that supports person detection events."""
 
@@ -345,7 +338,6 @@ class CameraPersonTrait(BaseModel):
         arbitrary_types_allowed = True
 
 
-@TRAIT_MAP.register()
 class CameraSoundTrait(BaseModel):
     """For any device that supports sound detection events."""
 
@@ -357,7 +349,6 @@ class CameraSoundTrait(BaseModel):
         arbitrary_types_allowed = True
 
 
-@TRAIT_MAP.register()
 class CameraClipPreviewTrait(CommandModel):
     """For any device that supports a clip preview."""
 
@@ -366,8 +357,6 @@ class CameraClipPreviewTrait(CommandModel):
 
     async def generate_event_image(self, preview_url: str) -> EventImage | None:
         """Provide a URL to download a camera image from the active event."""
-        img = EventImage(
-            url=preview_url, event_image_type=EventImageType.CLIP_PREVIEW
-        )
+        img = EventImage(url=preview_url, event_image_type=EventImageType.CLIP_PREVIEW)
         img._cmd = self.cmd
         return img

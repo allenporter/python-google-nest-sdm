@@ -10,10 +10,9 @@ except ImportError:
 
 import aiohttp
 
-from .traits import TRAIT_MAP, CommandModel
+from .traits import CommandModel
 
 
-@TRAIT_MAP.register()
 class ConnectivityTrait(BaseModel):
     """This trait belongs to any device that has connectivity information."""
 
@@ -27,7 +26,6 @@ class ConnectivityTrait(BaseModel):
     """
 
 
-@TRAIT_MAP.register()
 class FanTrait(CommandModel):
     """This trait belongs to any device that can control the fan."""
 
@@ -57,7 +55,6 @@ class FanTrait(CommandModel):
         return await self.cmd.execute(data)
 
 
-@TRAIT_MAP.register()
 class InfoTrait(BaseModel):
     """This trait belongs to any device for device-related information."""
 
@@ -67,7 +64,6 @@ class InfoTrait(BaseModel):
     """Name of the device."""
 
 
-@TRAIT_MAP.register()
 class HumidityTrait(BaseModel):
     """This trait belongs to any device that has a sensor to measure humidity."""
 
@@ -77,7 +73,6 @@ class HumidityTrait(BaseModel):
     """Percent humidity, measured at the device."""
 
 
-@TRAIT_MAP.register()
 class TemperatureTrait(BaseModel):
     """This trait belongs to any device that has a sensor to measure temperature."""
 
