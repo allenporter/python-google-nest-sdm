@@ -13,6 +13,11 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, cast
 
+try:
+    from pydantic.v1 import BaseModel, validator, Field
+except ImportError:
+    from pydantic import BaseModel, validator, Field  # type: ignore
+
 from .camera_traits import (
     CameraClipPreviewTrait,
     CameraEventImageTrait,
@@ -223,39 +228,37 @@ class CachePolicy:
         return max(int(self.event_cache_size * EXPIRE_CACHE_BATCH_SIZE), 1)
 
 
-@dataclass
-class EventMediaModelItem:
+class EventMediaModelItem(BaseModel):
     """Structure used to persist the event in EventMediaStore."""
 
     event_session_id: str
-    events: dict[str, ImageEventBase]
+    events: dict[str, ImageEventBase] = Field(default_factory=dict)
     media_key: str | None
-    event_media_keys: dict[str, str]
+    event_media_keys: dict[str, str] = Field(default_factory=dict)
     thumbnail_media_key: str | None
-    pending_event_keys: set[str]
+    pending_event_keys: set[str] = Field(default_factory=set)
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> EventMediaModelItem:
         """Read from serialized dictionary."""
+        return EventMediaModelItem(**data)
+
+    @validator("events", pre=True)
+    def _validate_events(
+        cls, data: dict[str, ImageEventBase | dict] | None
+    ) -> dict[str, ImageEventBase]:
         events: dict[str, ImageEventBase] = {}
-        input_events = data.get("events", {})
-        for event_type, event_data in input_events.items():
-            if not (event := ImageEventBase.from_dict(event_data)):
-                continue
-            events[event_type] = event
+        for event_type, event_data in (data or {}).items():
+            if isinstance(event_data, ImageEventBase):
+                events[event_type] = event_data
+            elif event := ImageEventBase.from_dict(event_data):
+                events[event_type] = event
+
         # Link events to other events in the session
         event_image_type = session_event_image_type(events.values())
         for event in events.values():
-            event.session_events = list(events.values())
             event.event_image_type = event_image_type
-        return EventMediaModelItem(
-            data["event_session_id"],
-            events,
-            data.get("media_key"),
-            data.get("event_media_keys", {}),
-            data.get("thumbnail_media_key"),
-            set(data.get("pending_event_keys", [])),
-        )
+        return events
 
     @property
     def visible_event(self) -> ImageEventBase | None:
@@ -304,22 +307,16 @@ class EventMediaModelItem:
     @property
     def all_media_keys(self) -> list[str]:
         """Return all media items for purging media keys."""
-        keys: list[str | None] = [self.media_key, self.thumbnail_media_key]
-        keys.extend(self.event_media_keys.values())
+        keys = [self.media_key, self.thumbnail_media_key] + list(
+            self.event_media_keys.values()
+        )
         return [key for key in keys if key is not None]
 
     def as_dict(self) -> dict[str, Any]:
         """Return a EventMediaModelItem as a serializable dict."""
-        result: dict[str, Any] = {
-            "event_session_id": self.event_session_id,
-            "events": dict((k, v.as_dict()) for k, v in self.events.items()),
-            "event_media_keys": self.event_media_keys,
-            "pending_event_keys": list(self.pending_event_keys),
-        }
-        if self.media_key:
-            result["media_key"] = self.media_key
-        if self.thumbnail_media_key:
-            result["thumbnail_media_key"] = self.thumbnail_media_key
+        result = self.dict(exclude_unset=True)
+        # Overwrite with ImageEventBase custom serialization
+        result["events"] = dict((k, v.as_dict()) for k, v in self.events.items())
         return result
 
 
@@ -708,8 +705,8 @@ class EventMediaManager:
                 self._diagnostics.increment("event.new")
                 # A new event session
                 model_item = EventMediaModelItem(
-                    event_session_id,
-                    event_dict,
+                    event_session_id=event_session_id,
+                    events=event_dict,
                     media_key=None,
                     event_media_keys={},
                     thumbnail_media_key=None,
@@ -752,10 +749,7 @@ class EventMediaManager:
                 self._diagnostics.increment("event.notify")
                 await self._callback(event_message)
         else:
-            _LOGGER.debug(
-                "Message did not contain notifiable events",
-            )
-            # self._diagnostics.increment("event.notify_skip")
+            _LOGGER.debug("Message did not contain notifiable events")
 
         for model_item in model_items:
             model_item.notified(pending_events.keys())
