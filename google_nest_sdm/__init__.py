@@ -13,8 +13,12 @@ The primary components in this library are:
 
 Example usage:
 ```
-    auth_impl = ... # Your impl goes here
-    subscriber = GoogleNestSubscriber(auth_impl, device_access_project_id, subscriber_id)
+    subscriber = GoogleNestSubscriber(
+        auth_impl, # Your AbstractAuth implenetation to provide credentails
+        # Follow nest developer API docs to obtain these
+        DEVICE_ACCESS_PROJECT_ID,
+        SUBSCRIBER_ID,
+    )
     await subscriber.start_async()
     device_manager = await subscriber.async_get_device_manager()
 

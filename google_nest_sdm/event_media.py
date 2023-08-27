@@ -41,13 +41,12 @@ from .exceptions import GoogleNestException, TranscodeException
 from .transcoder import Transcoder
 
 __all__ = [
-    "EventMediaStore",
-    "InMemoryEventMediaStore",
-    "CachePolicy",
     "EventMediaManager",
-    "Media",
     "ImageSession",
     "ClipPreviewSession",
+    "Media",
+    "EventMediaStore",
+    "CachePolicy",
 ]
 
 _LOGGER = logging.getLogger(__name__)
@@ -568,19 +567,6 @@ class EventMediaManager:
 
         self._diagnostics.increment("get_clip.success")
         return Media(contents, EventImageType.IMAGE_PREVIEW)
-
-    async def async_events(self) -> list[ImageEventBase]:
-        """Return revent events."""
-        self._diagnostics.increment("load_events")
-        result = await self._visible_items()
-
-        def _get_event(x: EventMediaModelItem) -> ImageEventBase:
-            assert x.visible_event
-            return x.visible_event
-
-        event_result = list(map(_get_event, result))
-        event_result.sort(key=lambda x: x.timestamp, reverse=True)
-        return event_result
 
     async def async_image_sessions(self) -> list[ImageSession]:
         """Return revent events."""

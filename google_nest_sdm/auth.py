@@ -4,6 +4,11 @@ This library is a simple `aiohttp` that handles authentication when talking
 to the API. Users are expected to provide their own implementation that provides
 credentials obtained using the standard Google authentication approaches
 described at https://developers.google.com/nest/device-access/api/authorization
+
+An implementation of `AbstractAuth` implements `async_get_access_token`
+to provide authentication credentials to the SDM library. The implementation is
+responsible for managing the lifecycle of the token (any persistence needed,
+or refresh to deal with expiration, etc).
 """
 
 from __future__ import annotations
