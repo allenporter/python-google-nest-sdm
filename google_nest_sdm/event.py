@@ -34,15 +34,14 @@ from .exceptions import DecodeException
 from .registry import Registry
 
 __all__ = [
-    "EventToken",
-    "EventImageType",
-    "EventProcessingError",
+    "EventMessage",
     "CameraMotionEvent",
     "CameraPersonEvent",
     "CameraSoundEvent",
     "DoorbellChimeEvent",
     "CameraClipPreviewEvent",
-    "EventMessage",
+    "EventImageType",
+    "EventProcessingError",
 ]
 
 EVENT_ID = "eventId"
@@ -154,12 +153,12 @@ class ImageEventBase(BaseModel, ABC):
     """Timestamp when the event occurred."""
 
     event_image_type: EventImageContentType
+    """Type of the event."""
 
     def __init__(self, data: Mapping[str, Any], timestamp: datetime.datetime) -> None:
         """Initialize EventBase."""
         super().__init__(**data, timestamp=timestamp)
         self._data = data
-        self.session_events: list[ImageEventBase] = []
 
     @property
     def event_token(self) -> str:
@@ -206,13 +205,7 @@ class ImageEventBase(BaseModel, ABC):
         return event
 
     def __repr__(self) -> str:
-        return (
-            "<ImageEventBase "
-            + str(self.as_dict())
-            + " sessions="
-            + str(len(self.session_events))
-            + ">"
-        )
+        return "<ImageEventBase " + str(self.as_dict()) + ">"
 
     class Config:
         arbitrary_types_allowed = True
@@ -386,7 +379,6 @@ class EventMessage(BaseModel):
         for event_session_id, event_dict in event_sessions.items():
             event_image_type = session_event_image_type(events.values())
             for event_type, event in event_dict.items():
-                event.session_events = list(event_dict.values())
                 event.event_image_type = event_image_type
         return event_sessions
 

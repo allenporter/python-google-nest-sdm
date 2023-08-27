@@ -15,6 +15,7 @@ from typing import (
     Optional,
     cast,
 )
+import logging
 
 import aiohttp
 import pytest
@@ -27,6 +28,17 @@ from google_nest_sdm.event import EventMessage
 
 FAKE_TOKEN = "some-token"
 PROJECT_ID = "project-id1"
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Register marker for tests that log exceptions."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s.%(msecs)03d %(levelname)-8s %(name)s:%(filename)s:%(lineno)s %(message)s",  # noqa: E501
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    if config.getoption("verbose") > 0:
+        logging.getLogger().setLevel(logging.DEBUG)
 
 
 @pytest.fixture
@@ -59,7 +71,6 @@ async def client(
     server: Callable[[], Awaitable[TestServer]],
     aiohttp_client: Callable[[TestServer], Awaitable[TestClient]],
 ) -> Callable[[], Awaitable[TestClient]]:
-
     # Cache the value so that it can be mutated by a test
     cached_client: Optional[TestClient] = None
 
