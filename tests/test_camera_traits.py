@@ -9,7 +9,6 @@ import pytest
 from google_nest_sdm import google_nest_api
 from google_nest_sdm.camera_traits import EventImageType, StreamingProtocol
 from google_nest_sdm.device import Device
-from google_nest_sdm.event import EventMessage
 
 from .conftest import (
     DeviceHandler,
