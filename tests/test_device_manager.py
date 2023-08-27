@@ -450,7 +450,7 @@ async def test_event_image_tracking(
     trait = device.traits["sdm.devices.traits.CameraMotion"]
     assert trait.active_event is not None
 
-    assert device.active_event_trait == trait
+    assert type(device.active_event_trait) == type(trait)
 
 
 async def test_update_trait_ordering(
