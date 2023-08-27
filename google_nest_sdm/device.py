@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Awaitable, Callable, Mapping
+from typing import Any, Awaitable, Callable
 
 try:
     from pydantic.v1 import BaseModel, Field
@@ -106,10 +106,12 @@ class Device(TraitModel):
     )
     """Represents the parent structure or room of the device."""
 
-    def __init__(self, raw_data: Mapping[str, Any], auth: AbstractAuth) -> None:
+    def __init__(self, raw_data: dict[str, Any], auth: AbstractAuth) -> None:
         """Initialize a device."""
         # Hack for incorrect nest API response values
         if (type := raw_data.get("type")) and type == "sdm.devices.types.DOORBELL":
+            if "traits" not in raw_data:
+                raw_data["traits"] = {}
             raw_data["traits"][doorbell_traits.DoorbellChimeTrait.NAME] = {}
         super().__init__(**raw_data)
         self._auth = auth
@@ -133,7 +135,7 @@ class Device(TraitModel):
         self._callbacks: list[Callable[[EventMessage], Awaitable[None]]] = []
 
     @staticmethod
-    def MakeDevice(raw_data: Mapping[str, Any], auth: AbstractAuth) -> Device:
+    def MakeDevice(raw_data: dict[str, Any], auth: AbstractAuth) -> Device:
         """Create a device with the appropriate traits."""
         return Device(raw_data, auth)
 

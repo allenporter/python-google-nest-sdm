@@ -38,6 +38,29 @@ def test_camera_image_traits(fake_device: Callable[[Dict[str, Any]], Device]) ->
     assert trait.max_image_resolution.height == 300
 
 
+@pytest.mark.parametrize(
+    "data",
+    [
+        ({}),
+        ({"maxImageResolution": {}}),
+        ({"maxImageResolution": {"width": 1024}}),
+        ({"maxImageResolution": {"height": 1024}}),
+    ],
+)
+def test_otional_fields(
+    fake_device: Callable[[Dict[str, Any]], Device], data: dict[str, Any]
+) -> None:
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.CameraImage": data,
+        },
+    }
+    device = fake_device(raw)
+    assert "sdm.devices.traits.CameraImage" in device.traits
+    assert device.camera_image
+
+
 def test_camera_live_stream_traits(
     fake_device: Callable[[Dict[str, Any]], Device]
 ) -> None:
@@ -117,6 +140,31 @@ def test_camera_live_stream_unknown_protocols(
     assert "sdm.devices.traits.CameraLiveStream" in device.traits
     trait = device.traits["sdm.devices.traits.CameraLiveStream"]
     assert trait.supported_protocols == [StreamingProtocol.WEB_RTC]
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        ({}),
+        ({"maxVideoResolution": {}}),
+        ({"maxVideoResolution": {"width": 1024}}),
+        ({"maxVideoResolution": {"height": 1024}}),
+        ({"videoCodecs": []}),
+        ({"audioCodecs": []}),
+    ],
+)
+def test_camera_live_stream_optional_fields(
+    fake_device: Callable[[Dict[str, Any]], Device], data: dict[str, Any]
+) -> None:
+    raw = {
+        "name": "my/device/name",
+        "traits": {
+            "sdm.devices.traits.CameraLiveStream": data,
+        },
+    }
+    device = fake_device(raw)
+    assert "sdm.devices.traits.CameraLiveStream" in device.traits
+    assert device.camera_live_stream
 
 
 @pytest.mark.parametrize(

@@ -30,10 +30,10 @@ MODE: Final = "mode"
 class ThermostatHeatCoolTrait(CommandModel, ABC):
     """Parent class for traits related to temperature set points."""
 
-    heat_celsius: float = Field(alias="heatCelsius")
+    heat_celsius: float | None = Field(alias="heatCelsius")
     """Lowest temperature where thermostat begins heating."""
 
-    cool_celsius: float = Field(alias="coolCelsius")
+    cool_celsius: float | None = Field(alias="coolCelsius")
     """Highest cooling temperature where thermostat begins cooling."""
 
 
@@ -42,10 +42,10 @@ class ThermostatEcoTrait(ThermostatHeatCoolTrait):
 
     NAME: Final = "sdm.devices.traits.ThermostatEco"
 
-    available_modes: list[str] = Field(alias="availableModes")
+    available_modes: list[str] = Field(alias="availableModes", default_factory=list)
     """List of supported Eco modes."""
 
-    mode: str = Field(alias="mode")
+    mode: str = Field(alias="mode", default="OFF")
     """Eco mode of the thermostat."""
 
     async def set_mode(self, mode: str) -> aiohttp.ClientResponse:
