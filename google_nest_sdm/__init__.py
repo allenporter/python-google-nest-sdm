@@ -24,7 +24,8 @@ Example usage:
 
     for device in device_manager.devices.values():
         if device.temperature:
-            print("Device temperature: {device.temperature.ambient_temperature_celsius}")            
+            temp = device.temperatureambient_temperature_celsius
+            print("Device temperature: {temp:0.2f}")
 ```
 """
 
