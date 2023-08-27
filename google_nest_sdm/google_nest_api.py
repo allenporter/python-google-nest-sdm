@@ -12,7 +12,7 @@ NAME = "name"
 
 
 class GoogleNestAPI:
-    """Class to communicate with the Google Nest SDM API."""
+    """Client library to communicate with the Google Nest SDM API."""
 
     def __init__(self, auth: AbstractAuth, project_id: str):
         """Initialize the API and store the auth so we can make requests."""

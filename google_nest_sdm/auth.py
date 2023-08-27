@@ -40,7 +40,7 @@ class AbstractAuth(ABC):
     """Abstract class to make authenticated requests."""
 
     def __init__(self, websession: aiohttp.ClientSession, host: str):
-        """Initialize the auth."""
+        """Initialize the AbstractAuth."""
         self._websession = websession
         self._host = host
 

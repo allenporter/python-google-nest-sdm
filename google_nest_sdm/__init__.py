@@ -14,7 +14,7 @@ The primary components in this library are:
 Example usage:
 ```
     subscriber = GoogleNestSubscriber(
-        auth_impl, # Your AbstractAuth implenetation to provide credentails
+        auth_impl, # Your credential provider
         # Follow nest developer API docs to obtain these
         DEVICE_ACCESS_PROJECT_ID,
         SUBSCRIBER_ID,
