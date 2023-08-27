@@ -1,4 +1,12 @@
-"""Libraries related to providing a device level interface for event related media."""
+"""Libraries related to providing a device level interface for event related media.
+
+An `EventMediaManager` is associated with a single device and manages the
+state for events and the lifecycle of media for those events. The manager is
+invoked by the subscriber when new events arrive and it handles any fetching
+related to the media, as well as transcoding video clips of needed. The
+`CachePolicy` settings determine lifecycle options such as how many events
+to keep around in the underlying store.
+"""
 
 from __future__ import annotations
 
@@ -41,13 +49,12 @@ from .exceptions import GoogleNestException, TranscodeException
 from .transcoder import Transcoder
 
 __all__ = [
-    "EventMediaStore",
-    "InMemoryEventMediaStore",
-    "CachePolicy",
     "EventMediaManager",
-    "Media",
     "ImageSession",
     "ClipPreviewSession",
+    "Media",
+    "EventMediaStore",
+    "CachePolicy",
 ]
 
 _LOGGER = logging.getLogger(__name__)
@@ -569,19 +576,6 @@ class EventMediaManager:
         self._diagnostics.increment("get_clip.success")
         return Media(contents, EventImageType.IMAGE_PREVIEW)
 
-    async def async_events(self) -> list[ImageEventBase]:
-        """Return revent events."""
-        self._diagnostics.increment("load_events")
-        result = await self._visible_items()
-
-        def _get_event(x: EventMediaModelItem) -> ImageEventBase:
-            assert x.visible_event
-            return x.visible_event
-
-        event_result = list(map(_get_event, result))
-        event_result.sort(key=lambda x: x.timestamp, reverse=True)
-        return event_result
-
     async def async_image_sessions(self) -> list[ImageSession]:
         """Return revent events."""
         self._diagnostics.increment("load_image_sessions")
@@ -606,7 +600,7 @@ class EventMediaManager:
         return event_result
 
     async def async_clip_preview_sessions(self) -> list[ClipPreviewSession]:
-        """Return revent events."""
+        """Return revent events for a device that supports clips."""
         self._diagnostics.increment("load_clip_previews")
 
         def _event_visible(x: ImageEventBase) -> bool:
