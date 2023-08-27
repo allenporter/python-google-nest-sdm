@@ -22,7 +22,7 @@ import json
 import logging
 import os
 import pickle
-from typing import List, Optional, cast
+from typing import cast
 
 import yaml
 from aiohttp import ClientSession
@@ -204,7 +204,7 @@ def PrintDevice(device: Device, output_type: str) -> None:
 class SubscribeCallback:
     """Print the event message."""
 
-    def __init__(self, output_type: Optional[str] = None) -> None:
+    def __init__(self, output_type: str | None = None) -> None:
         """Initialize SubscribeCallback."""
         self._output_type = output_type
 
@@ -239,13 +239,13 @@ async def RunTool(args: argparse.Namespace, user_creds: Credentials) -> None:
         api = GoogleNestAPI(auth, args.project_id)
 
         if args.command == "list_structures":
-            structures: List[Structure] = await api.async_get_structures()
+            structures: list[Structure] = await api.async_get_structures()
             for s in structures:
                 PrintStructure(s, args.output_type)
             return
 
         if args.command == "get_structure":
-            structure: Optional[Structure] = await api.async_get_structure(
+            structure: Structure | None = await api.async_get_structure(
                 args.structure_id
             )
             assert structure
@@ -279,7 +279,7 @@ async def RunTool(args: argparse.Namespace, user_creds: Credentials) -> None:
                 subscriber.stop_async()
 
         # All other commands require a device_id
-        device: Optional[Device] = await api.async_get_device(args.device_id)
+        device: Device | None = await api.async_get_device(args.device_id)
         assert device
 
         if args.command == "get_device":

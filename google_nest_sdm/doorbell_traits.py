@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional, Final
+from typing import Final
 
 try:
     from pydantic.v1 import BaseModel
@@ -26,7 +26,7 @@ class DoorbellChimeTrait(BaseModel, EventImageGenerator):
     event_type: Final[str] = DoorbellChimeEvent.NAME
     event_image_creator: EventImageCreator | None = None
 
-    async def generate_event_image(self, event: ImageEventBase) -> Optional[EventImage]:
+    async def generate_event_image(self, event: ImageEventBase) -> EventImage | None:
         """Provide a URL to download a camera image from the active event."""
         _LOGGER.debug("Generating image for event")
         if not isinstance(event, DoorbellChimeEvent):
