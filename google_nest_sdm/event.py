@@ -34,7 +34,6 @@ from .diagnostics import EVENT_DIAGNOSTICS as DIAGNOSTICS
 from .exceptions import DecodeException
 from .registry import Registry
 from .traits import BuildTraits, Command
-from .typing import cast_assert
 
 __all__ = [
     "EventToken",
@@ -141,16 +140,28 @@ class EventToken:
         )
 
 
-class ImageEventBase(ABC):
+class ImageEventBase(BaseModel, ABC):
     """Base class for all image related event types."""
+
+    event_id: str = Field(alias="eventId")
+    """ID used to associate separate messages with a single event."""
+
+    event_session_id: str = Field(alias="eventSessionId")
+    """ID used to associate separate messages with a single event."""
+
+    zones: list[str] = Field(default_factory=list)
+    """List of zones for the event."""
+
+    timestamp: datetime.datetime
+    """Timestamp when the event occurred."""
 
     event_image_type: EventImageContentType
 
     def __init__(self, data: Mapping[str, Any], timestamp: datetime.datetime) -> None:
         """Initialize EventBase."""
+        super().__init__(**data, timestamp=timestamp)
         self._data = data
-        self._timestamp = timestamp
-        self._session_events: list[ImageEventBase] = []
+        self.session_events: list[ImageEventBase] = []
 
     @property
     def event_token(self) -> str:
@@ -164,27 +175,9 @@ class ImageEventBase(ABC):
         """The type of event."""
 
     @property
-    def event_id(self) -> str:
-        """ID associated with the event.
-
-        Can be used with CameraEventImageTrait to download the imaage.
-        """
-        return cast_assert(str, self._data[EVENT_ID])
-
-    @property
-    def event_session_id(self) -> str:
-        """ID used to associate separate messages with a single event."""
-        return cast_assert(str, self._data[EVENT_SESSION_ID])
-
-    @property
-    def timestamp(self) -> datetime.datetime:
-        """Timestamp when the event occurred."""
-        return self._timestamp
-
-    @property
     def expires_at(self) -> datetime.datetime:
         """Timestamp when the message expires."""
-        return self._timestamp + datetime.timedelta(seconds=EVENT_IMAGE_EXPIRE_SECS)
+        return self.timestamp + datetime.timedelta(seconds=EVENT_IMAGE_EXPIRE_SECS)
 
     @property
     def is_expired(self) -> bool:
@@ -192,25 +185,12 @@ class ImageEventBase(ABC):
         now = datetime.datetime.now(tz=datetime.timezone.utc)
         return self.expires_at < now
 
-    @property
-    def session_events(self) -> list[ImageEventBase]:
-        return self._session_events
-
-    @session_events.setter
-    def session_events(self, value: list[ImageEventBase]) -> None:
-        self._session_events = value
-
-    @property
-    def zones(self) -> list[str]:
-        """List of zones for the event."""
-        return cast_assert(list, self._data.get(ZONES, []))
-
     def as_dict(self) -> dict[str, Any]:
         """Return as a dict form that can be serialized."""
         return {
             "event_type": self.event_type,
             "event_data": self._data,
-            "timestamp": self._timestamp.isoformat(),
+            "timestamp": self.timestamp.isoformat(),
             "event_image_type": str(self.event_image_type),
         }
 
@@ -232,9 +212,13 @@ class ImageEventBase(ABC):
             "<ImageEventBase "
             + str(self.as_dict())
             + " sessions="
-            + str(len(self._session_events))
+            + str(len(self.session_events))
             + ">"
         )
+
+    class Config:
+        arbitrary_types_allowed = True
+        extra = "allow"
 
 
 @EVENT_MAP.register()
@@ -242,7 +226,7 @@ class CameraMotionEvent(ImageEventBase):
     """Motion has been detected by the camera."""
 
     NAME: Final = "sdm.devices.events.CameraMotion.Motion"
-    event_type = NAME
+    event_type: Final = "sdm.devices.events.CameraMotion.Motion"
     event_image_type = EventImageType.IMAGE
 
 
@@ -251,7 +235,7 @@ class CameraPersonEvent(ImageEventBase):
     """A person has been detected by the camera."""
 
     NAME: Final = "sdm.devices.events.CameraPerson.Person"
-    event_type = NAME
+    event_type: Final = "sdm.devices.events.CameraPerson.Person"
     event_image_type = EventImageType.IMAGE
 
 
@@ -260,7 +244,7 @@ class CameraSoundEvent(ImageEventBase):
     """Sound has been detected by the camera."""
 
     NAME: Final = "sdm.devices.events.CameraSound.Sound"
-    event_type = NAME
+    event_type: Final = "sdm.devices.events.CameraSound.Sound"
     event_image_type = EventImageType.IMAGE
 
 
@@ -269,7 +253,7 @@ class DoorbellChimeEvent(ImageEventBase):
     """The doorbell has been pressed."""
 
     NAME: Final = "sdm.devices.events.DoorbellChime.Chime"
-    event_type = NAME
+    event_type: Final = "sdm.devices.events.DoorbellChime.Chime"
     event_image_type = EventImageType.IMAGE
 
 
@@ -278,29 +262,31 @@ class CameraClipPreviewEvent(ImageEventBase):
     """A video clip is available for preview, without extra download."""
 
     NAME: Final = "sdm.devices.events.CameraClipPreview.ClipPreview"
-    event_type = NAME
+    event_type: Final = "sdm.devices.events.CameraClipPreview.ClipPreview"
     event_image_type = EventImageType.CLIP_PREVIEW
 
-    @property
-    def event_id(self) -> str:
+    preview_url: str = Field(alias="previewUrl")
+    """A url 10 second frame video file in mp4 format."""
+
+    @root_validator(pre=True)
+    def validate_event_id(cls, val: dict[str, Any]) -> dict[str, Any]:
         """Use a URL hash as the event id.
 
         Since clip preview events already have a url associated with them,
         we don't have an event id for downloading the image.
         """
-        return hashlib.blake2b(self.preview_url.encode()).hexdigest()
+        if "previewUrl" not in val:
+            raise ValueError("missing required field previewUrl")
+        url = val["previewUrl"]
+        val["eventId"] = hashlib.blake2b(url.encode()).hexdigest()
+        return val
 
     @property
     def expires_at(self) -> datetime.datetime:
         """Event ids do not expire."""
-        return self._timestamp + datetime.timedelta(
+        return self.timestamp + datetime.timedelta(
             seconds=CAMERA_CLIP_PREVIEW_EXPIRE_SECS
         )
-
-    @property
-    def preview_url(self) -> str:
-        """A url 10 second frame video file in mp4 format."""
-        return cast_assert(str, self._data[PREVIEW_URL])
 
 
 class EventTrait(ABC):
