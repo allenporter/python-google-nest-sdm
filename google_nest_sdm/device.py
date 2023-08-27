@@ -6,30 +6,19 @@ import logging
 from typing import Any, Awaitable, Callable, Mapping
 
 try:
-    from pydantic.v1 import BaseModel, Field
+    from pydantic.v1 import BaseModel, Field, root_validator
 except ImportError:
-    from pydantic import BaseModel, Field  # type: ignore
+    from pydantic import BaseModel, Field, root_validator # type: ignore
 
 from . import camera_traits, device_traits, doorbell_traits, thermostat_traits
 from .auth import AbstractAuth
 from .diagnostics import Diagnostics, redact_data
-from .event import EventMessage, EventProcessingError, EventTrait
+from .event import EventMessage, EventProcessingError
 from .event_media import EventMediaManager
-from .traits import Command
+from .traits import Command, CommandModel
 from .model import TraitModel
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _MakeEventTraitMap(
-    traits: Mapping[str, Any]
-) -> dict[str, camera_traits.EventImageGenerator]:
-    event_trait_map: dict[str, Any] = {}
-    for trait_name, trait in traits.items():
-        if not isinstance(trait, camera_traits.EventImageGenerator):
-            continue
-        event_trait_map[trait.event_type] = trait
-    return event_trait_map
 
 
 class ParentRelation(BaseModel):
@@ -42,10 +31,10 @@ class ParentRelation(BaseModel):
 class Device(TraitModel):
     """Class that represents a device object in the Google Nest SDM API."""
 
-    name: str = Field(alias="name")
+    name: str
     """Resource name of the device such as 'enterprises/XYZ/devices/123'."""
 
-    type: str | None = Field(alias="type")
+    type: str | None
     """Type of device for display purposes.
 
     The device type should not be used to deduce or infer functionality of
@@ -117,46 +106,36 @@ class Device(TraitModel):
     )
     """Represents the parent structure or room of the device."""
 
-    def __init__(
-        self,
-        auth: AbstractAuth,
-        **raw_data: Mapping[str, Any],
-    ) -> None:
+    def __init__(self, raw_data: Mapping[str, Any], auth: AbstractAuth) -> None:
         """Initialize a device."""
+        # Hack for incorrect nest API response values
+        if (type := raw_data.get("type")) and type == "sdm.devices.types.DOORBELL":
+            raw_data["traits"][doorbell_traits.DoorbellChimeTrait.NAME] = {}
         super().__init__(**raw_data)
         self._auth = auth
         self._diagnostics = Diagnostics()
-
-        self._cmd = Command(self.name, auth, self._diagnostics.subkey("command"))
-
-        # Propagate command and image creator to appropriate traits
-        event_image_trait: camera_traits.EventImageCreator | None = None
-        if self.camera_event_image:
-            event_image_trait = self.camera_event_image
-        elif self.camera_clip_preview:
-            event_image_trait = self.camera_clip_preview
+        self._cmd = Command(raw_data.get('name'), auth, self._diagnostics.subkey("command"))
         for trait in self.traits.values():
             if hasattr(trait, "_cmd"):
                 trait._cmd = self._cmd
-            if hasattr(trait, "event_image_creator") and event_image_trait:
-                trait.event_image_creator = event_image_trait
 
+        event_traits = {
+            trait.EVENT_NAME
+            for trait in self.traits.values()
+            if hasattr(trait, "EVENT_NAME")
+        }
         self._event_media_manager = EventMediaManager(
             self.name,
             self.traits,
-            _MakeEventTraitMap(self.traits),
-            support_fetch=(event_image_trait is not None),
+            event_traits,
             diagnostics=self._diagnostics.subkey("event_media"),
         )
         self._callbacks: list[Callable[[EventMessage], Awaitable[None]]] = []
 
-        if self.type and self.type == "sdm.devices.types.DOORBELL":
-            self.doorbell_chime = doorbell_traits.DoorbellChimeTrait()
-
     @staticmethod
     def MakeDevice(raw_data: Mapping[str, Any], auth: AbstractAuth) -> Device:
         """Create a device with the appropriate traits."""
-        return Device(auth=auth, **raw_data)
+        return Device(raw_data, auth)
 
     def add_update_listener(self, target: Callable[[], None]) -> Callable[[], None]:
         """Register a simple event listener notified on updates.
@@ -212,11 +191,6 @@ class Device(TraitModel):
         return self._event_media_manager
 
     @property
-    def active_event_trait(self) -> EventTrait | None:
-        """Return trait with the most recently received active event."""
-        return self._event_media_manager.active_event_trait
-
-    @property
     def parent_relations(self) -> dict:
         """Room or structure for the device."""
         return {relation.parent: relation.display_name for relation in self.relations}
@@ -231,16 +205,6 @@ class Device(TraitModel):
         """Add a new device relation."""
         self.relations.append(relation)
 
-    @property
-    def raw_data(self) -> dict[str, Any]:
-        """Return raw data for the device."""
-        return self.dict(
-            by_alias=True,
-            exclude=Device._EXCLUDE_FIELDS,
-            exclude_unset=True,
-            exclude_defaults=True,
-        )
-
     def get_diagnostics(self) -> dict[str, Any]:
         return {
             "data": redact_data(self.raw_data),
@@ -253,4 +217,5 @@ class Device(TraitModel):
     )
 
     class Config:
+        arbitrary_types_allowed = True
         extra = "allow"

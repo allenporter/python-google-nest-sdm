@@ -92,7 +92,7 @@ def _TraitsDict(
             if hasattr(obj, "_cmd"):
                 obj._cmd = cmd
         else:
-            obj = cls(trait_data, cmd)
+            raise ValueError("Unsupported Trait type")
         d[trait] = obj
     return d
 

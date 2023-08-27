@@ -289,30 +289,6 @@ class CameraClipPreviewEvent(ImageEventBase):
         )
 
 
-class EventTrait(ABC):
-    """Parent class for traits related to handling events."""
-
-    _last_event: ImageEventBase | None = None
-
-    @property
-    def last_event(self) -> ImageEventBase | None:
-        """Last received event."""
-        return self._last_event
-
-    @property
-    def active_event(self) -> ImageEventBase | None:
-        """Any current active events."""
-        if not self._last_event:
-            return None
-        if self._last_event.is_expired:
-            return None
-        return self._last_event
-
-    def handle_event(self, event: ImageEventBase) -> None:
-        """Receive an event message."""
-        self._last_event = event
-
-
 class RelationUpdate(BaseModel):
     """Represents a relational update for a resource."""
 

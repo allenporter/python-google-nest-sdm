@@ -23,7 +23,6 @@ from .event import (
     CameraSoundEvent,
     EventImageContentType,
     EventImageType,
-    EventTrait,
     ImageEventBase,
 )
 from .traits import TRAIT_MAP, CommandModel
@@ -44,7 +43,6 @@ __all__ = [
     "StreamingProtocol",
     "EventImage",
     "EventImageCreator",
-    "EventImageGenerator",
 ]
 
 _LOGGER = logging.getLogger(__name__)
@@ -302,15 +300,8 @@ class EventImage(CommandModel):
         return await self.cmd.fetch_image(fetch_url, basic_auth=self.token)
 
 
-class EventImageCreator(ABC):
-    """Responsible for turning events into an EventImage."""
-
-    async def generate_event_image(self, event: ImageEventBase) -> EventImage | None:
-        """Provide an object that can be used to fetch media for an event."""
-
-
 @TRAIT_MAP.register()
-class CameraEventImageTrait(CommandModel, EventImageCreator):
+class CameraEventImageTrait(CommandModel):
     """This trait belongs to any device that generates images from events."""
 
     NAME: Final = "sdm.devices.traits.CameraEventImage"
@@ -329,45 +320,13 @@ class CameraEventImageTrait(CommandModel, EventImageCreator):
         img._cmd = self.cmd
         return img
 
-    async def generate_event_image(self, event: ImageEventBase) -> EventImage | None:
-        """Provide a URL to download a camera image from an event."""
-        return await self.generate_image(event.event_id)
-
-
-class EventImageGenerator(EventTrait, EventImageCreator, ABC):
-    """Parenet class for a trait that generates an images from events."""
-
-    @property
-    @abstractmethod
-    def event_type(self) -> str:
-        """Event types supported by this trait."""
-
-    async def generate_active_event_image(self) -> EventImage | None:
-        """Provide a URL to download a camera image from the active event."""
-        event = self.active_event
-        if not event:
-            _LOGGER.debug("No active event")
-            return None
-        return await self.generate_event_image(event)
-
 
 @TRAIT_MAP.register()
-class CameraMotionTrait(BaseModel, EventImageGenerator):
+class CameraMotionTrait(BaseModel):
     """For any device that supports motion detection events."""
 
     NAME: Final = "sdm.devices.traits.CameraMotion"
     EVENT_NAME: Final[str] = CameraMotionEvent.NAME
-    event_type: Final[str] = CameraMotionEvent.NAME
-    event_image_creator: EventImageCreator | None = None
-
-    async def generate_event_image(self, event: ImageEventBase) -> EventImage | None:
-        """Provide a URL to download a camera image from the active event."""
-        if not isinstance(event, CameraMotionEvent):
-            return None
-        assert event.event_id
-        if not self.event_image_creator:
-            raise ValueError("Camera does not have trait to fetch snapshots")
-        return await self.event_image_creator.generate_event_image(event)
 
     class Config:
         extra = "allow"
@@ -375,22 +334,11 @@ class CameraMotionTrait(BaseModel, EventImageGenerator):
 
 
 @TRAIT_MAP.register()
-class CameraPersonTrait(BaseModel, EventImageGenerator):
+class CameraPersonTrait(BaseModel):
     """For any device that supports person detection events."""
 
     NAME: Final = "sdm.devices.traits.CameraPerson"
     EVENT_NAME: Final[str] = CameraPersonEvent.NAME
-    event_type: Final[str] = CameraPersonEvent.NAME
-    event_image_creator: EventImageCreator | None = None
-
-    async def generate_event_image(self, event: ImageEventBase) -> EventImage | None:
-        """Provide a URL to download a camera image from the active event."""
-        if not isinstance(event, CameraPersonEvent):
-            return None
-        assert event.event_id
-        if not self.event_image_creator:
-            raise ValueError("Camera does not have trait to fetch snapshots")
-        return await self.event_image_creator.generate_event_image(event)
 
     class Config:
         extra = "allow"
@@ -398,22 +346,11 @@ class CameraPersonTrait(BaseModel, EventImageGenerator):
 
 
 @TRAIT_MAP.register()
-class CameraSoundTrait(BaseModel, EventImageGenerator):
+class CameraSoundTrait(BaseModel):
     """For any device that supports sound detection events."""
 
     NAME: Final = "sdm.devices.traits.CameraSound"
     EVENT_NAME: Final[str] = CameraSoundEvent.NAME
-    event_type: Final[str] = CameraSoundEvent.NAME
-    event_image_creator: EventImageCreator | None = None
-
-    async def generate_event_image(self, event: ImageEventBase) -> EventImage | None:
-        """Provide a URL to download a camera image from the active event."""
-        if not isinstance(event, CameraSoundEvent):
-            return None
-        assert event.event_id
-        if not self.event_image_creator:
-            raise ValueError("Camera does not have trait to fetch snapshots")
-        return await self.event_image_creator.generate_event_image(event)
 
     class Config:
         extra = "allow"
@@ -421,33 +358,16 @@ class CameraSoundTrait(BaseModel, EventImageGenerator):
 
 
 @TRAIT_MAP.register()
-class CameraClipPreviewTrait(CommandModel, EventImageGenerator):
+class CameraClipPreviewTrait(CommandModel):
     """For any device that supports a clip preview."""
 
     NAME: Final = "sdm.devices.traits.CameraClipPreview"
     EVENT_NAME: Final[str] = CameraClipPreviewEvent.NAME
-    event_type: Final[str] = CameraClipPreviewEvent.NAME
 
-    async def generate_event_image(self, event: ImageEventBase) -> EventImage | None:
+    async def generate_event_image(self, preview_url: str) -> EventImage | None:
         """Provide a URL to download a camera image from the active event."""
-        preview_event: CameraClipPreviewEvent | None = None
-        if isinstance(event, CameraClipPreviewEvent):
-            preview_event = event
-        else:
-            for session_event in event.session_events:
-                if isinstance(session_event, CameraClipPreviewEvent):
-                    preview_event = session_event
-                    break
-            if preview_event is None:
-                _LOGGER.debug(
-                    "Event did not contain fetchable camera clip preview: %s", event
-                )
-                return None
-        # Clip preview events have the url baked in without an additional
-        # step to generate the image
-        assert preview_event
         img = EventImage(
-            url=preview_event.preview_url, event_image_type=EventImageType.CLIP_PREVIEW
+            url=preview_url, event_image_type=EventImageType.CLIP_PREVIEW
         )
         img._cmd = self.cmd
         return img

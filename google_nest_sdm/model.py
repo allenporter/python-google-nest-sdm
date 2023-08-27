@@ -30,7 +30,6 @@ class TraitModel(BaseModel):
     def __init__(self, **data: Any):
         """Initialize TraitModel."""
         super().__init__(**data)
-        datetime.datetime.now(datetime.timezone.utc)
         self._trait_event_ts: dict[str, datetime.datetime] = {}
 
     @property
