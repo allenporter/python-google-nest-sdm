@@ -1,56 +1,223 @@
 """Tests for event_media.py"""
 import datetime
-import itertools
 from typing import Any, Awaitable, Callable, Dict
 from unittest.mock import patch
+import logging
 
+import pytest
 import aiohttp
 
 from google_nest_sdm import diagnostics, google_nest_api
-from google_nest_sdm.event import EventMessage, EventToken, ImageEventBase
+from google_nest_sdm.device import Device
+from google_nest_sdm.event import EventMessage, EventToken
 from google_nest_sdm.event_media import InMemoryEventMediaStore
 from google_nest_sdm.transcoder import Transcoder
+from google_nest_sdm.camera_traits import (
+    CameraMotionTrait,
+    CameraPersonTrait,
+    CameraClipPreviewTrait,
+    CameraEventImageTrait,
+)
+from google_nest_sdm.doorbell_traits import DoorbellChimeTrait
+
 
 from .conftest import (
-    FAKE_TOKEN,
     DeviceHandler,
     EventCallback,
-    NewHandler,
-    NewImageHandler,
     Recorder,
     assert_diagnostics,
 )
 
 
-async def test_event_manager_event_expiration(
-    app: aiohttp.web.Application,
-    device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
-    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
-) -> None:
-    device_id = device_handler.add_device(
-        traits={
-            "sdm.devices.traits.CameraEventImage": {},
-            "sdm.devices.traits.CameraMotion": {},
-        }
-    )
+_LOGGER = logging.getLogger(__name__)
 
+
+IMAGE_CAMERA_TRAITS = [
+    CameraEventImageTrait.NAME,
+    CameraMotionTrait.NAME,
+    CameraPersonTrait.NAME,
+    CameraPersonTrait.NAME,
+]
+IMAGE_MOTION_ONLY_CAMERA_TRAITS = [CameraEventImageTrait.NAME, CameraMotionTrait.NAME]
+IMAGE_DOORBELL_TRAITS = [
+    CameraEventImageTrait.NAME,
+    DoorbellChimeTrait.NAME,
+    CameraMotionTrait.NAME,
+]
+CLIP_CAMERA_TRAITS = [
+    CameraClipPreviewTrait.NAME,
+    CameraMotionTrait.NAME,
+    CameraPersonTrait.NAME,
+]
+CLIP_DOORBELL_TRAITS = [
+    CameraClipPreviewTrait.NAME,
+    DoorbellChimeTrait.NAME,
+    CameraMotionTrait.NAME,
+]
+
+
+@pytest.fixture(name="device_traits")
+def mock_device_traits() -> list[str]:
+    """Fixture for tests to setup default device traits"""
+    return []
+
+
+@pytest.fixture(name="device_id")
+async def mock_device_id(
+    device_handler: DeviceHandler,
+    device_traits: list[str],
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> str:
+    return device_handler.add_device(traits={k: {} for k in device_traits})
+
+
+class MediaRouter:
+    """Fixture for serving event media."""
+
+    def __init__(self, app: aiohttp.web.Application, recorder: Recorder) -> None:
+        self.app = app
+        self.recorder = recorder
+        self.api_responses: dict[str, list[aiohttp.web.Response]] = {}
+        self.image_responses: dict[str, aiohttp.web.Response] = {}
+        self.clip_responses: dict[str, aiohttp.web.Response] = {}
+        self.token_cnt = -1
+        self.app.add_routes(
+            [
+                aiohttp.web.post(r"/{device_id:.*}:executeCommand", self.api_handler),
+                aiohttp.web.get(r"/image-url/{device_id:.*}", self.image_token_handler),
+                aiohttp.web.get(
+                    r"/clip-url/{device_id:.*}/token/{token:.*}", self.clip_handler
+                ),
+            ]
+        )
+
+    def image(self, device_id: str) -> None:
+        """Prepare an image response"""
+        self.token_cnt += 1
+        token = f"g.{self.token_cnt}.eventToken"
+        # Prepare API to generate image url + token
+        if device_id not in self.api_responses:
+            self.api_responses[device_id] = []
+        self.api_responses[device_id].append(
+            aiohttp.web.json_response(
+                {
+                    "results": {
+                        "url": f"image-url/{device_id}",
+                        "token": token,
+                    },
+                }
+            )
+        )
+        # Prepare image serving
+        self.image_responses[token] = aiohttp.web.Response(
+            body=f"image-bytes-{token}".encode()
+        )
+
+    def clip(self, device_id: str) -> str:
+        """Prepare an clip response and return the url."""
+        self.token_cnt += 1
+        token = f"g.{self.token_cnt}.eventToken"
+        # Prepare ckip serving
+        self.clip_responses[token] = aiohttp.web.Response(
+            body=f"clip-bytes-{token}".encode()
+        )
+        return f"clip-url/{device_id}/token/{token}"
+
+    async def api_handler(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
+        device_id = request.match_info["device_id"]
+        assert device_id
+        _LOGGER.debug("API handler %s", device_id)
+        responses = self.api_responses[device_id]
+        response = responses.pop(0)
+        return response
+
+    async def image_token_handler(
+        self, request: aiohttp.web.Request
+    ) -> aiohttp.web.Response:
+        device_id = request.match_info["device_id"]
+        assert device_id
+        _LOGGER.debug("Image token handler %s - %s", device_id, self.image_responses)
+        auth_header = request.headers["Authorization"]
+        assert auth_header.startswith("Basic ")
+        token = auth_header[6:]
+        if (response := self.image_responses.pop(token)) is None:
+            raise ValueError(f"No image response configured for token {token}")
+        return response
+
+    async def clip_handler(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
+        device_id = request.match_info["device_id"]
+        token = request.match_info["token"]
+        _LOGGER.debug("Clip handler %s", device_id)
+        if (response := self.clip_responses.pop(token)) is None:
+            raise ValueError(f"No image response configured for token {token}")
+        return response
+
+
+@pytest.fixture(name="media_router", autouse=True)
+def mock_media_router(app: aiohttp.web.Application, recorder: Recorder) -> MediaRouter:
+    """Fixture for preparing API and content serving calls."""
+    return MediaRouter(app, recorder)
+
+
+@pytest.fixture
+def event_cache_size() -> int:
+    """Fixture to configure the event cache size."""
+    return 8
+
+
+@pytest.fixture
+def event_fetch() -> bool:
+    """Fixture to configure the event cache size."""
+    return True
+
+
+@pytest.fixture(autouse=True)
+def mock_event_media_manager(
+    media_router: MediaRouter, device: Device, event_fetch: bool, event_cache_size: int
+) -> None:
+    """Fixture to prepare the event media manager for fetching media."""
+    device.event_media_manager.cache_policy.fetch = event_fetch
+    device.event_media_manager.cache_policy.event_cache_size = event_cache_size
+
+
+@pytest.fixture(name="transcoder")
+def mock_transcoder(device: Device) -> Transcoder:
+    """Fixture that enables a transcoder."""
+    fake_transcoder = Transcoder("/bin/echo", "")
+    device.event_media_manager.cache_policy.transcoder = fake_transcoder
+    return fake_transcoder
+
+
+@pytest.fixture(name="device")
+async def mock_device(
+    device_id: str,
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> Device:
     api = await api_client()
     devices = await api.async_get_devices()
-    assert len(devices) == 1
-    device = devices[0]
-    assert device.name == device_id
+    for device in devices:
+        if device.name == device_id:
+            return device
+    raise ValueError("Invalid test state, couldn't find device.")
 
-    device.event_media_manager.cache_policy.event_cache_size = 10
 
+@pytest.mark.parametrize(
+    ("device_traits", "event_cache_size"), [(IMAGE_MOTION_ONLY_CAMERA_TRAITS, 10)]
+)
+async def test_event_manager_event_expiration(
+    media_router: MediaRouter,
+    device: Device,
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
     ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
+    media_router.image(device.name)
     await device.async_handle_event(
         await event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": ts1.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": device_id,
+                    "name": device.name,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -63,13 +230,14 @@ async def test_event_manager_event_expiration(
         )
     )
     ts2 = ts1 + datetime.timedelta(seconds=5)
+    media_router.image(device.name)
     await device.async_handle_event(
         await event_message(
             {
                 "eventId": "a94b2115-3b57-4eb4-8830-80519f188ec9",
                 "timestamp": ts2.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": device_id,
+                    "name": device.name,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "DgY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -84,13 +252,14 @@ async def test_event_manager_event_expiration(
 
     # Event is in the past and is expired
     ts3 = ts1 - datetime.timedelta(seconds=90)
+    media_router.image(device.name)  # Ignored
     await device.async_handle_event(
         await event_message(
             {
                 "eventId": "b83c2115-3b57-4eb4-8830-80519f167fa8",
                 "timestamp": ts3.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": device_id,
+                    "name": device.name,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "EkY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -104,62 +273,20 @@ async def test_event_manager_event_expiration(
     )
 
     event_media_manager = device.event_media_manager
-    assert len(list(await event_media_manager.async_events())) == 2
+    assert len(list(await event_media_manager.async_image_sessions())) == 2
 
 
+@pytest.mark.parametrize(("device_traits"), [(IMAGE_MOTION_ONLY_CAMERA_TRAITS)])
 async def test_event_manager_cache_expiration(
-    app: aiohttp.web.Application,
-    recorder: Recorder,
-    device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    media_router: MediaRouter,
+    device: Device,
+    # event_media_store: InMemoryEventMediaStore,
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-    device_id = device_handler.add_device(
-        traits={
-            "sdm.devices.traits.CameraEventImage": {},
-            "sdm.devices.traits.CameraMotion": {},
-        }
-    )
-
-    response = {
-        "results": {
-            "url": "image-url-1",
-            "token": "g.1.eventToken",
-        },
-    }
     num_events = 10
-    post_handler = NewHandler(recorder, list(itertools.repeat(response, num_events)))
-    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
-    app.router.add_get(
-        "/image-url-1",
-        NewImageHandler(
-            list(itertools.repeat(b"image-bytes-1", num_events)), token="g.1.eventToken"
-        ),
-    )
-
-    api = await api_client()
-    devices = await api.async_get_devices()
-    assert len(devices) == 1
-    device = devices[0]
-    assert device.name == device_id
-
-    # Turn on event fetching
-    device.event_media_manager.cache_policy.fetch = True
-    device.event_media_manager.cache_policy.event_cache_size = 8
-
-    class TestStore(InMemoryEventMediaStore):
-        def get_media_key(self, device_id: str, event: ImageEventBase) -> str:
-            """Return a predictable media key."""
-            return event.event_session_id
-
-        def get_image_media_key(self, device_id: str, event: ImageEventBase) -> str:
-            """Return a predictable media key."""
-            return event.event_session_id
-
-    store = TestStore()
-    device.event_media_manager.cache_policy.store = store
-
+    event_tokens = []
     for i in range(0, num_events):
+        media_router.image(device.name)
         ts = datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(
             seconds=i
         )
@@ -169,7 +296,7 @@ async def test_event_manager_cache_expiration(
                     "eventId": f"0120ecc7-{i}",
                     "timestamp": ts.isoformat(timespec="seconds"),
                     "resourceUpdate": {
-                        "name": device_id,
+                        "name": device.name,
                         "events": {
                             "sdm.devices.events.CameraMotion.Motion": {
                                 "eventSessionId": f"CjY5Y3VK..{i}...",
@@ -181,6 +308,8 @@ async def test_event_manager_cache_expiration(
                 }
             )
         )
+        image_sessions = await device.event_media_manager.async_image_sessions()
+        event_tokens.append(image_sessions[0].event_token)
 
     assert_diagnostics(
         diagnostics.get_diagnostics(),
@@ -213,6 +342,7 @@ async def test_event_manager_cache_expiration(
                 "event.new": 10,
                 "fetch_image": 10,
                 "fetch_image.save": 10,
+                "load_image_sessions": 10,
                 "sdm.devices.events.CameraMotion.Motion_count": 10,
             },
         },
@@ -220,19 +350,21 @@ async def test_event_manager_cache_expiration(
 
     event_media_manager = device.event_media_manager
     # All old items are evicted from the cache
-    assert len(list(await event_media_manager.async_events())) == 8
+    assert len(list(await event_media_manager.async_image_sessions())) == 8
 
     # Old items are evicted from the media store
-    assert await store.async_load_media("CjY5Y3VK..0...") is None
-    assert await store.async_load_media("CjY5Y3VK..1...") is None
+    assert await event_media_manager.get_media_from_token(event_tokens[0]) is None
+    assert await event_media_manager.get_media_from_token(event_tokens[1]) is None
     for i in range(2, num_events):
-        assert await store.async_load_media(f"CjY5Y3VK..{i}...") == b"image-bytes-1"
+        media = await event_media_manager.get_media_from_token(event_tokens[i])
+        assert media
+        assert media.contents == f"image-bytes-g.{i}.eventToken".encode()
 
     assert_diagnostics(
         diagnostics.get_diagnostics(),
         {
             "event_media": {
-                "load_media_count": 10,
+                "load_media_count": 8,
                 "save_media_count": 10,
                 "remove_media_count": 2,
             },
@@ -240,53 +372,17 @@ async def test_event_manager_cache_expiration(
     )
 
 
+@pytest.mark.parametrize("device_traits", [IMAGE_CAMERA_TRAITS])
 async def test_prefetch_image_failure_in_session(
-    app: aiohttp.web.Application,
-    device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    media_router: MediaRouter,
+    device: Device,
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
     """Exercise case where one image within a session fails."""
-    device_id = device_handler.add_device(
-        traits={
-            "sdm.devices.traits.CameraEventImage": {},
-            "sdm.devices.traits.CameraMotion": {},
-            "sdm.devices.traits.CameraPerson": {},
-        }
-    )
-
     # Send one failure response, then 3 other valid responses. The cache size
     # is too small so we're exercising events dropping out of the cache.
-    responses = [
-        aiohttp.web.json_response(
-            {
-                "results": {
-                    "url": "image-url-1",
-                    "token": "g.1.eventToken",
-                },
-            }
-        ),
-        aiohttp.web.Response(status=502),
-    ]
-
-    async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
-        assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
-        return responses.pop(0)
-
-    app.router.add_post(f"/{device_id}:executeCommand", handler)
-    app.router.add_get(
-        "/image-url-1",
-        NewImageHandler([b"image-bytes-1"], token="g.1.eventToken"),
-    )
-
-    api = await api_client()
-    devices = await api.async_get_devices()
-    assert len(devices) == 1
-    device = devices[0]
-    assert device.name == device_id
-
-    # Turn on event fetching
-    device.event_media_manager.cache_policy.fetch = True
+    media_router.image(device.name)
+    media_router.api_responses[device.name].append(aiohttp.web.Response(status=502))
 
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     ts1 = now + datetime.timedelta(seconds=1)
@@ -296,7 +392,7 @@ async def test_prefetch_image_failure_in_session(
                 "eventId": "0120ecc7-1",
                 "timestamp": ts1.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": device_id,
+                    "name": device.name,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "CjY5Y.......",
@@ -315,7 +411,7 @@ async def test_prefetch_image_failure_in_session(
                 "eventId": "0120ecc7-2",
                 "timestamp": ts2.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": device_id,
+                    "name": device.name,
                     "events": {
                         "sdm.devices.events.CameraPerson.Person": {
                             "eventSessionId": "CjY5Y.......",
@@ -342,9 +438,10 @@ async def test_prefetch_image_failure_in_session(
     )
 
 
+@pytest.mark.parametrize(("device", "mock_event_media_manager"), [(None, None)])
 async def test_multi_device_events(
-    app: aiohttp.web.Application,
-    recorder: Recorder,
+    media_router: MediaRouter,
+    device: Device | None,
     device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
@@ -361,43 +458,31 @@ async def test_multi_device_events(
             "sdm.devices.traits.CameraMotion": {},
         }
     )
-
-    response = {
-        "results": {
-            "url": "image-url-1",
-            "token": "g.1.eventToken",
-        },
-    }
-    num_events = 4
-    post_handler = NewHandler(recorder, list(itertools.repeat(response, num_events)))
-    app.router.add_post(f"/{device_id1}:executeCommand", post_handler)
-    app.router.add_get(
-        "/image-url-1",
-        NewImageHandler(
-            list(itertools.repeat(b"image-bytes-1", num_events)), token="g.1.eventToken"
-        ),
-    )
-
     api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 2
     device = devices[0]
+    assert device
     assert device.name == device_id1
     device = devices[1]
+    assert device
     assert device.name == device_id2
 
     # Use shared event store for all devices
     store = InMemoryEventMediaStore()
     devices[0].event_media_manager.cache_policy.store = store
+    devices[0].event_media_manager.cache_policy.fetch = True
     devices[1].event_media_manager.cache_policy.store = store
+    devices[1].event_media_manager.cache_policy.fetch = True
 
-    # Each device has
+    # Each device has no sessions
     event_media_manager = devices[0].event_media_manager
-    assert len(list(await event_media_manager.async_events())) == 0
+    assert len(list(await event_media_manager.async_image_sessions())) == 0
     event_media_manager = devices[1].event_media_manager
-    assert len(list(await event_media_manager.async_events())) == 0
+    assert len(list(await event_media_manager.async_image_sessions())) == 0
 
     ts = datetime.datetime.now(tz=datetime.timezone.utc)
+    media_router.image(device_id1)
     await devices[0].async_handle_event(
         await event_message(
             {
@@ -417,12 +502,13 @@ async def test_multi_device_events(
         )
     )
 
-    # Each device has a single event
+    # First device has a single event
     event_media_manager = devices[0].event_media_manager
-    assert len(list(await event_media_manager.async_events())) == 1
+    assert len(list(await event_media_manager.async_image_sessions())) == 1
     event_media_manager = devices[1].event_media_manager
-    assert len(list(await event_media_manager.async_events())) == 0
+    assert len(list(await event_media_manager.async_image_sessions())) == 0
 
+    media_router.image(device_id2)
     await devices[1].async_handle_event(
         await event_message(
             {
@@ -444,68 +530,26 @@ async def test_multi_device_events(
 
     # Each device has a single event
     event_media_manager = devices[0].event_media_manager
-    assert len(list(await event_media_manager.async_events())) == 1
+    assert len(list(await event_media_manager.async_image_sessions())) == 1
     event_media_manager = devices[1].event_media_manager
-    assert len(list(await event_media_manager.async_events())) == 1
+    assert len(list(await event_media_manager.async_image_sessions())) == 1
 
 
+@pytest.mark.parametrize("device_traits", [IMAGE_DOORBELL_TRAITS])
 async def test_event_session_image(
-    app: aiohttp.web.Application,
-    recorder: Recorder,
-    device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    media_router: MediaRouter,
+    device: Device,
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-    device_id = device_handler.add_device(
-        traits={
-            "sdm.devices.traits.CameraEventImage": {},
-            "sdm.devices.traits.DoorbellChime": {},
-            "sdm.devices.traits.CameraMotion": {},
-        }
-    )
-
-    post_handler = NewHandler(
-        recorder,
-        [
-            {
-                "results": {
-                    "url": "image-url-1",
-                    "token": "g.1.eventToken",
-                },
-            },
-            {
-                "results": {
-                    "url": "image-url-2",
-                    "token": "g.2.eventToken",
-                },
-            },
-        ],
-    )
-    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
-    app.router.add_get(
-        "/image-url-1", NewImageHandler([b"image-bytes-1"], token="g.1.eventToken")
-    )
-    app.router.add_get(
-        "/image-url-2", NewImageHandler([b"image-bytes-2"], token="g.2.eventToken")
-    )
-
-    api = await api_client()
-    devices = await api.async_get_devices()
-    assert len(devices) == 1
-    device = devices[0]
-    assert device.name == device_id
-
-    # Enable pre-fetch
-    device.event_media_manager.cache_policy.fetch = True
-
     ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
+    media_router.image(device.name)
     await device.async_handle_event(
         await event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": ts1.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": device_id,
+                    "name": device.name,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -518,13 +562,14 @@ async def test_event_session_image(
         )
     )
     ts2 = ts1 + datetime.timedelta(seconds=5)
+    media_router.image(device.name)
     await device.async_handle_event(
         await event_message(
             {
                 "eventId": "90120ecc7-3b57-4eb4-9941-91609f278ec3",
                 "timestamp": ts2.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": device_id,
+                    "name": device.name,
                     "events": {
                         "sdm.devices.events.DoorbellChime.Chime": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -552,7 +597,7 @@ async def test_event_session_image(
 
     media = await event_media_manager.get_media_from_token(event.event_token)
     assert media
-    assert media.contents == b"image-bytes-2"
+    assert media.contents == b"image-bytes-g.1.eventToken"
     assert media.content_type == "image/jpeg"
 
     event = events[1]
@@ -566,50 +611,28 @@ async def test_event_session_image(
 
     media = await event_media_manager.get_media_from_token(event.event_token)
     assert media
-    assert media.contents == b"image-bytes-1"
+    assert media.contents == b"image-bytes-g.0.eventToken"
     assert media.content_type == "image/jpeg"
 
 
+@pytest.mark.parametrize("device_traits", [CLIP_DOORBELL_TRAITS])
 async def test_event_session_clip_preview(
-    app: aiohttp.web.Application,
-    device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    media_router: MediaRouter,
+    device: Device,
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-    device_id = device_handler.add_device(
-        traits={
-            "sdm.devices.traits.CameraClipPreview": {},
-            "sdm.devices.traits.DoorbellChime": {},
-            "sdm.devices.traits.CameraMotion": {},
-        }
-    )
-
-    async def img_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
-        assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
-        return aiohttp.web.Response(body=b"image-bytes-1")
-
-    app.router.add_get("/image-url-1", img_handler)
-
-    api = await api_client()
-    devices = await api.async_get_devices()
-    assert len(devices) == 1
-    device = devices[0]
-    assert device.name == device_id
-
-    # Enable pre-fetch
-    device.event_media_manager.cache_policy.fetch = True
-
     callback = EventCallback()
     device.event_media_manager.set_update_callback(callback.async_handle_event)
 
     ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
+    url = media_router.clip(device.name)
     await device.async_handle_event(
         await event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": ts1.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": device_id,
+                    "name": device.name,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -617,7 +640,7 @@ async def test_event_session_clip_preview(
                         },
                         "sdm.devices.events.CameraClipPreview.ClipPreview": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
-                            "previewUrl": "image-url-1",
+                            "previewUrl": url,
                         },
                     },
                 },
@@ -658,7 +681,7 @@ async def test_event_session_clip_preview(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": ts2.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": device_id,
+                    "name": device.name,
                     "events": {
                         "sdm.devices.events.DoorbellChime.Chime": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -725,39 +748,16 @@ async def test_event_session_clip_preview(
 
     media = await event_media_manager.get_media_from_token(event.event_token)
     assert media
-    assert media.contents == b"image-bytes-1"
+    assert media.contents == b"clip-bytes-g.0.eventToken"
     assert media.content_type == "video/mp4"
 
 
+@pytest.mark.parametrize("device_traits", [CLIP_DOORBELL_TRAITS])
 async def test_event_session_without_clip(
-    app: aiohttp.web.Application,
-    device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    media_router: MediaRouter,
+    device: Device,
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-    device_id = device_handler.add_device(
-        traits={
-            "sdm.devices.traits.CameraClipPreview": {},
-            "sdm.devices.traits.DoorbellChime": {},
-            "sdm.devices.traits.CameraMotion": {},
-        }
-    )
-
-    async def img_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
-        assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
-        return aiohttp.web.Response(body=b"image-bytes-1")
-
-    app.router.add_get("/image-url-1", img_handler)
-
-    api = await api_client()
-    devices = await api.async_get_devices()
-    assert len(devices) == 1
-    device = devices[0]
-    assert device.name == device_id
-
-    # Enable pre-fetch
-    device.event_media_manager.cache_policy.fetch = True
-
     callback = EventCallback()
     device.event_media_manager.set_update_callback(callback.async_handle_event)
 
@@ -768,7 +768,7 @@ async def test_event_session_without_clip(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": ts1.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": device_id,
+                    "name": device.name,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -808,7 +808,7 @@ async def test_event_session_without_clip(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": ts2.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": device_id,
+                    "name": device.name,
                     "events": {
                         "sdm.devices.events.DoorbellChime.Chime": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -842,35 +842,12 @@ async def test_event_session_without_clip(
     assert not events
 
 
+@pytest.mark.parametrize("device_traits", [CLIP_DOORBELL_TRAITS])
 async def test_event_session_clip_preview_in_second_message(
-    app: aiohttp.web.Application,
-    device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    media_router: MediaRouter,
+    device: Device,
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-    device_id = device_handler.add_device(
-        traits={
-            "sdm.devices.traits.CameraClipPreview": {},
-            "sdm.devices.traits.DoorbellChime": {},
-            "sdm.devices.traits.CameraMotion": {},
-        }
-    )
-
-    async def img_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
-        assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
-        return aiohttp.web.Response(body=b"image-bytes-1")
-
-    app.router.add_get("/image-url-1", img_handler)
-
-    api = await api_client()
-    devices = await api.async_get_devices()
-    assert len(devices) == 1
-    device = devices[0]
-    assert device.name == device_id
-
-    # Enable pre-fetch
-    device.event_media_manager.cache_policy.fetch = True
-
     callback = EventCallback()
     device.event_media_manager.set_update_callback(callback.async_handle_event)
 
@@ -881,7 +858,7 @@ async def test_event_session_clip_preview_in_second_message(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": ts1.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": device_id,
+                    "name": device.name,
                     "events": {
                         "sdm.devices.events.DoorbellChime.Chime": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -914,17 +891,18 @@ async def test_event_session_clip_preview_in_second_message(
     )
 
     ts2 = ts1 + datetime.timedelta(seconds=5)
+    clip_url = media_router.clip(device.name)
     await device.async_handle_event(
         await event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": ts2.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": device_id,
+                    "name": device.name,
                     "events": {
                         "sdm.devices.events.CameraClipPreview.ClipPreview": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
-                            "previewUrl": "image-url-1",
+                            "previewUrl": clip_url,
                         },
                     },
                 },
@@ -980,43 +958,20 @@ async def test_event_session_clip_preview_in_second_message(
 
     media = await event_media_manager.get_media_from_token(event.event_token)
     assert media
-    assert media.contents == b"image-bytes-1"
+    assert media.contents == b"clip-bytes-g.0.eventToken"
     assert media.content_type == "video/mp4"
 
 
+@pytest.mark.parametrize("device_traits", [CLIP_DOORBELL_TRAITS])
 async def test_event_session_clip_preview_issue(
-    app: aiohttp.web.Application,
-    device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    media_router: MediaRouter,
+    device: Device,
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
     """Exercise event session clip preview event ordering behavior.
 
     Reproduces issue https://github.com/home-assistant/core/issues/86314
     """
-    device_id = device_handler.add_device(
-        traits={
-            "sdm.devices.traits.CameraClipPreview": {},
-            "sdm.devices.traits.DoorbellChime": {},
-            "sdm.devices.traits.CameraMotion": {},
-        }
-    )
-
-    async def img_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
-        assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
-        return aiohttp.web.Response(body=b"image-bytes-1")
-
-    app.router.add_get("/image-url-1", img_handler)
-
-    api = await api_client()
-    devices = await api.async_get_devices()
-    assert len(devices) == 1
-    device = devices[0]
-    assert device.name == device_id
-
-    # Enable pre-fetch
-    device.event_media_manager.cache_policy.fetch = True
-
     callback = EventCallback()
     device.event_media_manager.set_update_callback(callback.async_handle_event)
 
@@ -1027,7 +982,7 @@ async def test_event_session_clip_preview_issue(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": ts1.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": device_id,
+                    "name": device.name,
                     "events": {
                         "sdm.devices.events.DoorbellChime.Chime": {
                             "eventSessionId": "1635497756",
@@ -1058,13 +1013,14 @@ async def test_event_session_clip_preview_issue(
     )
 
     ts2 = ts1 + datetime.timedelta(seconds=5)
+    clip_url = media_router.clip(device.name)
     await device.async_handle_event(
         await event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": ts2.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": device_id,
+                    "name": device.name,
                     "events": {
                         "sdm.devices.events.DoorbellChime.Chime": {
                             "eventSessionId": "1635497756",
@@ -1072,7 +1028,7 @@ async def test_event_session_clip_preview_issue(
                         },
                         "sdm.devices.events.CameraClipPreview.ClipPreview": {
                             "eventSessionId": "1635497756",
-                            "previewUrl": "image-url-1",
+                            "previewUrl": clip_url,
                         },
                     },
                 },
@@ -1112,29 +1068,10 @@ async def test_event_session_clip_preview_issue(
     assert "sdm.devices.events.DoorbellChime.Chime" in message
 
 
-async def test_persisted_storage_image_event_media_keys(
-    app: aiohttp.web.Application,
-    recorder: Recorder,
-    device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
-    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
-) -> None:
-    device_id = device_handler.add_device(
-        traits={
-            "sdm.devices.traits.CameraEventImage": {},
-            "sdm.devices.traits.DoorbellChime": {},
-            "sdm.devices.traits.CameraMotion": {},
-        }
-    )
-
-    api = await api_client()
-    devices = await api.async_get_devices()
-    assert len(devices) == 1
-    device = devices[0]
-    assert device.name == device_id
-
+@pytest.mark.parametrize("device_traits", [IMAGE_DOORBELL_TRAITS])
+async def test_persisted_storage_image_event_media_keys(device: Device) -> None:
     data = {
-        device_id: [
+        device.name: [
             {
                 "event_session_id": "AVPHwEtyzgSxu6EuaIOfvz...",
                 "events": {
@@ -1219,29 +1156,10 @@ async def test_persisted_storage_image_event_media_keys(
     assert not await event_media_manager.get_media_from_token(event.event_token)
 
 
-async def test_persisted_storage_image(
-    app: aiohttp.web.Application,
-    recorder: Recorder,
-    device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
-    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
-) -> None:
-    device_id = device_handler.add_device(
-        traits={
-            "sdm.devices.traits.CameraEventImage": {},
-            "sdm.devices.traits.DoorbellChime": {},
-            "sdm.devices.traits.CameraMotion": {},
-        }
-    )
-
-    api = await api_client()
-    devices = await api.async_get_devices()
-    assert len(devices) == 1
-    device = devices[0]
-    assert device.name == device_id
-
+@pytest.mark.parametrize("device_traits", [IMAGE_DOORBELL_TRAITS])
+async def test_persisted_storage_image(device: Device) -> None:
     data = {
-        device_id: [
+        device.name: [
             {
                 "event_session_id": "AVPHwEtyzgSxu6EuaIOfvz...",
                 "events": {
@@ -1314,28 +1232,10 @@ async def test_persisted_storage_image(
     assert not await event_media_manager.get_media_from_token(event.event_token)
 
 
-async def test_persisted_storage_clip_preview(
-    app: aiohttp.web.Application,
-    device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
-    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
-) -> None:
-    device_id = device_handler.add_device(
-        traits={
-            "sdm.devices.traits.CameraClipPreview": {},
-            "sdm.devices.traits.DoorbellChime": {},
-            "sdm.devices.traits.CameraMotion": {},
-        }
-    )
-
-    api = await api_client()
-    devices = await api.async_get_devices()
-    assert len(devices) == 1
-    device = devices[0]
-    assert device.name == device_id
-
+@pytest.mark.parametrize("device_traits", [CLIP_DOORBELL_TRAITS])
+async def test_persisted_storage_clip_preview(device: Device) -> None:
     data = {
-        device_id: [
+        device.name: [
             {
                 "event_session_id": "1632710204",
                 "events": {
@@ -1402,27 +1302,11 @@ async def test_persisted_storage_clip_preview(
     assert not await event_media_manager.get_media_from_token(event.event_token)
 
 
+@pytest.mark.parametrize("device_traits", [IMAGE_DOORBELL_TRAITS])
 async def test_event_image_lookup_failure(
-    app: aiohttp.web.Application,
-    recorder: Recorder,
-    device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    device: Device,
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-    device_id = device_handler.add_device(
-        traits={
-            "sdm.devices.traits.CameraEventImage": {},
-            "sdm.devices.traits.DoorbellChime": {},
-            "sdm.devices.traits.CameraMotion": {},
-        }
-    )
-
-    api = await api_client()
-    devices = await api.async_get_devices()
-    assert len(devices) == 1
-    device = devices[0]
-    assert device.name == device_id
-
     # Disable pre-fetch
     event_media_manager = device.event_media_manager
     event_media_manager.cache_policy.fetch = False
@@ -1439,7 +1323,7 @@ async def test_event_image_lookup_failure(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": now.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": device_id,
+                    "name": device.name,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -1455,26 +1339,11 @@ async def test_event_image_lookup_failure(
     assert not await event_media_manager.get_media_from_token(token)
 
 
+@pytest.mark.parametrize("device_traits", [CLIP_DOORBELL_TRAITS])
 async def test_clip_preview_lookup_failure(
-    app: aiohttp.web.Application,
-    device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    device: Device,
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-    device_id = device_handler.add_device(
-        traits={
-            "sdm.devices.traits.CameraClipPreview": {},
-            "sdm.devices.traits.DoorbellChime": {},
-            "sdm.devices.traits.CameraMotion": {},
-        }
-    )
-
-    api = await api_client()
-    devices = await api.async_get_devices()
-    assert len(devices) == 1
-    device = devices[0]
-    assert device.name == device_id
-
     event_media_manager = device.event_media_manager
     # No media fetch so media is not visible
     event_media_manager.cache_policy.fetch = False
@@ -1489,7 +1358,7 @@ async def test_clip_preview_lookup_failure(
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": now.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": device_id,
+                    "name": device.name,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -1513,45 +1382,22 @@ async def test_clip_preview_lookup_failure(
     assert not await event_media_manager.get_media_from_token(token)
 
 
+@pytest.mark.parametrize("device_traits", [CLIP_CAMERA_TRAITS])
 async def test_clip_preview_transcode(
-    app: aiohttp.web.Application,
-    device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    media_router: MediaRouter,
+    device: Device,
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+    transcoder: Transcoder,
 ) -> None:
-    device_id = device_handler.add_device(
-        traits={
-            "sdm.devices.traits.CameraClipPreview": {},
-            "sdm.devices.traits.CameraMotion": {},
-        }
-    )
-
-    async def img_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
-        assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
-        return aiohttp.web.Response(body=b"image-bytes-1")
-
-    app.router.add_get("/image-url-1", img_handler)
-
-    api = await api_client()
-    devices = await api.async_get_devices()
-    assert len(devices) == 1
-    device = devices[0]
-    assert device.name == device_id
-
-    fake_transcoder = Transcoder("/bin/echo", "")
-
-    # Enable pre-fetch
-    device.event_media_manager.cache_policy.fetch = True
-    device.event_media_manager.cache_policy.transcoder = fake_transcoder
-
     ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
+    clip_url = media_router.clip(device.name)
     await device.async_handle_event(
         await event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": ts1.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": device_id,
+                    "name": device.name,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF",
@@ -1559,7 +1405,7 @@ async def test_clip_preview_transcode(
                         },
                         "sdm.devices.events.CameraClipPreview.ClipPreview": {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF",
-                            "previewUrl": "image-url-1",
+                            "previewUrl": clip_url,
                         },
                     },
                 },
@@ -1625,13 +1471,14 @@ async def test_clip_preview_transcode(
         assert media.content_type == "image/gif"
 
     ts2 = ts1 + datetime.timedelta(seconds=5)
+    clip_url = media_router.clip(device.name)
     await device.async_handle_event(
         await event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": ts2.isoformat(timespec="seconds"),
                 "resourceUpdate": {
-                    "name": device_id,
+                    "name": device.name,
                     "events": {
                         "sdm.devices.events.CameraMotion.Motion": {
                             "eventSessionId": "DjY5Y3VKaTZwR3o4Y19YbTVfMF",
@@ -1639,7 +1486,7 @@ async def test_clip_preview_transcode(
                         },
                         "sdm.devices.events.CameraClipPreview.ClipPreview": {
                             "eventSessionId": "DjY5Y3VKaTZwR3o4Y19YbTVfMF",
-                            "previewUrl": "image-url-1",
+                            "previewUrl": clip_url,
                         },
                     },
                 },
@@ -1680,74 +1527,31 @@ async def test_clip_preview_transcode(
     )
 
 
+@pytest.mark.parametrize(
+    ("device_traits", "event_cache_size"), [(CLIP_CAMERA_TRAITS, 5)]
+)
 async def test_event_manager_event_expiration_with_transcode(
-    app: aiohttp.web.Application,
-    device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    media_router: MediaRouter,
+    device: Device,
     event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+    transcoder: Transcoder,
 ) -> None:
-    device_id = device_handler.add_device(
-        traits={
-            "sdm.devices.traits.CameraClipPreview": {},
-            "sdm.devices.traits.CameraMotion": {},
-        }
-    )
-
-    async def img_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
-        assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
-        return aiohttp.web.Response(body=b"image-bytes-1")
-
-    app.router.add_get("/image-url-1", img_handler)
-
-    api = await api_client()
-    devices = await api.async_get_devices()
-    assert len(devices) == 1
-    device = devices[0]
-    assert device.name == device_id
-
-    fake_transcoder = Transcoder("/bin/echo", "")
-
-    class TestStore(InMemoryEventMediaStore):
-        def get_media_key(self, device_id: str, event: ImageEventBase) -> str:
-            """Return a predictable media key."""
-            return event.event_session_id
-
-        def get_image_media_key(self, device_id: str, event: ImageEventBase) -> str:
-            """Return a predictable media key."""
-            return event.event_session_id
-
-        def get_clip_preview_media_key(
-            self, device_id: str, event: ImageEventBase
-        ) -> str:
-            """Return a predictable media key."""
-            return event.event_session_id
-
-        def get_clip_preview_thumbnail_media_key(
-            self, device_id: str, event: ImageEventBase
-        ) -> str:
-            """Return a predictable media key."""
-            return event.event_session_id + "-thumb"
-
-    store = TestStore()
-    device.event_media_manager.cache_policy.store = store
-    device.event_media_manager.cache_policy.fetch = True
-    device.event_media_manager.cache_policy.transcoder = fake_transcoder
-    device.event_media_manager.cache_policy.event_cache_size = 5
     event_media_manager = device.event_media_manager
 
     num_events = 7
-
+    event_tokens = []
     for i in range(0, num_events):
         ts = datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(
             seconds=i
         )
+        clip = media_router.clip(device.name)
         await device.async_handle_event(
             await event_message(
                 {
                     "eventId": f"0120ecc7-{i}",
                     "timestamp": ts.isoformat(timespec="seconds"),
                     "resourceUpdate": {
-                        "name": device_id,
+                        "name": device.name,
                         "events": {
                             "sdm.devices.events.CameraMotion.Motion": {
                                 "eventSessionId": f"CjY5Y3VK..{i}...",
@@ -1755,7 +1559,7 @@ async def test_event_manager_event_expiration_with_transcode(
                             },
                             "sdm.devices.events.CameraClipPreview.ClipPreview": {
                                 "eventSessionId": f"CjY5Y3VK..{i}...",
-                                "previewUrl": "image-url-1",
+                                "previewUrl": clip,
                             },
                         },
                     },
@@ -1763,10 +1567,14 @@ async def test_event_manager_event_expiration_with_transcode(
                 }
             )
         )
-        assert await store.async_load_media(f"CjY5Y3VK..{i}...") == b"image-bytes-1"
-
         events = list(await event_media_manager.async_clip_preview_sessions())
+        assert len(events) > 0
         event_token = events[0].event_token
+        media = await event_media_manager.get_media_from_token(event_token)
+        assert media
+        assert media.contents == f"clip-bytes-g.{i}.eventToken".encode()
+
+        event_tokens.append(event_token)
 
         cnt = 0
 
@@ -1795,10 +1603,41 @@ async def test_event_manager_event_expiration_with_transcode(
 
     event_media_manager = device.event_media_manager
     # All old items are evicted from the cache
-    assert len(list(await event_media_manager.async_events())) == 5
+    assert len(list(await event_media_manager.async_clip_preview_sessions())) == 5
 
     # Old items are evicted from the media store
-    assert await store.async_load_media("CjY5Y3VK..0...") is None
-    assert await store.async_load_media("CjY5Y3VK..1...") is None
-    for i in range(2, num_events):
-        assert await store.async_load_media(f"CjY5Y3VK..{i}...") == b"image-bytes-1"
+    assert await event_media_manager.get_media_from_token(event_tokens[0]) is None
+    assert await event_media_manager.get_media_from_token(event_tokens[1]) is None
+    for token in event_tokens[2:]:
+        assert await event_media_manager.get_media_from_token(token) is not None
+
+
+@pytest.mark.parametrize("device_traits", [IMAGE_DOORBELL_TRAITS])
+async def test_unsupported_event_trait(
+    media_router: MediaRouter,
+    device: Device,
+    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+    ts = datetime.datetime.now(tz=datetime.timezone.utc)
+    clip_url = media_router.clip(device.name)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": ts.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": device.name,
+                    "events": {
+                        "sdm.devices.events.CameraClipPreview.ClipPreview": {
+                            "eventSessionId": "CjY5Y3VK..0...",
+                            "previewUrl": clip_url,
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    event_media_manager = device.event_media_manager
+    assert len(list(await event_media_manager.async_image_sessions())) == 0
+    assert len(list(await event_media_manager.async_clip_preview_sessions())) == 0
