@@ -628,18 +628,6 @@ class EventMediaManager:
         valid_clips.sort(key=lambda x: x.timestamp, reverse=True)
         return valid_clips
 
-    async def _visible_items(self) -> list[EventMediaModelItem]:
-        """Return items in the model that are visible events for serving."""
-
-        def _filter(x: EventMediaModelItem) -> bool:
-            """Return events already fetched or that could be fetched."""
-            return x.visible_event is not None and (
-                x.media_key is not None or not x.visible_event.is_expired
-            )
-
-        event_data = await self._async_load()
-        return list(filter(_filter, event_data.values()))
-
     async def _items_with_media(self) -> list[EventMediaModelItem]:
         """Return items in the model that have media for serving."""
 

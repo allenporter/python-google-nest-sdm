@@ -11,7 +11,6 @@ from typing import (
     Callable,
     Dict,
     Generator,
-    List,
     Optional,
     cast,
 )
@@ -186,10 +185,12 @@ class JsonHandler(ABC):
 
 
 class ReplyHandler(JsonHandler):
-    def __init__(self, recorder: Recorder, responses: List[Dict[str, Any]]) -> None:
+    def __init__(
+        self, recorder: Recorder, responses: list[dict[str, Any]] | None = None
+    ) -> None:
         """Initialize ReplyHandler."""
         super().__init__(recorder)
-        self.responses = responses
+        self.responses = responses or []
 
     def get_response(self) -> dict[str, Any]:
         """Return an API response."""
@@ -200,7 +201,7 @@ def reply_handler(
     app: aiohttp.web.Application,
     path: str,
     recorder: Recorder,
-    responses: List[Dict[str, Any]],
+    responses: list[dict[str, Any]],
 ) -> ReplyHandler:
     """Create a new reply handler."""
     handler = ReplyHandler(recorder, responses)
@@ -218,14 +219,14 @@ class DeviceHandler(JsonHandler):
         super().__init__(recorder)
         self.app = app
         self.project_id = project_id
-        self.devices: List[Dict[str, Any]] = []
+        self.devices: list[dict[str, Any]] = []
         app.router.add_get(f"/enterprises/{project_id}/devices", self.handler)
 
     def add_device(
         self,
         device_type: str = "sdm.devices.types.device-type1",
         traits: dict[str, Any] = {},
-        parentRelations: List[dict[str, Any]] = [],
+        parentRelations: list[dict[str, Any]] = [],
     ) -> str:
         """Add a fake device reply."""
         uid = uuid.uuid4().hex
@@ -257,7 +258,7 @@ class StructureHandler(JsonHandler):
         super().__init__(recorder)
         self.app = app
         self.project_id = project_id
-        self.structures: List[Dict[str, Any]] = []
+        self.structures: list[dict[str, Any]] = []
         app.router.add_get(f"/enterprises/{project_id}/structures", self.handler)
 
     def add_structure(self, traits: dict[str, Any] = {}) -> str:
@@ -280,7 +281,7 @@ class StructureHandler(JsonHandler):
 
 
 def NewHandler(
-    r: Recorder, responses: List[Dict[str, Any]], token: str = FAKE_TOKEN
+    r: Recorder, responses: list[dict[str, Any]], token: str = FAKE_TOKEN
 ) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
     async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         assert request.headers["Authorization"] == "Bearer %s" % token
@@ -292,7 +293,7 @@ def NewHandler(
 
 
 def NewImageHandler(
-    response: List[bytes], token: str = FAKE_TOKEN
+    response: list[bytes], token: str = FAKE_TOKEN
 ) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
     async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         assert request.headers["Authorization"] == "Basic %s" % token
