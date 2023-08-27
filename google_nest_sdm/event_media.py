@@ -308,10 +308,6 @@ class EventMediaModelItem:
         keys.extend(self.event_media_keys.values())
         return [key for key in keys if key is not None]
 
-    def get_media(self, content: bytes) -> Media:
-        assert self.visible_event
-        return Media(content, self.visible_event.event_image_type)
-
     def as_dict(self) -> dict[str, Any]:
         """Return a EventMediaModelItem as a serializable dict."""
         result: dict[str, Any] = {
