@@ -402,6 +402,91 @@ async def test_device_update_listener(
     assert not callback.invoked
 
 
+async def test_update_trait_with_field_alias(
+    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+) -> None:
+    """Test updating a trait that has fields with pydantic field aliases."""
+    device = fake_device(
+        {
+            "name": "my/device/name1",
+            "type": "sdm.devices.types.SomeDeviceType",
+            "traits": {
+                "sdm.devices.traits.ThermostatHvac": {
+                    "status": "HEATING",
+                },
+                "sdm.devices.traits.ThermostatMode": {
+                    "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
+                    "mode": "HEAT",
+                },
+                "sdm.devices.traits.Temperature": {
+                    "ambientTemperatureCelsius": 20.1,
+                },
+                "sdm.devices.traits.ThermostatTemperatureSetpoint": {
+                    "heatCelsius": 23.0,
+                },
+            },
+        }
+    )
+    mgr = DeviceManager()
+    mgr.add_device(device)
+    assert 1 == len(mgr.devices)
+    device = mgr.devices["my/device/name1"]
+    assert device.thermostat_hvac
+    assert device.thermostat_hvac.status == "HEATING"
+    assert device.thermostat_mode
+    assert device.thermostat_mode.mode == "HEAT"
+    assert device.temperature
+    assert device.temperature.ambient_temperature_celsius == 20.1
+    assert device.thermostat_temperature_setpoint
+    assert device.thermostat_temperature_setpoint.heat_celsius == 23.0
+
+    class MyCallback:
+        def __init__(self) -> None:
+            self.invoked = False
+
+        def async_handle_event(self) -> None:
+            self.invoked = True
+
+    callback = MyCallback()
+    unregister = device.add_update_listener(callback.async_handle_event)
+    assert not callback.invoked
+
+    await mgr.async_handle_event(
+        fake_event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": "2019-01-01T00:00:01Z",
+                "resourceUpdate": {
+                    "name": "my/device/name1",
+                    "traits": {
+                        "sdm.devices.traits.ThermostatMode": {
+                            "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
+                            "mode": "HEATCOOL",
+                        },
+                        "sdm.devices.traits.ThermostatTemperatureSetpoint": {
+                            "heatCelsius": 22.0,
+                            "coolCelsius": 28.0,
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    device = mgr.devices["my/device/name1"]
+    assert device.thermostat_hvac
+    assert device.thermostat_hvac.status == "HEATING"
+    assert device.thermostat_mode
+    assert device.thermostat_mode.mode == "HEATCOOL"
+    assert device.temperature
+    assert device.temperature.ambient_temperature_celsius == 20.1
+    assert device.thermostat_temperature_setpoint
+    assert device.thermostat_temperature_setpoint.heat_celsius == 22.0
+    assert device.thermostat_temperature_setpoint.cool_celsius == 28.0
+    unregister()
+
+
 async def test_update_trait_ordering(
     fake_device: Callable[[Dict[str, Any]], Device],
     event_message_with_time: Callable[[str, str], EventMessage],
@@ -444,6 +529,68 @@ async def test_update_trait_ordering(
     now += datetime.timedelta(hours=1)
     await mgr.async_handle_event(event_message_with_time(now.isoformat(), "ONLINE"))
     assert get_connectivity().status == "ONLINE"
+
+
+
+async def test_update_trait_with_new_field(
+    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+) -> None:
+    """Test ignoring an update for a previously unseen trait."""
+    device = fake_device(
+        {
+            "name": "my/device/name1",
+            "type": "sdm.devices.types.SomeDeviceType",
+            "traits": {
+                "sdm.devices.traits.ThermostatHvac": {
+                    "status": "HEATING",
+                },
+            },
+        }
+    )
+    mgr = DeviceManager()
+    mgr.add_device(device)
+    assert 1 == len(mgr.devices)
+    device = mgr.devices["my/device/name1"]
+    assert device.thermostat_hvac
+    assert device.thermostat_hvac.status == "HEATING"
+    assert not device.temperature
+
+    class MyCallback:
+        def __init__(self) -> None:
+            self.invoked = False
+
+        def async_handle_event(self) -> None:
+            self.invoked = True
+
+    callback = MyCallback()
+    unregister = device.add_update_listener(callback.async_handle_event)
+    assert not callback.invoked
+
+    await mgr.async_handle_event(
+        fake_event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": "2019-01-01T00:00:01Z",
+                "resourceUpdate": {
+                    "name": "my/device/name1",
+                    "traits": {
+                        "sdm.devices.traits.Temperature": {
+                            "ambientTemperatureCelsius": 20.1,
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    device = mgr.devices["my/device/name1"]
+    assert device.thermostat_hvac
+    assert device.thermostat_hvac.status == "HEATING"
+    assert not device.temperature
+
+    unregister()
+
 
 
 @pytest.mark.parametrize(

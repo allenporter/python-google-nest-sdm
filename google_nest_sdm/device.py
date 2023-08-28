@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 import logging
 from typing import Any, Awaitable, Callable
 
@@ -28,19 +29,8 @@ class ParentRelation(BaseModel):
     display_name: str = Field(alias="displayName")
 
 
-class Device(TraitModel):
-    """Class that represents a device object in the Google Nest SDM API."""
-
-    name: str
-    """Resource name of the device such as 'enterprises/XYZ/devices/123'."""
-
-    type: str | None
-    """Type of device for display purposes.
-
-    The device type should not be used to deduce or infer functionality of
-    the actual device it is assigned to. Instead, use the returned traits for
-    the device.
-    """
+class DeviceTraits(TraitModel):
+    """Pydantic model for parsing traits in the Google Nest SDM API."""
 
     # Device Traits
     connectivity: device_traits.ConnectivityTrait | None = Field(
@@ -101,6 +91,24 @@ class Device(TraitModel):
         alias="sdm.devices.traits.DoorbellChime", exclude=True
     )
 
+    class Config:
+        extra = "allow"
+
+
+class Device(DeviceTraits):
+    """Class that represents a device object in the Google Nest SDM API."""
+
+    name: str
+    """Resource name of the device such as 'enterprises/XYZ/devices/123'."""
+
+    type: str | None
+    """Type of device for display purposes.
+
+    The device type should not be used to deduce or infer functionality of
+    the actual device it is assigned to. Instead, use the returned traits for
+    the device.
+    """
+
     relations: list[ParentRelation] = Field(
         alias="parentRelations", default_factory=list
     )
@@ -133,6 +141,7 @@ class Device(TraitModel):
             diagnostics=self._diagnostics.subkey("event_media"),
         )
         self._callbacks: list[Callable[[EventMessage], Awaitable[None]]] = []
+        self._trait_event_ts: dict[str, datetime.datetime] = {}
 
     @staticmethod
     def MakeDevice(raw_data: dict[str, Any], auth: AbstractAuth) -> Device:
@@ -186,7 +195,32 @@ class Device(TraitModel):
         if not traits:
             return
         _LOGGER.debug("Trait update %s", traits)
-        self.update_traits(traits, event_message.timestamp)
+        # Parse the traits using a separate pydantic object, then overwrite
+        # each present field with an updated copy of the original trait with
+        # the new fields merged in.
+        parsed_traits = DeviceTraits.parse_obj({"traits": traits})
+        for field in parsed_traits.__fields__.values():
+            if not (new := getattr(parsed_traits, field.name)) or not isinstance(
+                new, BaseModel
+            ):
+                continue
+            # Discard updates to traits that are newer than the update
+            if (
+                self._trait_event_ts
+                and (ts := self._trait_event_ts.get(field.name))
+                and ts > event_message.timestamp
+            ):
+                _LOGGER.debug("Discarding stale update (%s)", event_message.timestamp)
+                continue
+
+            # Only merge updates into existing models
+            if not (existing := getattr(self, field.name)) or not isinstance(
+                existing, BaseModel
+            ):
+                continue
+            obj = existing.copy(update=new.dict())
+            setattr(self, field.name, obj)
+            self._trait_event_ts[field.name] = event_message.timestamp
 
     @property
     def event_media_manager(self) -> EventMediaManager:

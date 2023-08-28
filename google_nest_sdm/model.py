@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import datetime
 from typing import Any
 
 try:
@@ -30,7 +29,6 @@ class TraitModel(BaseModel):
     def __init__(self, **data: Any):
         """Initialize TraitModel."""
         super().__init__(**data)
-        self._trait_event_ts: dict[str, datetime.datetime] = {}
 
     @property
     def traits(self) -> dict[str, Any]:
@@ -48,29 +46,6 @@ class TraitModel(BaseModel):
         if traits := values.get(TRAITS):
             values.update(traits)
         return values
-
-    def update_traits(
-        self, traits: dict[str, Any], update_timestamp: datetime.datetime
-    ) -> None:
-        """Helper to update traits from pubsub messages."""
-        for field in self.__fields__.values():
-            if not (trait := traits.get(field.alias)):
-                continue
-            # Discard updates older than prior events
-            if (
-                self._trait_event_ts
-                and (ts := self._trait_event_ts.get(field.alias))
-                and ts > update_timestamp
-            ):
-                continue
-            # Only merge updates into existing models
-            if not (existing := getattr(self, field.name)) or not isinstance(
-                existing, BaseModel
-            ):
-                continue
-            obj = existing.copy(update=trait)
-            setattr(self, field.name, obj)
-            self._trait_event_ts[field.alias] = update_timestamp
 
     @property
     def raw_data(self) -> dict[str, Any]:
