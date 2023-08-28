@@ -32,6 +32,20 @@ def test_doorbell_chime_trait_hack(
     assert device.traits.keys() == {"sdm.devices.traits.DoorbellChime"}
 
 
+def test_doorbell_chime_trait_hack_empty_traits(
+    fake_device: Callable[[Dict[str, Any]], Device]
+) -> None:
+    """Adds the DoorbellChime trait even when missing from the API to fix an API bug."""
+    device = fake_device(
+        {
+            "name": "my/device/name",
+            "type": "sdm.devices.types.DOORBELL",
+        }
+    )
+    assert device.type == "sdm.devices.types.DOORBELL"
+    assert device.traits.keys() == {"sdm.devices.traits.DoorbellChime"}
+
+
 def test_doorbell_chime_trait_hack_not_applied(
     fake_device: Callable[[Dict[str, Any]], Device]
 ) -> None:

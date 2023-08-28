@@ -3,6 +3,7 @@
 from typing import Any, Awaitable, Callable, Dict
 
 import aiohttp
+import pytest
 
 from google_nest_sdm import google_nest_api
 from google_nest_sdm.device import Device
@@ -90,6 +91,28 @@ def test_thermostat_temperature_setpoint_traits(
     assert 22.0 == trait.cool_celsius
 
 
+@pytest.mark.parametrize(
+    "data",
+    [
+        ({}),
+        ({"heatCelsius": 20.0}),
+        ({"coolCelsius": 22.0}),
+        ({"heatCelsius": 20.0, "coolCelsius": 22.0}),
+    ],
+)
+def test_thermostat_temperature_setpoint_optional_fields(
+    fake_device: Callable[[Dict[str, Any]], Device], data: dict[str, Any]
+) -> None:
+    device = fake_device(
+        {
+            "name": "my/device/name",
+            "traits": {"sdm.devices.traits.ThermostatTemperatureSetpoint": data},
+        }
+    )
+    assert "sdm.devices.traits.ThermostatTemperatureSetpoint" in device.traits
+    assert device.thermostat_temperature_setpoint
+
+
 def test_thermostat_multiple_traits(
     fake_device: Callable[[Dict[str, Any]], Device]
 ) -> None:
@@ -134,6 +157,27 @@ def test_thermostat_multiple_traits(
     trait = device.traits["sdm.devices.traits.ThermostatTemperatureSetpoint"]
     assert 23.0 == trait.heat_celsius
     assert 24.0 == trait.cool_celsius
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        ({}),
+        ({"mode": "OFF"}),
+    ],
+)
+def test_thermostat_eco_optional_fields(
+    fake_device: Callable[[Dict[str, Any]], Device], data: dict[str, Any]
+) -> None:
+    device = fake_device(
+        {
+            "name": "my/device/name",
+            "traits": {"sdm.devices.traits.ThermostatEco": data},
+        }
+    )
+    assert "sdm.devices.traits.ThermostatEco" in device.traits
+    assert device.thermostat_eco
+    assert device.thermostat_eco.mode == "OFF"
 
 
 async def test_fan_set_timer(

@@ -78,7 +78,7 @@ class CameraImageTrait(BaseModel):
 
     NAME: Final = "sdm.devices.traits.CameraImage"
 
-    max_image_resolution: Resolution = Field(alias="maxImageResolution")
+    max_image_resolution: Resolution | None = Field(alias="maxImageResolution")
     """Maximum resolution of the camera image."""
 
 
