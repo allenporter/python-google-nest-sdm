@@ -30,3 +30,6 @@ jobs:
     - name: Lint with ruff
       run: |
         ruff check --format=github .
+    - name: Static typing with mypy
+      run: |
+        mypy --install-types --non-interactive --no-warn-unused-ignores .
