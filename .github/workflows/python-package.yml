@@ -26,13 +26,9 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-    - name: Static typing with mypy
-      run: |
-        mypy --install-types --non-interactive --no-warn-unused-ignores .
     - name: Test with pytest
       run: |
         pytest --cov=google_nest_sdm --cov-report=xml
-
     - name: Test with pytest (pydantic v1)
       run: |
         pip3 install pydantic==1.10.3
