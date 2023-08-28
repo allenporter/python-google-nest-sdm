@@ -531,6 +531,68 @@ async def test_update_trait_ordering(
     assert get_connectivity().status == "ONLINE"
 
 
+
+async def test_update_trait_with_new_field(
+    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+) -> None:
+    """Test ignoring an update for a previously unseen trait."""
+    device = fake_device(
+        {
+            "name": "my/device/name1",
+            "type": "sdm.devices.types.SomeDeviceType",
+            "traits": {
+                "sdm.devices.traits.ThermostatHvac": {
+                    "status": "HEATING",
+                },
+            },
+        }
+    )
+    mgr = DeviceManager()
+    mgr.add_device(device)
+    assert 1 == len(mgr.devices)
+    device = mgr.devices["my/device/name1"]
+    assert device.thermostat_hvac
+    assert device.thermostat_hvac.status == "HEATING"
+    assert not device.temperature
+
+    class MyCallback:
+        def __init__(self) -> None:
+            self.invoked = False
+
+        def async_handle_event(self) -> None:
+            self.invoked = True
+
+    callback = MyCallback()
+    unregister = device.add_update_listener(callback.async_handle_event)
+    assert not callback.invoked
+
+    await mgr.async_handle_event(
+        fake_event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": "2019-01-01T00:00:01Z",
+                "resourceUpdate": {
+                    "name": "my/device/name1",
+                    "traits": {
+                        "sdm.devices.traits.Temperature": {
+                            "ambientTemperatureCelsius": 20.1,
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    device = mgr.devices["my/device/name1"]
+    assert device.thermostat_hvac
+    assert device.thermostat_hvac.status == "HEATING"
+    assert not device.temperature
+
+    unregister()
+
+
+
 @pytest.mark.parametrize(
     "test_trait,test_event_trait",
     [
