@@ -484,6 +484,7 @@ async def test_update_trait_with_field_alias(
     assert device.thermostat_temperature_setpoint
     assert device.thermostat_temperature_setpoint.heat_celsius == 22.0
     assert device.thermostat_temperature_setpoint.cool_celsius == 28.0
+    unregister()
 
 
 async def test_update_trait_ordering(

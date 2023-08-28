@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 import logging
 from typing import Any, Awaitable, Callable
 
@@ -90,8 +91,11 @@ class DeviceTraits(TraitModel):
         alias="sdm.devices.traits.DoorbellChime", exclude=True
     )
 
+    class Config:
+        extra = "allow"
 
-class Device(device_traits.DeviceTraits):
+
+class Device(DeviceTraits):
     """Class that represents a device object in the Google Nest SDM API."""
 
     name: str
@@ -194,7 +198,7 @@ class Device(device_traits.DeviceTraits):
         # Parse the traits using a separate pydantic object, then overwrite
         # each present field with an updated copy of the original trait with
         # the new fields merged in.
-        parsed_traits = DeviceTraits(traits=traits)
+        parsed_traits = DeviceTraits.parse_obj({"traits": traits})
         for field in parsed_traits.__fields__.values():
             if not (new := getattr(parsed_traits, field.name)) or not isinstance(
                 new, BaseModel
