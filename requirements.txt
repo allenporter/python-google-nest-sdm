@@ -11,7 +11,7 @@ grpcio==1.59.0
 grpcio-status==1.59.0
 mypy==1.5.1
 pre-commit==3.4.0
-protobuf==4.24.3
+protobuf==4.24.4
 pydantic==2.4.2
 pytest==7.4.2
 pytest-aiohttp==1.0.5
