@@ -1,5 +1,5 @@
 -e .
-aiohttp==3.8.5
+aiohttp==3.8.6
 async-timeout==4.0.3
 black==23.9.1
 coverage==7.3.2
