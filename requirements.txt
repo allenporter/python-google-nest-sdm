@@ -6,7 +6,7 @@ coverage==7.3.2
 google-api-core==2.12.0
 google-auth==2.23.3
 google-cloud-pubsub==2.18.4
-googleapis-common-protos==1.60.0
+googleapis-common-protos==1.61.0
 grpcio==1.59.0
 grpcio-status==1.59.0
 mypy==1.5.1
