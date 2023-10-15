@@ -9,7 +9,7 @@ google-cloud-pubsub==2.18.4
 googleapis-common-protos==1.61.0
 grpcio==1.59.0
 grpcio-status==1.59.0
-mypy==1.5.1
+mypy==1.6.0
 pre-commit==3.5.0
 protobuf==4.24.4
 pydantic==2.4.2
