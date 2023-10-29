@@ -60,6 +60,20 @@ def test_empty_parent_relations(
     assert {} == device.parent_relations
 
 
+def test_invalid_parent_relations(
+    fake_device: Callable[[Dict[str, Any]], Device]
+) -> None:
+    """Invalid parentRelations should be ignored."""
+    device = fake_device(
+        {
+            "name": "my/device/name",
+            "parentRelations": [{}],
+        }
+    )
+    assert "my/device/name" == device.name
+    assert {} == device.parent_relations
+
+
 def test_parent_relation(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
