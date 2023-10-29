@@ -7,9 +7,9 @@ import logging
 from typing import Any, Awaitable, Callable
 
 try:
-    from pydantic.v1 import BaseModel, Field
+    from pydantic.v1 import BaseModel, Field, root_validator
 except ImportError:
-    from pydantic import BaseModel, Field  # type: ignore
+    from pydantic import BaseModel, Field, root_validator # type: ignore
 
 from . import camera_traits, device_traits, doorbell_traits, thermostat_traits
 from .auth import AbstractAuth
@@ -246,6 +246,17 @@ class Device(DeviceTraits):
             "data": redact_data(self.raw_data),
             **self._diagnostics.as_dict(),
         }
+
+    @root_validator(pre=True)
+    def _parent_relations(cls, values: dict[str, Any]) -> dict[str, Any]:
+        """Ignore invalid parentRelations."""
+        if not (relations := values.get("parentRelations")):
+            return values
+        values["parentRelations"] = [
+            relation for relation in relations if "parent" in relation and "displayName" in relation 
+        ]
+        return values
+
 
     _EXCLUDE_FIELDS = (
         set({"_auth", "_callbacks", "_cmd", "_diagnostics", "_event_media_manager"})
