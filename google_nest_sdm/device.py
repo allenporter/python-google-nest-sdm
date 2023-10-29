@@ -26,7 +26,7 @@ class ParentRelation(BaseModel):
     """Represents the parent structure/room of the current resource."""
 
     parent: str
-    display_name: str = Field(alias="displayName") #, default="")
+    display_name: str = Field(alias="displayName")
 
 
 class DeviceTraits(TraitModel):
