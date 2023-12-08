@@ -3,7 +3,7 @@ aiohttp==3.9.1
 async-timeout==4.0.3
 black==23.11.0
 coverage==7.3.2
-google-api-core==2.14.0
+google-api-core==2.15.0
 google-auth==2.24.0
 google-cloud-pubsub==2.18.4
 googleapis-common-protos==1.61.0
