@@ -7,7 +7,7 @@ google-api-core==2.15.0
 google-auth==2.25.2
 google-cloud-pubsub==2.18.4
 googleapis-common-protos==1.62.0
-grpcio==1.59.3
+grpcio==1.60.0
 grpcio-status==1.59.3
 mypy==1.7.1
 pre-commit==3.5.0
