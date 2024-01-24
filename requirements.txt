@@ -4,7 +4,7 @@ async-timeout==4.0.3
 black==23.12.1
 coverage==7.4.0
 google-api-core==2.15.0
-google-auth==2.26.2
+google-auth==2.27.0
 google-cloud-pubsub==2.19.0
 googleapis-common-protos==1.62.0
 grpcio==1.60.0
