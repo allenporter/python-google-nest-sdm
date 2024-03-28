@@ -639,6 +639,122 @@ async def test_subscribe_thread_update_new_events(
     subscriber.stop_async()
 
 
+async def test_refresh_hack_on_invalid_thermostat_traits(
+    app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    structure_handler: StructureHandler,
+    subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
+    subscriber_factory: FakeSubscriberFactory,
+) -> None:
+    """Test that when invalid thermostat traits are ignored and triggers a refresh."""
+
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.ThermostatEco": {
+                "availableModes": ["MANUAL_ECO", "OFF"],
+                "mode": "MANUAL_ECO",
+                "heatCelsius": 20.0,
+                "coolCelsius": 22.0,
+            },
+            "sdm.devices.traits.ThermostatHvac": {
+                "status": "HEATING",
+            },
+            "sdm.devices.traits.ThermostatMode": {
+                "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
+                "mode": "HEAT",
+            },
+            "sdm.devices.traits.ThermostatTemperatureSetpoint": {
+                "heatCelsius": 20.0,
+            },
+        }
+    )
+    structure_handler.add_structure()
+
+    subscriber = await subscriber_client()
+    subscriber.cache_policy.event_cache_size = 5
+    await subscriber.start_async()
+    device_manager = await subscriber.async_get_device_manager()
+
+    device = device_manager.devices.get(device_id)
+    assert device
+
+    # Verify initial device state
+    trait = device.traits.get("sdm.devices.traits.ThermostatEco")
+    assert trait
+    assert set(trait.available_modes) == set(["MANUAL_ECO", "OFF"])
+    assert trait.mode == "MANUAL_ECO"
+    assert trait.heat_celsius == 20.0
+    assert trait.cool_celsius == 22.0
+
+    trait = device.traits.get("sdm.devices.traits.ThermostatMode")
+    assert trait
+    assert set(trait.available_modes) == set(["HEAT", "COOL", "HEATCOOL", "OFF"])
+    assert trait.mode == "HEAT"
+
+    trait = device.traits.get("sdm.devices.traits.ThermostatHvac")
+    assert trait
+    assert trait.status == "HEATING"
+
+    trait = device.traits.get("sdm.devices.traits.ThermostatTemperatureSetpoint")
+    assert trait
+    assert trait.heat_celsius == 20.0
+
+    # Update the state on the server to something arbitrary. Later we will verify
+    # that a request was made to get the latest server state.
+    trait = device_handler.devices[0]["traits"]["sdm.devices.traits.ThermostatEco"]
+    trait["heatCelsius"] = 19.0
+
+    # Simulate a case where the nest publisher sends an invalid message. This
+    # will be ignored and will trigger another state refresh.
+    await subscriber_factory.async_push_event(
+        {
+            "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+            "timestamp": "2019-01-01T00:00:01Z",
+            "resourceUpdate": {
+                "name": device.name,
+                "traits": {
+                    "sdm.devices.traits.ThermostatMode": {
+                        "mode": "OFF",
+                        "availableModes": ["OFF"],
+                    },
+                    "sdm.devices.traits.ThermostatEco": {
+                        "availableModes": ["OFF", "MANUAL_ECO"],
+                        "mode": "OFF",
+                        "heatCelsius": 0.0,
+                        "coolCelsius": 0.0,
+                    },
+                    "sdm.devices.traits.ThermostatTemperatureSetpoint": {},
+                },
+            },
+            "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+        }
+    )
+
+    device = device_manager.devices.get(device_id)
+    assert device
+
+    # Verify the invalid message is dropped and the server update is reflected
+    trait = device.traits.get("sdm.devices.traits.ThermostatEco")
+    assert trait
+    assert set(trait.available_modes) == set(["MANUAL_ECO", "OFF"])
+    assert trait.mode == "MANUAL_ECO"
+    assert trait.heat_celsius == 19.0  # State update reflected
+    assert trait.cool_celsius == 22.0
+
+    trait = device.traits.get("sdm.devices.traits.ThermostatMode")
+    assert trait
+    assert set(trait.available_modes) == set(["HEAT", "COOL", "HEATCOOL", "OFF"])
+    assert trait.mode == "HEAT"
+
+    trait = device.traits.get("sdm.devices.traits.ThermostatHvac")
+    assert trait
+    assert trait.status == "HEATING"
+
+    trait = device.traits.get("sdm.devices.traits.ThermostatTemperatureSetpoint")
+    assert trait
+    assert trait.heat_celsius == 20.0
+
+
 def test_api_env_prod() -> None:
     env = get_api_env("prod")
     assert (
