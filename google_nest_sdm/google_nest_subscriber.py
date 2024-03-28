@@ -24,7 +24,12 @@ from .device_manager import DeviceManager
 from .diagnostics import SUBSCRIBER_DIAGNOSTICS as DIAGNOSTICS
 from .event import EventMessage
 from .event_media import CachePolicy
-from .exceptions import AuthException, ConfigurationException, SubscriberException, ApiException
+from .exceptions import (
+    AuthException,
+    ConfigurationException,
+    SubscriberException,
+    ApiException,
+)
 from .google_nest_api import GoogleNestAPI
 
 __all__ = [
@@ -545,27 +550,41 @@ class GoogleNestSubscriber:
         ):
             device_manager = self._device_manager_task.result()
             if _is_invalid_thermostat_trait_update(event):
-                _LOGGER.debug("Ignoring event with invalid update traits; Refreshing devices: %s", event.resource_update_traits)
+                _LOGGER.debug(
+                    "Ignoring event with invalid update traits; Refreshing devices: %s",
+                    event.resource_update_traits,
+                )
                 await _hack_refresh_devices(self._api, device_manager)
             else:
                 await device_manager.async_handle_event(event)
             message.ack()
-    
+
         ack_latency_ms = int((time.time() - recv) * 1000)
         DIAGNOSTICS.elapsed("message_acked", ack_latency_ms)
-        
+
 
 def _is_invalid_thermostat_trait_update(event: EventMessage) -> bool:
     """Return true if this is an invalid thermostat trait udpate."""
-    return event.resource_update_traits and (thermostat_mode := event.resource_update_traits.get("sdm.devices.traits.ThermostatMode")) and (available_modes := thermostat_mode.get("availableModes")) == ["OFF"]
+    return (
+        event.resource_update_traits
+        and (
+            thermostat_mode := event.resource_update_traits.get(
+                "sdm.devices.traits.ThermostatMode"
+            )
+        )
+        and (available_modes := thermostat_mode.get("availableModes")) is not None
+        and available_modes == ["OFF"]
+    )
 
 
-async def _hack_refresh_devices(api: GoogleNestAPI, device_manager: DeviceManager) -> None:
+async def _hack_refresh_devices(
+    api: GoogleNestAPI, device_manager: DeviceManager
+) -> None:
     """Update the device manager with refreshed devices from the API."""
     DIAGNOSTICS.increment("invalid-thermostat-update")
     try:
         devices = await api.async_get_devices()
-    except ApiException as err:
+    except ApiException:
         DIAGNOSTICS.increment("invalid-thermostat-update-refresh-failure")
         _LOGGER.debug("Failed to refresh devices after invalid message")
     else:
