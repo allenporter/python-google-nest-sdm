@@ -5,7 +5,7 @@ black==24.3.0
 coverage==7.4.4
 google-api-core==2.18.0
 google-auth==2.29.0
-google-cloud-pubsub==2.20.3
+google-cloud-pubsub==2.21.0
 googleapis-common-protos==1.63.0
 grpcio==1.62.1
 grpcio-status==1.62.1
