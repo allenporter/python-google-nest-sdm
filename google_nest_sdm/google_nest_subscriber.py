@@ -564,7 +564,7 @@ class GoogleNestSubscriber:
 
 
 def _is_invalid_thermostat_trait_update(event: EventMessage) -> bool:
-    """Return true if this is an invalid thermostat trait udpate."""
+    """Return true if this is an invalid thermostat trait update."""
     return (
         event.resource_update_traits
         and (
