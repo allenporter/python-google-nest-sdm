@@ -565,8 +565,8 @@ class GoogleNestSubscriber:
 
 def _is_invalid_thermostat_trait_update(event: EventMessage) -> bool:
     """Return true if this is an invalid thermostat trait update."""
-    return (
-        event.resource_update_traits
+    if (
+        event.resource_update_traits is not None
         and (
             thermostat_mode := event.resource_update_traits.get(
                 "sdm.devices.traits.ThermostatMode"
@@ -574,7 +574,9 @@ def _is_invalid_thermostat_trait_update(event: EventMessage) -> bool:
         )
         and (available_modes := thermostat_mode.get("availableModes")) is not None
         and available_modes == ["OFF"]
-    )
+    ):
+        return True
+    return False
 
 
 async def _hack_refresh_devices(
