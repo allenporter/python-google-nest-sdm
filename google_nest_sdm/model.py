@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from dataclasses import dataclass, fields
+from mashumaro import DataClassDictMixin
+from typing import Any, Mapping
 
 try:
     from pydantic.v1 import BaseModel, root_validator
@@ -59,3 +61,45 @@ class TraitModel(BaseModel):
 
     class Config:
         extra = "allow"
+
+
+@dataclass
+class TraitDataClass(DataClassDictMixin):
+    """Base model for API objects that are trait based.
+
+    This is meant to be subclasses by the model definitions.
+    """
+
+    _EXCLUDE_FIELDS = set(
+        {
+            "_trait_event_ts",
+        }
+    )
+
+    @classmethod
+    def parse_trait_object(cls, raw_data: Mapping[str, Any]) -> TraitDataClass:
+        """Parse a new dataclass"""
+        if traits := raw_data.get(TRAITS):
+            raw_data.update(traits)
+            del raw_data["traits"]
+        return cls.from_dict(raw_data)
+
+    @property
+    def traits(self) -> dict[str, Any]:
+        """Return a trait mixin on None."""
+        return {
+            alias: value
+            for field in fields(self)
+            if (alias := field.metadata.get("alias")) is not None
+            and (value := getattr(self, field.name)) is not None
+            and alias.startswith(SDM_PREFIX)
+        }
+
+    @property
+    def raw_data(self) -> dict[str, Any]:
+        """Return raw data for the object."""
+        return {
+            k: v
+            for k, v in self.to_dict(by_alias=True, omit_none=True)
+            if k not in self._EXCLUDE_FIELDS
+        }
