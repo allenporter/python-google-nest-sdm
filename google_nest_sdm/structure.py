@@ -3,22 +3,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Any, Mapping, cast
 from mashumaro import DataClassDictMixin, field_options
 
 from .model import TraitDataClass
 
 
 @dataclass
-class InfoTrait(DataClassDictMixin):
+class InfoTrait:
     """This trait belongs to any structure for structure-related information."""
 
-    custom_name: str = field(metadata=field_options(alias="customName"), default=None)
+    custom_name: str | None = field(metadata=field_options(alias="customName"), default=None)
     """Name of the structure."""
 
 
 @dataclass
-class RoomInfoTrait(DataClassDictMixin):
+class RoomInfoTrait:
     """This trait belongs to any structure for room-related information."""
 
     custom_name: str = field(metadata=field_options(alias="customName"))
@@ -41,7 +41,7 @@ class Structure(TraitDataClass):
         default=None
     )
 
-    @staticmethod
-    def MakeStructure(raw_data: Mapping[str, Any]) -> Structure:
+    @classmethod
+    def MakeStructure(cls, raw_data: Mapping[str, Any]) -> Structure:
         """Create a structure with the appropriate traits."""
-        return Structure.parse_trait_object(raw_data)
+        return cast(Structure, cls.parse_trait_object(raw_data))

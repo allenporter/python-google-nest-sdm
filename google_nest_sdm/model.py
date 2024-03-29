@@ -79,10 +79,11 @@ class TraitDataClass(DataClassDictMixin):
     @classmethod
     def parse_trait_object(cls, raw_data: Mapping[str, Any]) -> TraitDataClass:
         """Parse a new dataclass"""
-        if traits := raw_data.get(TRAITS):
-            raw_data.update(traits)
-            del raw_data["traits"]
-        return cls.from_dict(raw_data)
+        data = {
+            **raw_data,
+        }
+        data.update(raw_data.get(TRAITS, {}))
+        return cls.from_dict(data)
 
     @property
     def traits(self) -> dict[str, Any]:
