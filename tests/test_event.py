@@ -464,3 +464,30 @@ def test_event_message_repr(
         }
     )
     assert "EventMessage{" in repr(event)
+    assert event.resource_update_events
+    assert "sdm.devices.events.CameraMotion.Motion" in event.resource_update_events
+    motion = event.resource_update_events["sdm.devices.events.CameraMotion.Motion"]
+    assert motion
+    assert "CameraMotionEvent(" in repr(motion)
+
+
+
+def test_missing_preview_url(
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+) -> None:
+    with pytest.raises(ValueError, match="EventMessage has invalid value"):
+        fake_event_message(
+            {
+                "eventId": "201fcd21-967a-4f82-8082-5073bd09d31f",
+                "timestamp": "2019-01-01T00:00:01Z",
+                "resourceUpdate": {
+                    "name": "enterprises/project-id/devices/device-id",
+                    "events": {
+                        "sdm.devices.events.CameraClipPreview.ClipPreview": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                        }
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )

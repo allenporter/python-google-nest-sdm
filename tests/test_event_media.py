@@ -1662,6 +1662,9 @@ async def test_invalid_events_persisted(device: Device) -> None:
                     },
                     "sdm.devices.events.DoorbellChime.Chime": {
                         "event_type": "sdm.devices.events.DoorbellChime.Chime",
+                    },
+                    "sdm.devices.events.DoorbellChime.Chime": {
+                        "event_type": "sdm.devices.events.DoorbellChime.Chime",
                         "event_data": {
                             "eventSessionId": "AVPHwEtyzgSxu6EuaIOfvz...",
                             "eventId": "CiUA2vuxr_zoChpekrBmo...",

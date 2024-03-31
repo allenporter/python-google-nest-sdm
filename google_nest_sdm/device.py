@@ -287,11 +287,11 @@ class Device(TraitTypes):
         # the new fields merged in.
         parsed_traits = TraitTypes.parse_trait_object({TRAITS: traits})
         for trait_field in fields(parsed_traits):
-            if (alias := trait_field.metadata.get("alias")) is None:
-                continue
-            if not alias.startswith(SDM_PREFIX):
-                continue
-            if not (new := getattr(parsed_traits, trait_field.name)):
+            if (
+                (alias := trait_field.metadata.get("alias")) is None
+                or not alias.startswith(SDM_PREFIX)
+                or not (new := getattr(parsed_traits, trait_field.name))
+            ):
                 continue
             # Discard updates to traits that are newer than the update
             if (
