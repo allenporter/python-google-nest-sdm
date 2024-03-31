@@ -1660,8 +1660,8 @@ async def test_invalid_events_persisted(device: Device) -> None:
                         "timestamp": "2021-12-23T06:35:35.791000+00:00",
                         "event_image_type": "image/jpeg",
                     },
-                    "sdm.devices.events.DoorbellChime.Chime": {
-                        "event_type": "sdm.devices.events.DoorbellChime.Chime",
+                    "sdm.devices.events.CameraMotion.Motion": {
+                        "event_type": "sdm.devices.events.CameraMotion.Motion",
                     },
                     "sdm.devices.events.DoorbellChime.Chime": {
                         "event_type": "sdm.devices.events.DoorbellChime.Chime",
