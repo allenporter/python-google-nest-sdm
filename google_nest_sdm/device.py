@@ -5,103 +5,181 @@ from __future__ import annotations
 import datetime
 import logging
 from typing import Any, Awaitable, Callable
+from dataclasses import dataclass, field, fields
 
-try:
-    from pydantic.v1 import BaseModel, Field, root_validator
-except ImportError:
-    from pydantic import BaseModel, Field, root_validator # type: ignore
+from mashumaro import field_options, DataClassDictMixin
+from mashumaro.config import BaseConfig
+from mashumaro.types import SerializationStrategy
 
 from . import camera_traits, device_traits, doorbell_traits, thermostat_traits
 from .auth import AbstractAuth
+from .doorbell_traits import DoorbellChimeTrait
 from .diagnostics import Diagnostics, redact_data
 from .event import EventMessage, EventProcessingError
 from .event_media import EventMediaManager
 from .traits import Command
-from .model import TraitModel
+from .model import TraitDataClass, SDM_PREFIX, TRAITS
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class ParentRelation(BaseModel):
+@dataclass
+class ParentRelation(DataClassDictMixin):
     """Represents the parent structure/room of the current resource."""
 
     parent: str
-    display_name: str = Field(alias="displayName")
+    display_name: str = field(metadata=field_options(alias="displayName"))
+
+    class Config(BaseConfig):
+        serialize_by_alias = True
 
 
-class DeviceTraits(TraitModel):
-    """Pydantic model for parsing traits in the Google Nest SDM API."""
+@dataclass
+class TraitTypes(TraitDataClass):
+    """Data model for parsing traits in the Google Nest SDM API."""
 
     # Device Traits
-    connectivity: device_traits.ConnectivityTrait | None = Field(
-        alias="sdm.devices.traits.Connectivity", exclude=True
+    connectivity: device_traits.ConnectivityTrait | None = field(
+        metadata=field_options(
+            alias="sdm.devices.traits.Connectivity",
+        ),
+        default=None,
     )
-    fan: device_traits.FanTrait | None = Field(
-        alias="sdm.devices.traits.Fan", exclude=True
+    fan: device_traits.FanTrait | None = field(
+        metadata=field_options(
+            alias="sdm.devices.traits.Fan",
+        ),
+        default=None,
     )
-    info: device_traits.InfoTrait | None = Field(
-        alias="sdm.devices.traits.Info", exclude=True
+    info: device_traits.InfoTrait | None = field(
+        metadata=field_options(
+            alias="sdm.devices.traits.Info",
+        ),
+        default=None,
     )
-    humidity: device_traits.HumidityTrait | None = Field(
-        alias="sdm.devices.traits.Humidity", exclude=True
+    humidity: device_traits.HumidityTrait | None = field(
+        metadata=field_options(
+            alias="sdm.devices.traits.Humidity",
+        ),
+        default=None,
     )
-    temperature: device_traits.TemperatureTrait | None = Field(
-        alias="sdm.devices.traits.Temperature", exclude=True
+    temperature: device_traits.TemperatureTrait | None = field(
+        metadata=field_options(
+            alias="sdm.devices.traits.Temperature",
+        ),
+        default=None,
     )
 
     # Thermostat Traits
-    thermostat_eco: thermostat_traits.ThermostatEcoTrait | None = Field(
-        alias="sdm.devices.traits.ThermostatEco", exclude=True
+    thermostat_eco: thermostat_traits.ThermostatEcoTrait | None = field(
+        metadata=field_options(
+            alias="sdm.devices.traits.ThermostatEco",
+        ),
+        default=None,
     )
-    thermostat_hvac: thermostat_traits.ThermostatHvacTrait | None = Field(
-        alias="sdm.devices.traits.ThermostatHvac", exclude=True
+    thermostat_hvac: thermostat_traits.ThermostatHvacTrait | None = field(
+        metadata=field_options(
+            alias="sdm.devices.traits.ThermostatHvac",
+        ),
+        default=None,
     )
-    thermostat_mode: thermostat_traits.ThermostatModeTrait | None = Field(
-        alias="sdm.devices.traits.ThermostatMode", exclude=True
+    thermostat_mode: thermostat_traits.ThermostatModeTrait | None = field(
+        metadata=field_options(
+            alias="sdm.devices.traits.ThermostatMode",
+        ),
+        default=None,
     )
-    thermostat_temperature_setpoint: thermostat_traits.ThermostatTemperatureSetpointTrait | None = Field(  # noqa: E501
-        alias="sdm.devices.traits.ThermostatTemperatureSetpoint", exclude=True
-    )
-
-    # Camera Traits
-    camera_image: camera_traits.CameraImageTrait | None = Field(
-        alias="sdm.devices.traits.CameraImage", exclude=True
-    )
-    camera_live_stream: camera_traits.CameraLiveStreamTrait | None = Field(
-        alias="sdm.devices.traits.CameraLiveStream", exclude=True
-    )
-    camera_event_image: camera_traits.CameraEventImageTrait | None = Field(
-        alias="sdm.devices.traits.CameraEventImage", exclude=True
-    )
-    camera_motion: camera_traits.CameraMotionTrait | None = Field(
-        alias="sdm.devices.traits.CameraMotion", exclude=True
-    )
-    camera_person: camera_traits.CameraPersonTrait | None = Field(
-        alias="sdm.devices.traits.CameraPerson", exclude=True
-    )
-    camera_sound: camera_traits.CameraSoundTrait | None = Field(
-        alias="sdm.devices.traits.CameraSound", exclude=True
-    )
-    camera_clip_preview: camera_traits.CameraClipPreviewTrait | None = Field(
-        alias="sdm.devices.traits.CameraClipPreview", exclude=True
+    thermostat_temperature_setpoint: (
+        thermostat_traits.ThermostatTemperatureSetpointTrait | None
+    ) = field(
+        metadata=field_options(
+            alias="sdm.devices.traits.ThermostatTemperatureSetpoint",
+        ),
+        default=None,
     )
 
-    # Doorbell Traits
-    doorbell_chime: doorbell_traits.DoorbellChimeTrait | None = Field(
-        alias="sdm.devices.traits.DoorbellChime", exclude=True
+    # # Camera Traits
+    camera_image: camera_traits.CameraImageTrait | None = field(
+        metadata=field_options(
+            alias="sdm.devices.traits.CameraImage",
+        ),
+        default=None,
+    )
+    camera_live_stream: camera_traits.CameraLiveStreamTrait | None = field(
+        metadata=field_options(alias="sdm.devices.traits.CameraLiveStream"),
+        default=None,
+    )
+    camera_event_image: camera_traits.CameraEventImageTrait | None = field(
+        metadata=field_options(
+            alias="sdm.devices.traits.CameraEventImage",
+        ),
+        default=None,
+    )
+    camera_motion: camera_traits.CameraMotionTrait | None = field(
+        metadata=field_options(
+            alias="sdm.devices.traits.CameraMotion",
+        ),
+        default=None,
+    )
+    camera_person: camera_traits.CameraPersonTrait | None = field(
+        metadata=field_options(
+            alias="sdm.devices.traits.CameraPerson",
+        ),
+        default=None,
+    )
+    camera_sound: camera_traits.CameraSoundTrait | None = field(
+        metadata=field_options(
+            alias="sdm.devices.traits.CameraSound",
+        ),
+        default=None,
+    )
+    camera_clip_preview: camera_traits.CameraClipPreviewTrait | None = field(
+        metadata=field_options(
+            alias="sdm.devices.traits.CameraClipPreview",
+        ),
+        default=None,
     )
 
-    class Config:
-        extra = "allow"
+    # # Doorbell Traits
+    doorbell_chime: doorbell_traits.DoorbellChimeTrait | None = field(
+        metadata=field_options(
+            alias="sdm.devices.traits.DoorbellChime",
+        ),
+        default=None,
+    )
 
 
-class Device(DeviceTraits):
+class ParentRelationsSerializationStrategy(SerializationStrategy, use_annotations=True):
+    """Parser to ignore invalid parent relations."""
+
+    def serialize(self, value: list[ParentRelation]) -> list[dict[str, Any]]:
+        return [x.to_dict() for x in value]
+
+    def deserialize(self, value: list[dict[str, Any]]) -> list[ParentRelation]:
+        return [
+            ParentRelation.from_dict(relation)
+            for relation in value
+            if "parent" in relation and "displayName" in relation
+        ]
+
+
+def _name_required() -> str:
+    """Raise an error if the name field is not provided.
+
+    This is a workaround for the fact that dataclasses children can't have
+    default fields out of order from the subclass.
+    """
+    raise ValueError("Field 'name' is required")
+
+
+@dataclass
+class Device(TraitTypes):
     """Class that represents a device object in the Google Nest SDM API."""
 
-    name: str
+    name: str = field(default_factory=_name_required)
     """Resource name of the device such as 'enterprises/XYZ/devices/123'."""
 
-    type: str | None
+    type: str | None = None
     """Type of device for display purposes.
 
     The device type should not be used to deduce or infer functionality of
@@ -109,44 +187,53 @@ class Device(DeviceTraits):
     the device.
     """
 
-    relations: list[ParentRelation] = Field(
-        alias="parentRelations", default_factory=list
+    relations: list[ParentRelation] = field(
+        metadata=field_options(alias="parentRelations"), default_factory=list
     )
     """Represents the parent structure or room of the device."""
 
-    def __init__(self, raw_data: dict[str, Any], auth: AbstractAuth) -> None:
-        """Initialize a device."""
-        # Hack for incorrect nest API response values
-        if (type := raw_data.get("type")) and type == "sdm.devices.types.DOORBELL":
-            if "traits" not in raw_data:
-                raw_data["traits"] = {}
-            raw_data["traits"][doorbell_traits.DoorbellChimeTrait.NAME] = {}
-        super().__init__(**raw_data)
-        self._auth = auth
-        self._diagnostics = Diagnostics()
-        self._cmd = Command(raw_data["name"], auth, self._diagnostics.subkey("command"))
-        for trait in self.traits.values():
-            if hasattr(trait, "_cmd"):
-                trait._cmd = self._cmd
-
-        event_traits = {
-            trait.EVENT_NAME
-            for trait in self.traits.values()
-            if hasattr(trait, "EVENT_NAME")
-        }
-        self._event_media_manager = EventMediaManager(
-            self.name,
-            self.traits,
-            event_traits,
-            diagnostics=self._diagnostics.subkey("event_media"),
-        )
-        self._callbacks: list[Callable[[EventMessage], Awaitable[None]]] = []
-        self._trait_event_ts: dict[str, datetime.datetime] = {}
+    _auth: AbstractAuth = field(init=False, metadata={"serialize": "omit"})
+    _diagnostics: Diagnostics = field(init=False, metadata={"serialize": "omit"})
+    _event_media_manager: EventMediaManager = field(
+        init=False, metadata={"serialize": "omit"}
+    )
+    _callbacks: list[Callable[[EventMessage], Awaitable[None]]] = field(
+        init=False, metadata={"serialize": "omit"}, default_factory=list
+    )
+    _trait_event_ts: dict[str, datetime.datetime] = field(
+        init=False, metadata={"serialize": "omit"}, default_factory=dict
+    )
 
     @staticmethod
     def MakeDevice(raw_data: dict[str, Any], auth: AbstractAuth) -> Device:
         """Create a device with the appropriate traits."""
-        return Device(raw_data, auth)
+
+        # Hack for incorrect nest API response values
+        if (type := raw_data.get("type")) and type == "sdm.devices.types.DOORBELL":
+            if TRAITS not in raw_data:
+                raw_data[TRAITS] = {}
+            raw_data[TRAITS][DoorbellChimeTrait.NAME] = {}
+
+        device: Device = Device.parse_trait_object(raw_data)
+        device._auth = auth
+        device._diagnostics = Diagnostics()
+        cmd = Command(raw_data["name"], auth, device._diagnostics.subkey("command"))
+        for trait in device.traits.values():
+            if hasattr(trait, "_cmd"):
+                trait._cmd = cmd
+
+        event_traits = {
+            trait.EVENT_NAME
+            for trait in device.traits.values()
+            if hasattr(trait, "EVENT_NAME")
+        }
+        device._event_media_manager = EventMediaManager(
+            device.name or "",
+            device.traits,
+            event_traits,
+            diagnostics=device._diagnostics.subkey("event_media"),
+        )
+        return device
 
     def add_update_listener(self, target: Callable[[], None]) -> Callable[[], None]:
         """Register a simple event listener notified on updates.
@@ -195,32 +282,34 @@ class Device(DeviceTraits):
         if not traits:
             return
         _LOGGER.debug("Trait update %s", traits)
-        # Parse the traits using a separate pydantic object, then overwrite
+        # Parse the traits using a separate object, then overwrite
         # each present field with an updated copy of the original trait with
         # the new fields merged in.
-        parsed_traits = DeviceTraits.parse_obj({"traits": traits})
-        for field in parsed_traits.__fields__.values():
-            if not (new := getattr(parsed_traits, field.name)) or not isinstance(
-                new, BaseModel
-            ):
+        parsed_traits = TraitTypes.parse_trait_object({TRAITS: traits})
+        for trait_field in fields(parsed_traits):
+            if (alias := trait_field.metadata.get("alias")) is None:
+                continue
+            if not alias.startswith(SDM_PREFIX):
+                continue
+            if not (new := getattr(parsed_traits, trait_field.name)):
                 continue
             # Discard updates to traits that are newer than the update
             if (
                 self._trait_event_ts
-                and (ts := self._trait_event_ts.get(field.name))
+                and (ts := self._trait_event_ts.get(trait_field.name))
                 and ts > event_message.timestamp
             ):
                 _LOGGER.debug("Discarding stale update (%s)", event_message.timestamp)
                 continue
 
-            # Only merge updates into existing models
-            if not (existing := getattr(self, field.name)) or not isinstance(
-                existing, BaseModel
-            ):
+            # Only merge updates into existing models, updating the existing
+            # fields present in the update trait
+            if not (existing := getattr(self, trait_field.name)):
                 continue
-            obj = existing.copy(update=new.dict())
-            setattr(self, field.name, obj)
-            self._trait_event_ts[field.name] = event_message.timestamp
+            for k, v in new.to_dict().items():
+                if v is not None:
+                    setattr(existing, k, v)
+            self._trait_event_ts[trait_field.name] = event_message.timestamp
 
     @property
     def event_media_manager(self) -> EventMediaManager:
@@ -247,22 +336,12 @@ class Device(DeviceTraits):
             **self._diagnostics.as_dict(),
         }
 
-    @root_validator(pre=True)
-    def _parent_relations(cls, values: dict[str, Any]) -> dict[str, Any]:
-        """Ignore invalid parentRelations."""
-        if not (relations := values.get("parentRelations")):
-            return values
-        values["parentRelations"] = [
-            relation for relation in relations if "parent" in relation and "displayName" in relation 
-        ]
-        return values
-
-
     _EXCLUDE_FIELDS = (
         set({"_auth", "_callbacks", "_cmd", "_diagnostics", "_event_media_manager"})
-        | TraitModel._EXCLUDE_FIELDS
+        | TraitDataClass._EXCLUDE_FIELDS
     )
 
-    class Config:
-        arbitrary_types_allowed = True
-        extra = "allow"
+    class Config(TraitTypes.Config):
+        serialization_strategy = {
+            list[ParentRelation]: ParentRelationsSerializationStrategy(),
+        }

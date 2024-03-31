@@ -1,22 +1,20 @@
 """Library for traits about devices."""
 
 import datetime
-from typing import Any, Dict, Final
-
-try:
-    from pydantic.v1 import BaseModel, Field
-except ImportError:
-    from pydantic import BaseModel, Field  # type: ignore
+from typing import Any, Dict, ClassVar
+from dataclasses import dataclass, field
 
 import aiohttp
+from mashumaro import field_options, DataClassDictMixin
 
-from .traits import CommandModel
+from .traits import CommandDataClass, TraitType
 
 
-class ConnectivityTrait(BaseModel):
+@dataclass
+class ConnectivityTrait(DataClassDictMixin):
     """This trait belongs to any device that has connectivity information."""
 
-    NAME: Final = "sdm.devices.traits.Connectivity"
+    NAME: ClassVar[TraitType] = TraitType.CONNECTIVITY
 
     status: str
     """Device connectivity status.
@@ -26,19 +24,24 @@ class ConnectivityTrait(BaseModel):
     """
 
 
-class FanTrait(CommandModel):
+@dataclass
+class FanTrait(DataClassDictMixin, CommandDataClass):
     """This trait belongs to any device that can control the fan."""
 
-    NAME: Final = "sdm.devices.traits.Fan"
+    NAME: ClassVar[TraitType] = TraitType.FAN
 
-    timer_mode: str | None = Field(alias="timerMode")
+    timer_mode: str | None = field(
+        metadata=field_options(alias="timerMode"), default=None
+    )
     """Timer mode for the fan.
 
     Return:
         "ON", "OFF"
     """
 
-    timer_timeout: datetime.datetime | None = Field(alias="timerTimeout")
+    timer_timeout: datetime.datetime | None = field(
+        metadata=field_options(alias="timerTimeout"), default=None
+    )
 
     async def set_timer(
         self, timer_mode: str, duration: int | None = None
@@ -55,28 +58,37 @@ class FanTrait(CommandModel):
         return await self.cmd.execute(data)
 
 
-class InfoTrait(BaseModel):
+@dataclass
+class InfoTrait(DataClassDictMixin):
     """This trait belongs to any device for device-related information."""
 
-    NAME: Final = "sdm.devices.traits.Info"
+    NAME: ClassVar[TraitType] = TraitType.INFO
 
-    custom_name: str | None = Field(alias="customName")
+    custom_name: str | None = field(
+        metadata=field_options(alias="customName"), default=None
+    )
     """Name of the device."""
 
 
-class HumidityTrait(BaseModel):
+@dataclass
+class HumidityTrait(DataClassDictMixin):
     """This trait belongs to any device that has a sensor to measure humidity."""
 
-    NAME: Final = "sdm.devices.traits.Humidity"
+    NAME: ClassVar[TraitType] = TraitType.HUMIDITY
 
-    ambient_humidity_percent: float = Field(alias="ambientHumidityPercent")
+    ambient_humidity_percent: float = field(
+        metadata=field_options(alias="ambientHumidityPercent")
+    )
     """Percent humidity, measured at the device."""
 
 
-class TemperatureTrait(BaseModel):
+@dataclass
+class TemperatureTrait(DataClassDictMixin):
     """This trait belongs to any device that has a sensor to measure temperature."""
 
-    NAME: Final = "sdm.devices.traits.Temperature"
+    NAME: ClassVar[TraitType] = TraitType.TEMPERATURE
 
-    ambient_temperature_celsius: float = Field(alias="ambientTemperatureCelsius")
+    ambient_temperature_celsius: float = field(
+        metadata=field_options(alias="ambientTemperatureCelsius")
+    )
     """Percent humidity, measured at the device."""

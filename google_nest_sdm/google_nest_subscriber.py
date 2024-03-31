@@ -1,4 +1,5 @@
 """Subscriber for the Smart Device Management event based API."""
+
 from __future__ import annotations
 
 import asyncio
@@ -337,9 +338,9 @@ class GoogleNestSubscriber:
         self._loop = loop or asyncio.get_event_loop()
         self._device_manager_task: asyncio.Task[DeviceManager] | None = None
         self._subscriber_factory = subscriber_factory
-        self._subscriber_future: pubsub_v1.subscriber.futures.StreamingPullFuture | None = (  # noqa: E501
-            None
-        )
+        self._subscriber_future: (
+            pubsub_v1.subscriber.futures.StreamingPullFuture | None
+        ) = None  # noqa: E501
         self._callback: Callable[[EventMessage], Awaitable[None]] | None = None
         self._healthy = True
         self._watchdog_check_interval_seconds = watchdog_check_interval_seconds
@@ -535,7 +536,7 @@ class GoogleNestSubscriber:
     ) -> None:
         """Handle a received message."""
         payload = json.loads(bytes.decode(message.data))
-        event = EventMessage(payload, self._auth)
+        event = EventMessage.create_event(payload, self._auth)
         recv = time.time()
         latency_ms = int((recv - event.timestamp.timestamp()) * 1000)
         DIAGNOSTICS.elapsed("message_received", latency_ms)

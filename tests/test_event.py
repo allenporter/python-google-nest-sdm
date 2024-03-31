@@ -259,7 +259,7 @@ def test_event_serialization(
     dump = json.dumps(data)
     data = json.loads(dump)
 
-    e = ImageEventBase.from_dict(data)
+    e = ImageEventBase.parse_event_dict(data)
     assert e
     assert isinstance(e, CameraClipPreviewEvent)
 

@@ -21,10 +21,9 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, cast
 
-try:
-    from pydantic.v1 import BaseModel, validator, Field
-except ImportError:
-    from pydantic import BaseModel, validator, Field  # type: ignore
+from mashumaro import DataClassDictMixin
+from mashumaro.types import SerializationStrategy
+from mashumaro.config import BaseConfig
 
 from .camera_traits import (
     CameraClipPreviewTrait,
@@ -35,15 +34,15 @@ from .diagnostics import EVENT_MEDIA_DIAGNOSTICS as DIAGNOSTICS
 from .diagnostics import Diagnostics
 from .event import (
     CameraClipPreviewEvent,
-    CameraMotionEvent,
-    CameraPersonEvent,
-    CameraSoundEvent,
-    DoorbellChimeEvent,
     EventImageType,
     EventMessage,
     EventToken,
     ImageEventBase,
     session_event_image_type,
+    CameraPersonEvent,
+    CameraMotionEvent,
+    CameraSoundEvent,
+    DoorbellChimeEvent,
 )
 from .exceptions import GoogleNestException, TranscodeException
 from .transcoder import Transcoder
@@ -235,30 +234,25 @@ class CachePolicy:
         return max(int(self.event_cache_size * EXPIRE_CACHE_BATCH_SIZE), 1)
 
 
-class EventMediaModelItem(BaseModel):
-    """Structure used to persist the event in EventMediaStore."""
+class ImageEventSerializationStrategy(SerializationStrategy):
+    """Serialization strategy for ImageEventBase."""
 
-    event_session_id: str
-    events: dict[str, ImageEventBase] = Field(default_factory=dict)
-    media_key: str | None
-    event_media_keys: dict[str, str] = Field(default_factory=dict)
-    thumbnail_media_key: str | None
-    pending_event_keys: set[str] = Field(default_factory=set)
+    def serialize(self, value: dict[str, ImageEventBase]) -> dict[str, Any]:
+        """Serialize ImageEventBase."""
+        return dict((k, v.as_dict()) for k, v in value.items())
 
-    @staticmethod
-    def from_dict(data: dict[str, Any]) -> EventMediaModelItem:
-        """Read from serialized dictionary."""
-        return EventMediaModelItem(**data)
-
-    @validator("events", pre=True)
-    def _validate_events(
-        cls, data: dict[str, ImageEventBase | dict] | None
-    ) -> dict[str, ImageEventBase]:
+    def deserialize(self, value: dict[str, Any]) -> dict[str, ImageEventBase]:
+        """Deserialize ImageEventBase."""
         events: dict[str, ImageEventBase] = {}
-        for event_type, event_data in (data or {}).items():
+        for event_type, event_data in value.items():
+            # Propagate timestamps to child nodes
+            if (timestamp := event_data.get("timestamp")) and (
+                data := event_data.get("event_data")
+            ):
+                data["timestamp"] = timestamp
             if isinstance(event_data, ImageEventBase):
                 events[event_type] = event_data
-            elif event := ImageEventBase.from_dict(event_data):
+            elif event := ImageEventBase.parse_event_dict(event_data):
                 events[event_type] = event
 
         # Link events to other events in the session
@@ -266,6 +260,18 @@ class EventMediaModelItem(BaseModel):
         for event in events.values():
             event.event_image_type = event_image_type
         return events
+
+
+@dataclass
+class EventMediaModelItem(DataClassDictMixin):
+    """Structure used to persist the event in EventMediaStore."""
+
+    event_session_id: str
+    events: dict[str, ImageEventBase] = field(default_factory=dict)
+    media_key: str | None = field(default=None)
+    event_media_keys: dict[str, str] = field(default_factory=dict)
+    thumbnail_media_key: str | None = field(default=None)
+    pending_event_keys: set[str] = field(default_factory=set)
 
     @property
     def visible_event(self) -> ImageEventBase | None:
@@ -319,12 +325,10 @@ class EventMediaModelItem(BaseModel):
         )
         return [key for key in keys if key is not None]
 
-    def as_dict(self) -> dict[str, Any]:
-        """Return a EventMediaModelItem as a serializable dict."""
-        result = self.dict(exclude_unset=True)
-        # Overwrite with ImageEventBase custom serialization
-        result["events"] = dict((k, v.as_dict()) for k, v in self.events.items())
-        return result
+    class Config(BaseConfig):
+        serialization_strategy = {
+            dict[str, ImageEventBase]: ImageEventSerializationStrategy(),
+        }
 
 
 class EventMediaManager:
@@ -367,7 +371,11 @@ class EventMediaManager:
         if store_data:
             device_data = store_data.get(self._device_id, [])
             for item_data in device_data:
-                item = EventMediaModelItem.from_dict(item_data)
+                try:
+                    item = EventMediaModelItem.from_dict(item_data)
+                except Exception as err:
+                    _LOGGER.debug("Failed to parse event item: %s", str(err))
+                    raise err
                 event_data[item.event_session_id] = item
         return event_data
 
@@ -376,7 +384,7 @@ class EventMediaManager:
         # Event order is preserved so popping from the oldest entry works
         device_data: list[dict[str, Any]] = []
         for item in event_data.values():
-            device_data.append(item.as_dict())
+            device_data.append(item.to_dict())
 
         # Read data from the store and update information for this device
         store_data = await self._cache_policy.store.async_load()
@@ -649,9 +657,9 @@ class EventMediaManager:
     async def async_handle_events(self, event_message: EventMessage) -> None:
         """Handle the EventMessage."""
         self._diagnostics.increment("event")
-        event_sessions: dict[
-            str, dict[str, ImageEventBase]
-        ] | None = event_message.event_sessions
+        event_sessions: dict[str, dict[str, ImageEventBase]] | None = (
+            event_message.event_sessions
+        )
         if not event_sessions:
             return
         _LOGGER.debug("Event Update %s", event_sessions.keys())

@@ -2,25 +2,19 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import logging
-from typing import Final
+from typing import ClassVar
 
-try:
-    from pydantic.v1 import BaseModel
-except ImportError:
-    from pydantic import BaseModel  # type: ignore
-
-from .event import DoorbellChimeEvent
+from .event import DoorbellChimeEvent, EventType
+from .traits import TraitType
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class DoorbellChimeTrait(BaseModel):
+@dataclass
+class DoorbellChimeTrait:
     """For any device that supports a doorbell chime and related press events."""
 
-    NAME: Final = "sdm.devices.traits.DoorbellChime"
-    EVENT_NAME: Final[str] = DoorbellChimeEvent.NAME
-
-    class Config:
-        extra = "allow"
-        arbitrary_types_allowed = True
+    NAME: ClassVar[TraitType] = TraitType.DOORBELL_CHIME
+    EVENT_NAME: ClassVar[EventType] = DoorbellChimeEvent.NAME

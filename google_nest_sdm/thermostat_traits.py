@@ -2,18 +2,13 @@
 
 from __future__ import annotations
 
-from abc import ABC
-from typing import Final
+from dataclasses import dataclass, field
+from typing import Final, ClassVar
 
 import aiohttp
+from mashumaro import field_options, DataClassDictMixin
 
-try:
-    from pydantic.v1 import Field
-except ImportError:
-    from pydantic import Field  # type: ignore
-
-from .traits import CommandModel
-from .model import TraitModel
+from .traits import CommandDataClass, TraitType
 
 __all__ = [
     "ThermostatEcoTrait",
@@ -27,26 +22,29 @@ AVAILABLE_MODES: Final = "availableModes"
 MODE: Final = "mode"
 
 
-class ThermostatHeatCoolTrait(CommandModel, ABC):
-    """Parent class for traits related to temperature set points."""
-
-    heat_celsius: float | None = Field(alias="heatCelsius")
-    """Lowest temperature where thermostat begins heating."""
-
-    cool_celsius: float | None = Field(alias="coolCelsius")
-    """Highest cooling temperature where thermostat begins cooling."""
-
-
-class ThermostatEcoTrait(ThermostatHeatCoolTrait):
+@dataclass
+class ThermostatEcoTrait(DataClassDictMixin, CommandDataClass):
     """This trait belongs to any device that has a sensor to measure temperature."""
 
-    NAME: Final = "sdm.devices.traits.ThermostatEco"
+    NAME: ClassVar[TraitType] = TraitType.THERMOSTAT_ECO
 
-    available_modes: list[str] = Field(alias="availableModes", default_factory=list)
+    available_modes: list[str] = field(
+        metadata=field_options(alias="availableModes"), default_factory=list
+    )
     """List of supported Eco modes."""
 
-    mode: str = Field(alias="mode", default="OFF")
+    mode: str = field(metadata=field_options(alias="mode"), default="OFF")
     """Eco mode of the thermostat."""
+
+    heat_celsius: float | None = field(
+        metadata=field_options(alias="heatCelsius"), default=None
+    )
+    """Lowest temperature where thermostat begins heating."""
+
+    cool_celsius: float | None = field(
+        metadata=field_options(alias="coolCelsius"), default=None
+    )
+    """Highest cooling temperature where thermostat begins cooling."""
 
     async def set_mode(self, mode: str) -> aiohttp.ClientResponse:
         """Change the thermostat Eco mode."""
@@ -57,24 +55,26 @@ class ThermostatEcoTrait(ThermostatHeatCoolTrait):
         return await self.cmd.execute(data)
 
 
-class ThermostatHvacTrait(TraitModel):
+@dataclass
+class ThermostatHvacTrait:
     """This trait belongs to devices that can report HVAC details."""
 
-    NAME: Final = "sdm.devices.traits.ThermostatHvac"
+    NAME: ClassVar[TraitType] = TraitType.THERMOSTAT_HVAC
 
-    status: str = Field("status")
+    status: str
     """HVAC status of the thermostat."""
 
 
-class ThermostatModeTrait(CommandModel):
+@dataclass
+class ThermostatModeTrait(DataClassDictMixin, CommandDataClass):
     """This trait belongs to devices that support different thermostat modes."""
 
-    NAME: Final = "sdm.devices.traits.ThermostatMode"
+    NAME: ClassVar[TraitType] = TraitType.THERMOSTAT_MODE
 
-    available_modes: list[str] = Field(alias="availableModes")
+    available_modes: list[str] = field(metadata=field_options(alias="availableModes"))
     """List of supported thermostat modes."""
 
-    mode: str = Field(alias="mode")
+    mode: str = field(metadata=field_options(alias="mode"))
     """Mode of the thermostat."""
 
     async def set_mode(self, mode: str) -> aiohttp.ClientResponse:
@@ -86,10 +86,21 @@ class ThermostatModeTrait(CommandModel):
         return await self.cmd.execute(data)
 
 
-class ThermostatTemperatureSetpointTrait(ThermostatHeatCoolTrait):
+@dataclass
+class ThermostatTemperatureSetpointTrait(DataClassDictMixin, CommandDataClass):
     """This trait belongs to devices that support setting target temperature."""
 
-    NAME: Final = "sdm.devices.traits.ThermostatTemperatureSetpoint"
+    NAME: ClassVar[TraitType] = TraitType.THERMOSTAT_TEMPERATURE_SETPOINT
+
+    heat_celsius: float | None = field(
+        metadata=field_options(alias="heatCelsius"), default=None
+    )
+    """Lowest temperature where thermostat begins heating."""
+
+    cool_celsius: float | None = field(
+        metadata=field_options(alias="coolCelsius"), default=None
+    )
+    """Highest cooling temperature where thermostat begins cooling."""
 
     async def set_heat(self, heat: float) -> aiohttp.ClientResponse:
         """Change the thermostat Eco mode."""
