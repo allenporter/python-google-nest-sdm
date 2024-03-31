@@ -209,9 +209,6 @@ class ImageEventBase(DataClassDictMixin, ABC):
             )
         return event
 
-    def __repr__(self) -> str:
-        return "<ImageEventBase " + str(self.as_dict()) + ">"
-
     class Config(BaseConfig):
         serialization_strategy = {
             EventImageContentType: EventImageTypeSerializationStrategy(),
@@ -361,7 +358,6 @@ class UpdateEventsSerializationStrategy(SerializationStrategy, use_annotations=T
     def deserialize(self, value: dict[str, Any]) -> dict[str, ImageEventBase]:
         result = {}
         for event_type, event_data in value.items():
-            _LOGGER.debug("Deserializing event type %s", event_type)
             image_event = _BuildEvent(event_type, event_data)
             if not image_event:
                 continue
@@ -402,7 +398,6 @@ class EventMessage(DataClassDictMixin):
                 for event_updates in events.values():
                     event_updates[TIMESTAMP] = timestamp
                 event_data["resource_update_events"] = events
-                event_data["resource_update_events"][TIMESTAMP] = timestamp
             if traits := update.get(TRAITS):
                 event_data["resource_update_traits"] = traits
                 event_data["resource_update_traits"][NAME] = update.get(NAME)
