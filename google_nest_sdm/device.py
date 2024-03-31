@@ -336,11 +336,6 @@ class Device(TraitTypes):
             **self._diagnostics.as_dict(),
         }
 
-    _EXCLUDE_FIELDS = (
-        set({"_auth", "_callbacks", "_cmd", "_diagnostics", "_event_media_manager"})
-        | TraitDataClass._EXCLUDE_FIELDS
-    )
-
     class Config(TraitTypes.Config):
         serialization_strategy = {
             list[ParentRelation]: ParentRelationsSerializationStrategy(),

@@ -19,12 +19,6 @@ class TraitDataClass(DataClassDictMixin):
     This is meant to be subclasses by the model definitions.
     """
 
-    _EXCLUDE_FIELDS = set(
-        {
-            "_trait_event_ts",
-        }
-    )
-
     @classmethod
     def parse_trait_object(cls, raw_data: Mapping[str, Any]) -> Self:
         """Parse a new dataclass"""
@@ -51,8 +45,6 @@ class TraitDataClass(DataClassDictMixin):
         """Return raw data for the object."""
         result: dict[str, Any] = {}
         for k, v in self.to_dict(by_alias=True, omit_none=True).items():
-            if k in self._EXCLUDE_FIELDS:
-                continue
             if k.startswith(SDM_PREFIX):
                 if "traits" not in result:
                     result["traits"] = {}

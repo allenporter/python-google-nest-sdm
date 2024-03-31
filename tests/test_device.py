@@ -2,6 +2,8 @@
 
 from typing import Any, Callable, Dict
 
+import pytest
+
 from google_nest_sdm.device import Device
 
 
@@ -35,6 +37,15 @@ def test_empty_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     )
     assert "my/device/name" == device.name
     assert "sdm.devices.traits.Info" not in device.traits
+
+
+def test_no_name(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
+    with pytest.raises(ValueError, match="'name' is required"):
+        fake_device(
+            {
+                "traits": {},
+            }
+        )
 
 
 def test_no_parent_relations(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
