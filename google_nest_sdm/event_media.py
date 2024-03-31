@@ -250,9 +250,7 @@ class ImageEventSerializationStrategy(SerializationStrategy):
                 data := event_data.get("event_data")
             ):
                 data["timestamp"] = timestamp
-            if isinstance(event_data, ImageEventBase):
-                events[event_type] = event_data
-            elif event := ImageEventBase.parse_event_dict(event_data):
+            if event := ImageEventBase.parse_event_dict(event_data):
                 events[event_type] = event
 
         # Link events to other events in the session
