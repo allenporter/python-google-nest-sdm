@@ -29,7 +29,7 @@ setup(
         "PyYAML>=6.0",
         "pydantic>=1.10.4",
     ],
-    python_requires=">=3.10",
+    python_requires=">=3.11",
     entry_points={
         "console_scripts": [
             "google_nest=google_nest_sdm.google_nest:main",
