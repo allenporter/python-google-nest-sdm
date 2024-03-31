@@ -27,7 +27,7 @@ setup(
         "google-cloud-pubsub>=2.1.0",
         "requests-oauthlib>=1.3.0",
         "PyYAML>=6.0",
-        "pydantic>=1.10.4",
+        "mashumaro>=3.12",
     ],
     python_requires=">=3.11",
     entry_points={

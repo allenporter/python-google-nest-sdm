@@ -1,4 +1,5 @@
 """Tests for event_media.py"""
+
 import datetime
 from typing import Any, Awaitable, Callable, Dict
 from unittest.mock import patch
@@ -1641,3 +1642,111 @@ async def test_unsupported_event_trait(
     event_media_manager = device.event_media_manager
     assert len(list(await event_media_manager.async_image_sessions())) == 0
     assert len(list(await event_media_manager.async_clip_preview_sessions())) == 0
+
+
+@pytest.mark.parametrize("device_traits", [IMAGE_DOORBELL_TRAITS])
+async def test_unknown_event_type(device: Device) -> None:
+    data = {
+        device.name: [
+            {
+                "event_session_id": "AVPHwEtyzgSxu6EuaIOfvz...",
+                "events": {
+                    "sdm.devices.events.Ignored.Ignored": {
+                        "event_type": "sdm.devices.events.Ignored.Ignored",
+                        "event_data": {
+                            "eventSessionId": "AVPHwEtyzgSxu6EuaIOfvz...",
+                            "eventId": "CiUA2vuxrwjZjb0daCbmE...",
+                        },
+                        "timestamp": "2021-12-23T06:35:35.791000+00:00",
+                        "event_image_type": "image/jpeg",
+                    },
+                    "sdm.devices.events.DoorbellChime.Chime": {
+                        "event_type": "sdm.devices.events.DoorbellChime.Chime",
+                        "event_data": {
+                            "eventSessionId": "AVPHwEtyzgSxu6EuaIOfvz...",
+                            "eventId": "CiUA2vuxr_zoChpekrBmo...",
+                        },
+                        "timestamp": "2021-12-23T06:35:36.101000+00:00",
+                        "event_image_type": "image/jpeg",
+                    },
+                },
+                "event_media_keys": {
+                    "CiUA2vuxrwjZjb0daCbmE...": (
+                        "AVPHwEtyzgSxu6EuaIOfvzmr7-CiUA2vuxrwjZjb0daCbmE-motion.jpg"
+                    ),
+                    "CiUA2vuxr_zoChpekrBmo...": (
+                        "AVPHwEtyzgSxu6EuaIOfvzmr7-CiUA2vuxr_zoChpekrBmo-doorbell.jpg"
+                    ),
+                },
+            },
+        ],
+    }
+    event_media_manager = device.event_media_manager
+    store = event_media_manager.cache_policy.store
+    await store.async_save(data)
+    await store.async_save_media(
+        "AVPHwEtyzgSxu6EuaIOfvzmr7-CiUA2vuxrwjZjb0daCbmE-motion.jpg",
+        b"image-bytes-1",
+    )
+    await store.async_save_media(
+        "AVPHwEtyzgSxu6EuaIOfvzmr7-CiUA2vuxr_zoChpekrBmo-doorbell.jpg",
+        b"image-bytes-2",
+    )
+
+    event_media_manager = device.event_media_manager
+
+    events = list(await event_media_manager.async_image_sessions())
+    assert len(events) == 1
+    event = events[0]
+    event_token = EventToken.decode(event.event_token)
+    assert event_token.event_session_id == "AVPHwEtyzgSxu6EuaIOfvz..."
+    assert event_token.event_id == "CiUA2vuxr_zoChpekrBmo..."
+    assert event.event_type == "sdm.devices.events.DoorbellChime.Chime"
+    assert event.timestamp.isoformat(timespec="seconds") == "2021-12-23T06:35:36+00:00"
+
+
+
+@pytest.mark.parametrize("device_traits", [IMAGE_DOORBELL_TRAITS])
+async def test_invalid_events_persisted(device: Device) -> None:
+    data = {
+        device.name: [
+            {
+                "event_session_id": "AVPHwEtyzgSxu6EuaIOfvz...",
+                "events": {
+                    "sdm.devices.events.CameraMotion.Motion": {
+                        "event_type": "sdm.devices.events.CameraMotion.Motion",
+                    },
+                    "sdm.devices.events.DoorbellChime.Chime": {
+                        "event_type": "sdm.devices.events.DoorbellChime.Chime",
+                        "event_data": {
+                            "eventSessionId": "AVPHwEtyzgSxu6EuaIOfvz...",
+                            "eventId": "CiUA2vuxr_zoChpekrBmo...",
+                        },
+                        "timestamp": "2021-12-23T06:35:36.101000+00:00",
+                        "event_image_type": "image/jpeg",
+                    },
+                },
+                "event_media_keys": {
+                    "CiUA2vuxr_zoChpekrBmo...": (
+                        "AVPHwEtyzgSxu6EuaIOfvzmr7-CiUA2vuxr_zoChpekrBmo-doorbell.jpg"
+                    ),
+                },
+            },
+        ],
+    }
+    event_media_manager = device.event_media_manager
+    store = event_media_manager.cache_policy.store
+    await store.async_save(data)
+    await store.async_save_media(
+        "AVPHwEtyzgSxu6EuaIOfvzmr7-CiUA2vuxrwjZjb0daCbmE-motion.jpg",
+        b"image-bytes-1",
+    )
+    await store.async_save_media(
+        "AVPHwEtyzgSxu6EuaIOfvzmr7-CiUA2vuxr_zoChpekrBmo-doorbell.jpg",
+        b"image-bytes-2",
+    )
+
+    event_media_manager = device.event_media_manager
+
+    with pytest.raises(ValueError, match="EventMediaModelItem has invalid value"):
+        list(await event_media_manager.async_image_sessions())

@@ -312,6 +312,7 @@ async def test_camera_live_stream_rtsp(
                         },
                         "videoCodecs": ["H264"],
                         "audioCodecs": ["AAC"],
+                        "supportedProtocols": ["RTSP"],
                     }
                 },
                 "type": "sdm.devices.types.device-type1",

@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
+from abc import ABC
+from enum import StrEnum
 from typing import Any, Mapping
 
 import aiohttp
-
-try:
-    from pydantic.v1 import BaseModel
-except ImportError:
-    from pydantic import BaseModel  # type: ignore
+from mashumaro.types import SerializableType
 
 from .auth import AbstractAuth
 from .diagnostics import Diagnostics
@@ -18,7 +16,29 @@ DEVICE_TRAITS = "traits"
 TRAITS = "traits"
 
 
-class Command:
+class TraitType(StrEnum):
+    """Traits for SDM devices."""
+
+    CAMERA_IMAGE = "sdm.devices.traits.CameraImage"
+    CAMERA_LIVE_STREAM = "sdm.devices.traits.CameraLiveStream"
+    CAMERA_EVENT_IMAGE = "sdm.devices.traits.CameraEventImage"
+    CAMERA_MOTION = "sdm.devices.traits.CameraMotion"
+    CAMERA_PERSON = "sdm.devices.traits.CameraPerson"
+    CAMERA_SOUND = "sdm.devices.traits.CameraSound"
+    CAMERA_CLIP_PREVIEW = "sdm.devices.traits.CameraClipPreview"
+    CONNECTIVITY = "sdm.devices.traits.Connectivity"
+    FAN = "sdm.devices.traits.Fan"
+    INFO = "sdm.devices.traits.Info"
+    HUMIDITY = "sdm.devices.traits.Humidity"
+    TEMPERATURE = "sdm.devices.traits.Temperature"
+    DOORBELL_CHIME = "sdm.devices.traits.DoorbellChime"
+    THERMOSTAT_ECO = "sdm.devices.traits.ThermostatEco"
+    THERMOSTAT_HVAC = "sdm.devices.traits.ThermostatHvac"
+    THERMOSTAT_MODE = "sdm.devices.traits.ThermostatMode"
+    THERMOSTAT_TEMPERATURE_SETPOINT = "sdm.devices.traits.ThermostatTemperatureSetpoint"
+
+
+class Command(SerializableType):
     """Base class for executing commands."""
 
     def __init__(self, device_id: str, auth: AbstractAuth, diagnostics: Diagnostics):
@@ -53,11 +73,11 @@ class Command:
             return await resp.read()
 
 
-class CommandModel(BaseModel):
+class CommandDataClass(ABC):
     """Base model that supports commands."""
 
-    _cmd: Command | None = None
-    """Helper for executing commands"""
+    def __post_init__(self) -> None:
+        self._cmd: Command | None = None
 
     @property
     def cmd(self) -> Command:
@@ -65,12 +85,3 @@ class CommandModel(BaseModel):
         if not self._cmd:
             raise ValueError("Device trait in invalid state")
         return self._cmd
-
-    class Config:
-        extra = "allow"
-        arbitrary_types_allowed = True
-        fields = {
-            "_cmd": {
-                "exclude": True,
-            },
-        }

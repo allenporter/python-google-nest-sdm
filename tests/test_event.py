@@ -259,7 +259,7 @@ def test_event_serialization(
     dump = json.dumps(data)
     data = json.loads(dump)
 
-    e = ImageEventBase.from_dict(data)
+    e = ImageEventBase.parse_event_dict(data)
     assert e
     assert isinstance(e, CameraClipPreviewEvent)
 
@@ -413,3 +413,81 @@ def test_event_zone(
     assert "FWWVQVUdGNUlTU2V4MGV2aTNXV..." == e.event_id
     assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." == e.event_session_id
     assert e.zones == ["Zone 1"]
+
+
+def test_unknown_event_type(
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+) -> None:
+    """Test at event published with a type that is not recognized."""
+    event = fake_event_message(
+        {
+            "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+            "timestamp": "2019-01-01T00:00:01Z",
+            "resourceUpdate": {
+                "name": "enterprises/project-id/devices/device-id",
+                "events": {
+                    "sdm.devices.events.Ignored.EventType": {
+                        "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                        "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
+                    }
+                },
+            },
+            "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+        }
+    )
+    assert event.event_id == "0120ecc7-3b57-4eb4-9941-91609f189fb4"
+    assert event.timestamp == datetime.datetime(
+        2019, 1, 1, 0, 0, 1, tzinfo=datetime.timezone.utc
+    )
+    assert event.resource_update_name == "enterprises/project-id/devices/device-id"
+    assert event.resource_update_events == {}
+
+
+def test_event_message_repr(
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+) -> None:
+    """Test at event published with a type that is not recognized."""
+    event = fake_event_message(
+        {
+            "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+            "timestamp": "2019-01-01T00:00:01Z",
+            "resourceUpdate": {
+                "name": "enterprises/project-id/devices/device-id",
+                "events": {
+                    "sdm.devices.events.CameraMotion.Motion": {
+                        "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                        "eventId": "FWWVQVUdGNUlTU2V4MGV2aTNXV...",
+                    }
+                },
+            },
+            "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+        }
+    )
+    assert "EventMessage{" in repr(event)
+    assert event.resource_update_events
+    assert "sdm.devices.events.CameraMotion.Motion" in event.resource_update_events
+    motion = event.resource_update_events["sdm.devices.events.CameraMotion.Motion"]
+    assert motion
+    assert "CameraMotionEvent(" in repr(motion)
+
+
+
+def test_missing_preview_url(
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+) -> None:
+    with pytest.raises(ValueError, match="EventMessage has invalid value"):
+        fake_event_message(
+            {
+                "eventId": "201fcd21-967a-4f82-8082-5073bd09d31f",
+                "timestamp": "2019-01-01T00:00:01Z",
+                "resourceUpdate": {
+                    "name": "enterprises/project-id/devices/device-id",
+                    "events": {
+                        "sdm.devices.events.CameraClipPreview.ClipPreview": {
+                            "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
+                        }
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )

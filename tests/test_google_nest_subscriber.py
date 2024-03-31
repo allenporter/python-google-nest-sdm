@@ -238,7 +238,7 @@ async def test_subscribe_update_trait(
             "data": {
                 "name": "**REDACTED**",
                 "parentRelations": [],
-                "traits": {"sdm.devices.traits.Connectivity": {"status": "ONLINE"}},
+                "traits": {"sdm.devices.traits.Connectivity": {"status": "OFFLINE"}},
                 "type": "sdm.devices.types.device-type1",
             },
         },

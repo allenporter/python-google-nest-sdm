@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Callable, TypeVar
+from typing import Callable, TypeVar, Any
 
 CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # pylint: disable=invalid-name
 
 
-class Registry(dict):
+class Registry(dict[str, Any]):
     """Registry of items."""
 
     def register(self, name: str | None = None) -> Callable[[CALLABLE_T], CALLABLE_T]:

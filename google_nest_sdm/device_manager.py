@@ -92,8 +92,10 @@ class DeviceManager:
             # Device moved to a room
             assert relation.subject
             device.create_relation(
-                ParentRelation(
-                    parent=relation.subject,
-                    displayName=self._structure_name(relation.subject),
+                ParentRelation.from_dict(
+                    {
+                        "parent": relation.subject,
+                        "displayName": self._structure_name(relation.subject),
+                    }
                 )
             )

@@ -140,7 +140,7 @@ def event_message(
     app: aiohttp.web.Application, auth_client: Callable[[], Awaitable[AbstractAuth]]
 ) -> Callable[[Dict[str, Any]], Awaitable[EventMessage]]:
     async def _make_event(raw_data: Dict[str, Any]) -> EventMessage:
-        return EventMessage(raw_data, await auth_client())
+        return EventMessage.create_event(raw_data, await auth_client())
 
     return _make_event
 
@@ -148,7 +148,7 @@ def event_message(
 @pytest.fixture
 def fake_event_message() -> Callable[[Dict[str, Any]], EventMessage]:
     def _make_event(raw_data: Dict[str, Any]) -> EventMessage:
-        return EventMessage(raw_data, cast(AbstractAuth, None))
+        return EventMessage.create_event(raw_data, cast(AbstractAuth, None))
 
     return _make_event
 

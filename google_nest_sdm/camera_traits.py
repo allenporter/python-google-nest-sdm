@@ -2,19 +2,17 @@
 
 from __future__ import annotations
 
-import datetime
-import logging
-import urllib.parse as urlparse
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+import datetime
 from enum import Enum
-from typing import Final
+import logging
+from typing import ClassVar
+import urllib.parse as urlparse
 
-try:
-    from pydantic.v1 import BaseModel, Field, validator
-except ImportError:
-    from pydantic import BaseModel, Field, validator  # type: ignore
+from mashumaro import DataClassDictMixin, field_options
+from mashumaro.config import BaseConfig
+from mashumaro.types import SerializationStrategy
 
 from .event import (
     CameraClipPreviewEvent,
@@ -23,8 +21,9 @@ from .event import (
     CameraSoundEvent,
     EventImageContentType,
     EventImageType,
+    EventType,
 )
-from .traits import CommandModel
+from .traits import CommandDataClass, TraitType
 
 __all__ = [
     "CameraImageTrait",
@@ -73,19 +72,23 @@ class Resolution:
     height: int | None = None
 
 
-class CameraImageTrait(BaseModel):
+@dataclass
+class CameraImageTrait(DataClassDictMixin):
     """This trait belongs to any device that supports taking images."""
 
-    NAME: Final = "sdm.devices.traits.CameraImage"
+    NAME: ClassVar[TraitType] = TraitType.CAMERA_IMAGE
 
-    max_image_resolution: Resolution | None = Field(alias="maxImageResolution")
+    max_image_resolution: Resolution | None = field(
+        metadata=field_options(alias="maxImageResolution"), default=None
+    )
     """Maximum resolution of the camera image."""
 
 
-class Stream(CommandModel, ABC):
+@dataclass
+class Stream(DataClassDictMixin, CommandDataClass, ABC):
     """Base class for streams."""
 
-    expires_at: datetime.datetime = Field(alias="expiresAt")
+    expires_at: datetime.datetime = field(metadata=field_options(alias="expiresAt"))
     """Time at which both streamExtensionToken and streamToken expire."""
 
     @abstractmethod
@@ -101,20 +104,23 @@ class Stream(CommandModel, ABC):
 class StreamUrls:
     """Response object for stream urls"""
 
-    rtsp_url: str = Field(alias="rtspUrl")
+    rtsp_url: str = field(metadata=field_options(alias="rtspUrl"))
     """RTSP live stream URL."""
 
 
+@dataclass
 class RtspStream(Stream):
     """Provides access an RTSP live stream URL."""
 
-    stream_urls: StreamUrls = Field(alias="streamUrls")
+    stream_urls: StreamUrls = field(metadata=field_options(alias="streamUrls"))
     """Stream urls to access the live stream."""
 
-    stream_token: str = Field(alias="streamToken")
+    stream_token: str = field(metadata=field_options(alias="streamToken"))
     """Token to use to access an RTSP live stream."""
 
-    stream_extension_token: str = Field(alias="streamExtensionToken")
+    stream_extension_token: str = field(
+        metadata=field_options(alias="streamExtensionToken")
+    )
     """Token to use to extend access to an RTSP live stream."""
 
     @property
@@ -141,7 +147,7 @@ class RtspStream(Stream):
         url = urlparse.urlunparse(parsed)
         results[STREAM_URLS] = {}
         results[STREAM_URLS][RTSP_URL] = url
-        obj = RtspStream(**results)
+        obj = RtspStream.from_dict(results)
         obj._cmd = self.cmd
         return obj
 
@@ -158,13 +164,14 @@ class RtspStream(Stream):
         await self.cmd.execute(data)
 
 
+@dataclass
 class WebRtcStream(Stream):
     """Provides access an RTSP live stream URL."""
 
-    answer_sdp: str = Field(alias="answerSdp")
+    answer_sdp: str = field(metadata=field_options(alias="answerSdp"))
     """An SDP answer to use with the local device displaying the stream."""
 
-    media_session_id: str = Field(alias="mediaSessionId")
+    media_session_id: str = field(metadata=field_options(alias="mediaSessionId"))
     """Media Session ID of the live stream."""
 
     async def extend_stream(self) -> WebRtcStream:
@@ -178,7 +185,7 @@ class WebRtcStream(Stream):
         # the other fields (expiresAt, and mediaSessionId.
         results = response_data[RESULTS]
         results[ANSWER_SDP] = self.answer_sdp
-        obj = WebRtcStream(**results)
+        obj = WebRtcStream.from_dict(results)
         obj._cmd = self.cmd
         return obj
 
@@ -198,37 +205,52 @@ class StreamingProtocol(str, Enum):
     WEB_RTC = "WEB_RTC"
 
 
-class CameraLiveStreamTrait(CommandModel):
+def _default_streaming_protocol() -> list[StreamingProtocol]:
+    return [
+        StreamingProtocol.RTSP,
+    ]
+
+
+class StreamingProtocolSerializationStrategy(
+    SerializationStrategy, use_annotations=True
+):
+    """Parser for streaming protocols that ignores invalid values."""
+
+    def serialize(self, value: list[StreamingProtocol]) -> list[str]:
+        return [str(x.name) for x in value]
+
+    def deserialize(self, value: list[str]) -> list[StreamingProtocol]:
+        return [
+            StreamingProtocol[x] for x in value if x in StreamingProtocol.__members__
+        ] or _default_streaming_protocol()
+
+
+@dataclass
+class CameraLiveStreamTrait(DataClassDictMixin, CommandDataClass):
     """This trait belongs to any device that supports live streaming."""
 
-    NAME: Final = "sdm.devices.traits.CameraLiveStream"
+    NAME: ClassVar[TraitType] = TraitType.CAMERA_LIVE_STREAM
 
-    max_video_resolution: Resolution = Field(
-        alias="maxVideoResolution", default_factory=dict
+    max_video_resolution: Resolution = field(
+        metadata=field_options(alias="maxVideoResolution"), default_factory=Resolution
     )
     """Maximum resolution of the video live stream."""
 
-    video_codecs: list[str] = Field(alias="videoCodecs", default_factory=list)
+    video_codecs: list[str] = field(
+        metadata=field_options(alias="videoCodecs"), default_factory=list
+    )
     """Video codecs supported for the live stream."""
 
-    audio_codecs: list[str] = Field(alias="audioCodecs", default_factory=list)
+    audio_codecs: list[str] = field(
+        metadata=field_options(alias="audioCodecs"), default_factory=list
+    )
     """Audio codecs supported for the live stream."""
 
-    supported_protocols: list[StreamingProtocol] = Field(
-        alias="supportedProtocols",
-        default_factory=list,
+    supported_protocols: list[StreamingProtocol] = field(
+        metadata=field_options(alias="supportedProtocols"),
+        default_factory=_default_streaming_protocol,
     )
     """Streaming protocols supported for the live stream."""
-
-    @validator("supported_protocols", pre=True, always=True)
-    def validate_supported_protocols(
-        cls, val: Iterable[str] | None
-    ) -> list[StreamingProtocol]:
-        return [
-            StreamingProtocol[x]
-            for x in val or []
-            if x in StreamingProtocol.__members__
-        ] or [StreamingProtocol.RTSP]
 
     async def generate_rtsp_stream(self) -> RtspStream:
         """Request a token to access an RTSP live stream URL."""
@@ -240,7 +262,7 @@ class CameraLiveStreamTrait(CommandModel):
         }
         response_data = await self.cmd.execute_json(data)
         results = response_data[RESULTS]
-        obj = RtspStream(**results)
+        obj = RtspStream.from_dict(results)
         obj._cmd = self.cmd
         return obj
 
@@ -254,12 +276,19 @@ class CameraLiveStreamTrait(CommandModel):
         }
         response_data = await self.cmd.execute_json(data)
         results = response_data[RESULTS]
-        obj = WebRtcStream(**results)
+        obj = WebRtcStream.from_dict(results)
         obj._cmd = self.cmd
         return obj
 
+    class Config(BaseConfig):
+        serialization_strategy = {
+            list[StreamingProtocol]: StreamingProtocolSerializationStrategy(),
+        }
+        serialize_by_alias = True
 
-class EventImage(CommandModel):
+
+@dataclass
+class EventImage(DataClassDictMixin, CommandDataClass):
     """Provides access to an image in response to an event.
 
     Use a ?width or ?height query parameters to customize the resolution
@@ -274,10 +303,10 @@ class EventImage(CommandModel):
     event_image_type: EventImageContentType
     """Return the type of event image."""
 
-    url: str | None = Field(default=None)
+    url: str | None = field(default=None)
     """URL to download the camera image from."""
 
-    token: str | None = Field(default=None)
+    token: str | None = field(default=None)
     """Token to use in the HTTP Authorization header when downloading."""
 
     async def contents(
@@ -296,10 +325,11 @@ class EventImage(CommandModel):
         return await self.cmd.fetch_image(fetch_url, basic_auth=self.token)
 
 
-class CameraEventImageTrait(CommandModel):
+@dataclass
+class CameraEventImageTrait(DataClassDictMixin, CommandDataClass):
     """This trait belongs to any device that generates images from events."""
 
-    NAME: Final = "sdm.devices.traits.CameraEventImage"
+    NAME: ClassVar[TraitType] = TraitType.CAMERA_EVENT_IMAGE
 
     async def generate_image(self, event_id: str) -> EventImage:
         """Provide a URL to download a camera image."""
@@ -316,44 +346,36 @@ class CameraEventImageTrait(CommandModel):
         return img
 
 
-class CameraMotionTrait(BaseModel):
+@dataclass
+class CameraMotionTrait:
     """For any device that supports motion detection events."""
 
-    NAME: Final = "sdm.devices.traits.CameraMotion"
-    EVENT_NAME: Final[str] = CameraMotionEvent.NAME
-
-    class Config:
-        extra = "allow"
-        arbitrary_types_allowed = True
+    NAME: ClassVar[TraitType] = TraitType.CAMERA_MOTION
+    EVENT_NAME: ClassVar[EventType] = CameraMotionEvent.NAME
 
 
-class CameraPersonTrait(BaseModel):
+@dataclass
+class CameraPersonTrait:
     """For any device that supports person detection events."""
 
-    NAME: Final = "sdm.devices.traits.CameraPerson"
-    EVENT_NAME: Final[str] = CameraPersonEvent.NAME
-
-    class Config:
-        extra = "allow"
-        arbitrary_types_allowed = True
+    NAME: ClassVar[TraitType] = TraitType.CAMERA_PERSON
+    EVENT_NAME: ClassVar[EventType] = CameraPersonEvent.NAME
 
 
-class CameraSoundTrait(BaseModel):
+@dataclass
+class CameraSoundTrait:
     """For any device that supports sound detection events."""
 
-    NAME: Final = "sdm.devices.traits.CameraSound"
-    EVENT_NAME: Final[str] = CameraSoundEvent.NAME
-
-    class Config:
-        extra = "allow"
-        arbitrary_types_allowed = True
+    NAME: ClassVar[TraitType] = TraitType.CAMERA_SOUND
+    EVENT_NAME: ClassVar[EventType] = CameraSoundEvent.NAME
 
 
-class CameraClipPreviewTrait(CommandModel):
+@dataclass
+class CameraClipPreviewTrait(DataClassDictMixin, CommandDataClass):
     """For any device that supports a clip preview."""
 
-    NAME: Final = "sdm.devices.traits.CameraClipPreview"
-    EVENT_NAME: Final[str] = CameraClipPreviewEvent.NAME
+    NAME: ClassVar[TraitType] = TraitType.CAMERA_CLIP_PREVIEW
+    EVENT_NAME: ClassVar[EventType] = CameraClipPreviewEvent.NAME
 
     async def generate_event_image(self, preview_url: str) -> EventImage | None:
         """Provide a URL to download a camera image from the active event."""

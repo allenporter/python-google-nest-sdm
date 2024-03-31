@@ -2,32 +2,23 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 import base64
 import binascii
+from dataclasses import dataclass, field
 import datetime
+from enum import StrEnum
 import hashlib
 import json
 import logging
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Any, Iterable, Mapping, Final
+import traceback
+from typing import Any, Iterable, Mapping, ClassVar
 
-try:
-    from pydantic.v1 import (
-        BaseModel,
-        Field,
-        root_validator,
-        validate_arguments,
-        validator,
-    )
-except ImportError:
-    from pydantic import (  # type: ignore
-        BaseModel,
-        Field,
-        root_validator,
-        validate_arguments,
-        validator,
-    )
+from mashumaro import DataClassDictMixin, field_options
+from mashumaro.config import (
+    BaseConfig,
+)
+from mashumaro.types import SerializationStrategy
 
 from .auth import AbstractAuth
 from .exceptions import DecodeException
@@ -67,12 +58,22 @@ EVENT_MAP = Registry()
 _LOGGER = logging.getLogger(__name__)
 
 
+class EventType(StrEnum):
+    """Types of events."""
+
+    CAMERA_MOTION = "sdm.devices.events.CameraMotion.Motion"
+    CAMERA_PERSON = "sdm.devices.events.CameraPerson.Person"
+    CAMERA_SOUND = "sdm.devices.events.CameraSound.Sound"
+    DOORBELL_CHIME = "sdm.devices.events.DoorbellChime.Chime"
+    CAMERA_CLIP_PREVIEW = "sdm.devices.events.CameraClipPreview.ClipPreview"
+
+
 class EventProcessingError(Exception):
     """Raised when there was an error handling an event."""
 
 
-@dataclass
-class EventImageContentType:
+@dataclass(frozen=True)
+class EventImageContentType(DataClassDictMixin):
     """Event image content type."""
 
     content_type: str
@@ -82,7 +83,7 @@ class EventImageContentType:
         return self.content_type
 
 
-class EventImageType:
+class EventImageType(ABC):
     IMAGE = EventImageContentType("image/jpeg")
     CLIP_PREVIEW = EventImageContentType("video/mp4")
     IMAGE_PREVIEW = EventImageContentType("image/gif")
@@ -104,8 +105,8 @@ class EventImageType:
 class EventToken:
     """Identifier for a unique event."""
 
-    event_session_id: str = Field(alias="eventSessionId")
-    event_id: str = Field(alias="eventId")
+    event_session_id: str = field(metadata=field_options(alias="eventSessionId"))
+    event_id: str = field(metadata=field_options(alias="eventId"))
 
     def encode(self) -> str:
         """Encode the event token as a serialized string."""
@@ -137,28 +138,33 @@ class EventToken:
         )
 
 
-class ImageEventBase(BaseModel, ABC):
+class EventImageTypeSerializationStrategy(SerializationStrategy):
+
+    def serialize(self, value: EventImageContentType) -> str:
+        return value.content_type
+
+    def deserialize(self, value: str) -> EventImageContentType:
+        return EventImageType.from_string(value)
+
+
+@dataclass
+class ImageEventBase(DataClassDictMixin, ABC):
     """Base class for all image related event types."""
 
-    event_id: str = Field(alias="eventId")
+    event_session_id: str = field(metadata=field_options(alias="eventSessionId"))
     """ID used to associate separate messages with a single event."""
-
-    event_session_id: str = Field(alias="eventSessionId")
-    """ID used to associate separate messages with a single event."""
-
-    zones: list[str] = Field(default_factory=list)
-    """List of zones for the event."""
 
     timestamp: datetime.datetime
     """Timestamp when the event occurred."""
 
-    event_image_type: EventImageContentType
+    event_id: str = field(metadata=field_options(alias="eventId"), default="")
+    """ID used to associate separate messages with a single event."""
+
+    event_image_type: EventImageContentType = field(default=EventImageType.IMAGE)
     """Type of the event."""
 
-    def __init__(self, data: Mapping[str, Any], timestamp: datetime.datetime) -> None:
-        """Initialize EventBase."""
-        super().__init__(**data, timestamp=timestamp)
-        self._data = data
+    zones: list[str] = field(default_factory=list)
+    """List of zones for the event."""
 
     @property
     def event_token(self) -> str:
@@ -168,7 +174,7 @@ class ImageEventBase(BaseModel, ABC):
 
     @property
     @abstractmethod
-    def event_type(self) -> str:
+    def event_type(self) -> EventType:
         """The type of event."""
 
     @property
@@ -183,94 +189,120 @@ class ImageEventBase(BaseModel, ABC):
         return self.expires_at < now
 
     def as_dict(self) -> dict[str, Any]:
-        """Return as a dict form that can be serialized."""
+        """Return as a dict form that can be serialized for persistence."""
         return {
             "event_type": self.event_type,
-            "event_data": self._data,
+            "event_data": self.to_dict(),
             "timestamp": self.timestamp.isoformat(),
             "event_image_type": str(self.event_image_type),
         }
 
     @staticmethod
-    def from_dict(data: dict[str, Any]) -> ImageEventBase | None:
-        """Parse from a serialized dictionary."""
+    def parse_event_dict(data: dict[str, Any]) -> ImageEventBase | None:
+        """Parse from a persisted serialized dictionary."""
         event_type = data["event_type"]
         event_data = data["event_data"]
-        timestamp = datetime.datetime.fromisoformat(data["timestamp"])
-        event = _BuildEvent(event_type, event_data, timestamp)
+        event = _BuildEvent(event_type, event_data)
         if event and "event_image_type" in data:
             event.event_image_type = EventImageType.from_string(
                 data["event_image_type"]
             )
         return event
 
-    def __repr__(self) -> str:
-        return "<ImageEventBase " + str(self.as_dict()) + ">"
-
-    class Config:
-        arbitrary_types_allowed = True
-        extra = "allow"
+    class Config(BaseConfig):
+        serialization_strategy = {
+            EventImageContentType: EventImageTypeSerializationStrategy(),
+        }
+        code_generation_options = [
+            "TO_DICT_ADD_BY_ALIAS_FLAG",
+            "TO_DICT_ADD_OMIT_NONE_FLAG",
+        ]
+        allow_deserialization_not_by_alias = True
 
 
 @EVENT_MAP.register()
+@dataclass
 class CameraMotionEvent(ImageEventBase):
     """Motion has been detected by the camera."""
 
-    NAME: Final = "sdm.devices.events.CameraMotion.Motion"
-    event_type: Final = "sdm.devices.events.CameraMotion.Motion"
-    event_image_type = EventImageType.IMAGE
+    NAME: ClassVar[EventType] = EventType.CAMERA_MOTION
+    event_image_type: EventImageContentType = field(default=EventImageType.IMAGE)
+
+    @property
+    def event_type(self) -> EventType:
+        """The type of event."""
+        return EventType.CAMERA_MOTION
 
 
 @EVENT_MAP.register()
+@dataclass
 class CameraPersonEvent(ImageEventBase):
     """A person has been detected by the camera."""
 
-    NAME: Final = "sdm.devices.events.CameraPerson.Person"
-    event_type: Final = "sdm.devices.events.CameraPerson.Person"
-    event_image_type = EventImageType.IMAGE
+    NAME: ClassVar[EventType] = EventType.CAMERA_PERSON
+    event_image_type: EventImageContentType = field(default=EventImageType.IMAGE)
+
+    @property
+    def event_type(self) -> EventType:
+        """The type of event."""
+        return EventType.CAMERA_PERSON
 
 
 @EVENT_MAP.register()
+@dataclass
 class CameraSoundEvent(ImageEventBase):
     """Sound has been detected by the camera."""
 
-    NAME: Final = "sdm.devices.events.CameraSound.Sound"
-    event_type: Final = "sdm.devices.events.CameraSound.Sound"
-    event_image_type = EventImageType.IMAGE
+    NAME: ClassVar[EventType] = EventType.CAMERA_SOUND
+    event_image_type: EventImageContentType = field(default=EventImageType.IMAGE)
+
+    @property
+    def event_type(self) -> EventType:
+        """The type of event."""
+        return EventType.CAMERA_SOUND
 
 
 @EVENT_MAP.register()
+@dataclass
 class DoorbellChimeEvent(ImageEventBase):
     """The doorbell has been pressed."""
 
-    NAME: Final = "sdm.devices.events.DoorbellChime.Chime"
-    event_type: Final = "sdm.devices.events.DoorbellChime.Chime"
-    event_image_type = EventImageType.IMAGE
+    NAME: ClassVar[EventType] = EventType.DOORBELL_CHIME
+    event_image_type: EventImageContentType = field(default=EventImageType.IMAGE)
+
+    @property
+    def event_type(self) -> EventType:
+        """The type of event."""
+        return EventType.DOORBELL_CHIME
 
 
 @EVENT_MAP.register()
+@dataclass
 class CameraClipPreviewEvent(ImageEventBase):
     """A video clip is available for preview, without extra download."""
 
-    NAME: Final = "sdm.devices.events.CameraClipPreview.ClipPreview"
-    event_type: Final = "sdm.devices.events.CameraClipPreview.ClipPreview"
-    event_image_type = EventImageType.CLIP_PREVIEW
+    NAME: ClassVar[EventType] = EventType.CAMERA_CLIP_PREVIEW
+    event_image_type: EventImageContentType = field(default=EventImageType.CLIP_PREVIEW)
 
-    preview_url: str = Field(alias="previewUrl")
+    preview_url: str = field(metadata=field_options(alias="previewUrl"), default="")
     """A url 10 second frame video file in mp4 format."""
 
-    @root_validator(pre=True)
-    def validate_event_id(cls, val: dict[str, Any]) -> dict[str, Any]:
-        """Use a URL hash as the event id.
+    @property
+    def event_type(self) -> EventType:
+        """The type of event."""
+        return EventType.CAMERA_CLIP_PREVIEW
+
+    @classmethod
+    def __pre_deserialize__(cls, d: dict[Any, Any]) -> dict[Any, Any]:
+        """Validate the event id to use a URL hash as the event id.
 
         Since clip preview events already have a url associated with them,
         we don't have an event id for downloading the image.
         """
-        if "previewUrl" not in val:
+        if not (preview_url := d.get("previewUrl", d.get("preview_url"))):
             raise ValueError("missing required field previewUrl")
-        url = val["previewUrl"]
-        val["eventId"] = hashlib.blake2b(url.encode()).hexdigest()
-        return val
+        d["eventId"] = hashlib.blake2b(preview_url.encode()).hexdigest()
+        return d
 
     @property
     def expires_at(self) -> datetime.datetime:
@@ -280,7 +312,8 @@ class CameraClipPreviewEvent(ImageEventBase):
         )
 
 
-class RelationUpdate(BaseModel):
+@dataclass
+class RelationUpdate(DataClassDictMixin):
     """Represents a relational update for a resource."""
 
     type: str
@@ -293,27 +326,19 @@ class RelationUpdate(BaseModel):
     """Resource that triggered the event."""
 
 
-def _BuildEvents(
-    events: Mapping[str, Any],
-    timestamp: datetime.datetime,
-) -> dict[str, ImageEventBase]:
-    """Build a trait map out of a response dict."""
-    result = {}
-    for event_type, event_data in events.items():
-        image_event = _BuildEvent(event_type, event_data, timestamp)
-        if not image_event:
-            continue
-        result[event_type] = image_event
-    return result
-
-
 def _BuildEvent(
-    event_type: str, event_data: Mapping[str, Any], timestamp: datetime.datetime
+    event_type: str, event_data: Mapping[str, Any]
 ) -> ImageEventBase | None:
     if event_type not in EVENT_MAP:
+        _LOGGER.debug("Event type %s not found (%s)", event_type, EVENT_MAP.keys())
         return None
     cls = EVENT_MAP[event_type]
-    return cls(event_data, timestamp)  # type: ignore
+    try:
+        return cls.from_dict(event_data)  # type: ignore
+    except Exception as err:
+        traceback.print_exc()
+        _LOGGER.debug("Failed to parse event: %s (event_data=%s)", err, event_data)
+        raise err
 
 
 def session_event_image_type(events: Iterable[ImageEventBase]) -> EventImageContentType:
@@ -324,46 +349,62 @@ def session_event_image_type(events: Iterable[ImageEventBase]) -> EventImageCont
     return EventImageType.IMAGE
 
 
-@validate_arguments
-def _validate_datetime(value: datetime.datetime) -> datetime.datetime:
-    return value
+class UpdateEventsSerializationStrategy(SerializationStrategy, use_annotations=True):
+    """Parser to ignore invalid parent relations."""
+
+    def serialize(self, value: dict[str, ImageEventBase]) -> dict[str, Any]:
+        return {k: v.to_dict(by_alias=True) for k, v in value.items()}
+
+    def deserialize(self, value: dict[str, Any]) -> dict[str, ImageEventBase]:
+        result = {}
+        for event_type, event_data in value.items():
+            image_event = _BuildEvent(event_type, event_data)
+            if not image_event:
+                continue
+            result[event_type] = image_event
+        return result
 
 
-class EventMessage(BaseModel):
+@dataclass
+class EventMessage(DataClassDictMixin):
     """Event for a change in trait value or device action."""
 
-    event_id: str = Field(alias="eventId")
     timestamp: datetime.datetime
-    resource_update_name: str | None
-    resource_update_events: dict[str, ImageEventBase] | None
-    resource_update_traits: dict[str, Any] | None
-    event_thread_state: str | None = Field(alias="eventThreadState")
-    relation_update: RelationUpdate | None = Field(alias="relationUpdate")
+    event_id: str = field(metadata=field_options(alias="eventId"))
+    resource_update_name: str | None = field(default=None)
+    resource_update_events: dict[str, ImageEventBase] | None = field(default=None)
+    resource_update_traits: dict[str, Any] | None = field(default=None)
+    event_thread_state: str | None = field(
+        metadata=field_options(alias="eventThreadState"), default=None
+    )
+    relation_update: RelationUpdate | None = field(
+        metadata=field_options(alias="relationUpdate"), default=None
+    )
 
-    def __init__(self, raw_data: Mapping[str, Any], auth: AbstractAuth) -> None:
+    _auth: AbstractAuth = field(init=False, metadata={"serialize": "omit"})
+
+    @classmethod
+    def create_event(
+        cls, raw_data: dict[str, Any], auth: AbstractAuth
+    ) -> "EventMessage":
         """Initialize an EventMessage."""
-        _LOGGER.debug("EventMessage raw_data=%s", raw_data)
-        super().__init__(**raw_data, auth=auth)
-        self._auth = auth
-
-    @root_validator(pre=True)
-    def _parse_resource_update(cls, values: dict[str, Any]) -> dict[str, Any]:
-        """Parse resource updates."""
-        if update := values.get(RESOURCE_UPDATE):
+        event_data = {**raw_data}
+        _LOGGER.debug("EventMessage raw_data=%s", event_data)
+        if update := event_data.get(RESOURCE_UPDATE):
             if name := update.get(NAME):
-                values["resource_update_name"] = name
+                event_data["resource_update_name"] = name
             if events := update.get(EVENTS):
-                values["resource_update_events"] = events
-                values["resource_update_events"][TIMESTAMP] = values.get(TIMESTAMP)
+                timestamp = event_data.get(TIMESTAMP)
+                for event_updates in events.values():
+                    event_updates[TIMESTAMP] = timestamp
+                event_data["resource_update_events"] = events
             if traits := update.get(TRAITS):
-                values["resource_update_traits"] = traits
-                values["resource_update_traits"][NAME] = update.get(NAME)
-        return values
+                event_data["resource_update_traits"] = traits
+                event_data["resource_update_traits"][NAME] = update.get(NAME)
 
-    @validator("resource_update_events", pre=True)
-    def _parse_resource_update_events(cls, values: dict[str, Any]) -> dict[str, Any]:
-        """Parse resource updates for events."""
-        return _BuildEvents(values, _validate_datetime(values[TIMESTAMP]))
+        event = cls.from_dict(event_data)
+        event._auth = auth
+        return event
 
     @property
     def event_sessions(self) -> dict[str, dict[str, ImageEventBase]] | None:
@@ -385,7 +426,7 @@ class EventMessage(BaseModel):
     @property
     def raw_data(self) -> dict[str, Any]:
         """Return raw data for the event."""
-        return self.dict()
+        return self.to_dict(by_alias=True)
 
     def with_events(
         self,
@@ -393,7 +434,7 @@ class EventMessage(BaseModel):
         merge_data: dict[str, ImageEventBase] | None = None,
     ) -> EventMessage:
         """Create a new EventMessage minus some existing events by key."""
-        new_message = self.copy()
+        new_message = EventMessage.create_event(self.to_dict(by_alias=True), self._auth)
         if not merge_data:
             merge_data = {}
         new_events = {}
@@ -415,8 +456,13 @@ class EventMessage(BaseModel):
 
     def __repr__(self) -> str:
         """Debug information."""
-        return f"EventMessage{self.raw_data}"
+        return f"EventMessage{self.to_dict()}"
 
-    class Config:
-        arbitrary_types_allowed = True
-        extra = "allow"
+    class Config(BaseConfig):
+        serialization_strategy = {
+            dict[str, ImageEventBase]: UpdateEventsSerializationStrategy(),
+        }
+        code_generation_options = [
+            "TO_DICT_ADD_BY_ALIAS_FLAG",
+            "TO_DICT_ADD_OMIT_NONE_FLAG",
+        ]

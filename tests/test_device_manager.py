@@ -406,7 +406,7 @@ async def test_update_trait_with_field_alias(
     fake_device: Callable[[Dict[str, Any]], Device],
     fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> None:
-    """Test updating a trait that has fields with pydantic field aliases."""
+    """Test updating a trait that has fields with field aliases."""
     device = fake_device(
         {
             "name": "my/device/name1",
@@ -531,7 +531,6 @@ async def test_update_trait_ordering(
     assert get_connectivity().status == "ONLINE"
 
 
-
 async def test_update_trait_with_new_field(
     fake_device: Callable[[Dict[str, Any]], Device],
     fake_event_message: Callable[[Dict[str, Any]], EventMessage],
@@ -590,7 +589,6 @@ async def test_update_trait_with_new_field(
     assert not device.temperature
 
     unregister()
-
 
 
 @pytest.mark.parametrize(

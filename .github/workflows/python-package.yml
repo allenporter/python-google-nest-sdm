@@ -29,10 +29,6 @@ jobs:
     - name: Test with pytest
       run: |
         pytest --cov=google_nest_sdm --cov-report=xml
-    - name: Test with pytest (pydantic v1)
-      run: |
-        pip3 install pydantic==1.10.3
-        pytest --cov=google_nest_sdm --cov-report=xml
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4.1.1
       with:
