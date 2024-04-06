@@ -22,7 +22,7 @@ typed-ast==1.5.5
 types-futures==3.3.8
 types-protobuf==4.24.0.20240311
 types-PyYAML==6.0.12.20240311
-typing-extensions==4.10.0
+typing-extensions==4.11.0
 typing-inspect==0.9.0
 urllib3==2.2.1
 ruff==0.3.5
