@@ -8,7 +8,7 @@ google-auth==2.29.0
 google-cloud-pubsub==2.21.1
 googleapis-common-protos==1.63.0
 grpcio==1.62.2
-grpcio-status==1.62.1
+grpcio-status==1.62.2
 mypy==1.9.0
 pre-commit==3.7.0
 protobuf==4.25.3
