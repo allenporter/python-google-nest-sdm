@@ -1,7 +1,7 @@
 -e .
 aiohttp==3.9.5
 async-timeout==4.0.3
-black==24.4.0
+black==24.4.2
 coverage==7.5.0
 google-api-core==2.18.0
 google-auth==2.29.0
