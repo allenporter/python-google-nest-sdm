@@ -10,7 +10,7 @@ googleapis-common-protos==1.63.0
 grpcio==1.63.0
 grpcio-status==1.62.2
 mypy==1.10.0
-pre-commit==3.7.0
+pre-commit==3.7.1
 protobuf==4.25.3
 pytest==8.2.0
 pytest-aiohttp==1.0.5
