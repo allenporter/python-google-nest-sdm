@@ -64,7 +64,7 @@ def mock_device_traits() -> list[str]:
 
 
 @pytest.fixture(name="device_id")
-async def mock_device_id(
+def mock_device_id(
     device_handler: DeviceHandler,
     device_traits: list[str],
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
@@ -196,7 +196,7 @@ async def mock_device(
 ) -> Device:
     api = await api_client()
     devices = await api.async_get_devices()
-    for device in devices:
+    for device in devices: 
         if device.name == device_id:
             return device
     raise ValueError("Invalid test state, couldn't find device.")

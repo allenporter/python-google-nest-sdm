@@ -6,7 +6,6 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import (
     Any,
-    AsyncGenerator,
     Awaitable,
     Callable,
     Dict,
@@ -40,19 +39,13 @@ def pytest_configure(config: pytest.Config) -> None:
         logging.getLogger().setLevel(logging.DEBUG)
 
 
-@pytest.fixture
-def loop(event_loop: Any) -> Any:
-    return event_loop
+@pytest.fixture(name="app")
+def mock_app() -> Generator[aiohttp.web.Application, None, None]:
+    yield aiohttp.web.Application()
 
 
-@pytest.fixture
-async def app() -> AsyncGenerator[aiohttp.web.Application, None]:
-    app = aiohttp.web.Application()
-    yield app
-
-
-@pytest.fixture
-async def server(
+@pytest.fixture(name="server")
+def mock_server(
     app: aiohttp.web.Application,
     aiohttp_server: Callable[[aiohttp.web.Application], Awaitable[TestServer]],
 ) -> Callable[[], Awaitable[TestServer]]:
@@ -64,9 +57,9 @@ async def server(
     return _make_server
 
 
-@pytest.fixture
-async def client(
-    loop: Any,
+@pytest.fixture(name="client")
+def mock_client(
+    #event_loop: Any,
     server: Callable[[], Awaitable[TestServer]],
     aiohttp_client: Callable[[TestServer], Awaitable[TestClient]],
 ) -> Callable[[], Awaitable[TestClient]]:
@@ -83,8 +76,8 @@ async def client(
     return _make_client
 
 
-@pytest.fixture
-async def api_client(
+@pytest.fixture(name="api_client")
+def mock_api_client(
     project_id: str,
     auth_client: Callable[[], Awaitable[AbstractAuth]],
 ) -> Callable[[], Awaitable[google_nest_api.GoogleNestAPI]]:
@@ -103,8 +96,8 @@ class FakeAuth(AbstractAuth):
         return FAKE_TOKEN
 
 
-@pytest.fixture
-async def auth_client(
+@pytest.fixture(name="auth_client")
+def mock_auth_client(
     app: aiohttp.web.Application, client: Any
 ) -> Callable[[str], Awaitable[AbstractAuth]]:
     async def _make_auth(path_prefix: str = "") -> AbstractAuth:
@@ -312,15 +305,15 @@ def recorder() -> Recorder:
     return Recorder()
 
 
-@pytest.fixture
-def device_handler(
+@pytest.fixture(name="device_handler")
+def mock_device_handler(
     app: aiohttp.web.Application, project_id: str, recorder: Recorder
 ) -> DeviceHandler:
     return DeviceHandler(app, project_id, recorder)
 
 
-@pytest.fixture
-def structure_handler(
+@pytest.fixture(name="structure_handler")
+def mock_structure_handler(
     app: aiohttp.web.Application, project_id: str, recorder: Recorder
 ) -> StructureHandler:
     return StructureHandler(app, project_id, recorder)
