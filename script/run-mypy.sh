@@ -2,6 +2,11 @@
 
 set -o errexit
 
-pip3 install -r requirements_dev.txt --no-input --quiet
+# other common virtualenvs
+my_path=$(git rev-parse --show-toplevel)
 
-mypy .
+if [ -f "${my_path}/venv/bin/activate" ]; then
+  . "${my_path}/venv/bin/activate"
+fi
+
+mypy ${my_path}
