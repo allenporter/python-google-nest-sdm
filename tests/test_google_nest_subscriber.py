@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from typing import Any, Awaitable, Callable, Dict, Optional
-from unittest.mock import create_autospec, Mock
+from unittest.mock import create_autospec, Mock, patch
 
 import aiohttp
 import pytest
@@ -635,6 +635,55 @@ async def test_subscribe_thread_update_new_events(
     events = message.event_sessions["CjY5Y3VKaTZwR3o4Y19YbTVfMF..."]
     assert len(events) == 1
     assert "sdm.devices.events.CameraPerson.Person" in events
+
+    subscriber.stop_async()
+
+
+
+async def test_message_ack_timeout(
+    app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    structure_handler: StructureHandler,
+    subscriber_factory: FakeSubscriberFactory,
+    subscriber_client: Callable[
+        [Optional[AbstractSubscriberFactory]], Awaitable[GoogleNestSubscriber]
+    ],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+) -> None:
+    
+    device_id = device_handler.add_device(
+        traits={
+            "sdm.devices.traits.Connectivity": {
+                "status": "ONLINE",
+            },
+        }
+    )
+    structure_id = structure_handler.add_structure()
+
+    subscriber = await subscriber_client()
+    subscriber.cache_policy.event_cache_size = 5
+    await subscriber.start_async()
+    device_manager = await subscriber.async_get_device_manager()
+    devices = device_manager.devices
+    assert device_id in devices
+
+    async def async_handle_event(_):
+        await asyncio.sleep(10)
+
+    subscriber.set_update_callback(async_handle_event)
+    event = {
+        "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+        "timestamp": "2019-01-01T00:00:01Z",
+        "relationUpdate": {
+            "type": "CREATED",
+            "subject": structure_id,
+            "object": device_id,
+        },
+        "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+    }
+    with patch("google_nest_sdm.google_nest_subscriber.MESSAGE_ACK_TIMEOUT_SECONDS", 0.01):
+        with pytest.raises(TimeoutError, match="Message ack timeout"):
+            await subscriber_factory.async_push_event(event)
 
     subscriber.stop_async()
 

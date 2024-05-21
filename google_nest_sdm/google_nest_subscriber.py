@@ -280,13 +280,9 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
     ) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
         """Create a new subscriber with a blocking to async bridge."""
 
-        async def _async_callback_with_timeout(message: pubsub_v1.subscriber.message.Message) -> None:
-            async with asyncio.timeout(MESSAGE_ACK_TIMEOUT_SECONDS):
-                await async_callback(message)
-
         def callback_wrapper(message: pubsub_v1.subscriber.message.Message) -> None:
             future: concurrent.futures.Future = asyncio.run_coroutine_threadsafe(
-                _async_callback_with_timeout(message), loop
+                async_callback(message), loop
             )
             future.result()
 
@@ -438,7 +434,7 @@ class GoogleNestSubscriber:
         try:
             self._subscriber_future = (
                 await self._subscriber_factory.async_new_subscriber(
-                    creds, self._subscriber_id, self._loop, self._async_message_callback
+                    creds, self._subscriber_id, self._loop, self._async_message_callback_with_timeout
                 )
             )
         except NotFound as err:
@@ -531,6 +527,19 @@ class GoogleNestSubscriber:
             if self._healthy:
                 self._healthy = False
             _LOGGER.debug("Subscriber disconnected, will restart: %s: %s", type(ex), ex)
+
+    async def _async_message_callback_with_timeout(
+        self, message: pubsub_v1.subscriber.message.Message
+    ) -> None:
+        """Handle a received message."""
+        try:
+            async with asyncio.timeout(MESSAGE_ACK_TIMEOUT_SECONDS):
+                print("Async message callback with timeout, ", MESSAGE_ACK_TIMEOUT_SECONDS)
+                await self._async_message_callback(message)
+                print("Done")
+        except TimeoutError as err:
+            DIAGNOSTICS.increment("message_ack_timeout")
+            raise TimeoutError(f"Message ack timeout processing message") from err
 
     async def _async_message_callback(
         self, message: pubsub_v1.subscriber.message.Message
