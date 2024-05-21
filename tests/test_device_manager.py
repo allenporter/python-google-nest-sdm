@@ -700,3 +700,80 @@ async def test_publish_without_media(
         )
     )
     assert callback.invoked
+
+
+async def test_update_with_new_trait(
+    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+) -> None:
+    mgr = DeviceManager()
+    mgr.add_device(
+        fake_device(
+            {
+                "name": "my/device/name1",
+                "type": "sdm.devices.types.SomeDeviceType",
+                "traits": {
+                    "sdm.devices.traits.ThermostatHvac": {"status": "OFF"},
+                    "sdm.devices.traits.ThermostatMode": {
+                        "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
+                        "mode": "OFF",
+                    },
+                },
+            }
+        )
+    )
+    assert 1 == len(mgr.devices)
+    device = mgr.devices["my/device/name1"]
+    assert device.thermostat_hvac
+    assert device.thermostat_hvac.status == "OFF"
+    assert device.thermostat_mode
+    assert device.thermostat_mode.mode == "OFF"
+
+    # Heat is enabled
+    await mgr.async_handle_event(
+        fake_event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": "2019-01-01T00:00:01Z",
+                "resourceUpdate": {
+                    "name": "my/device/name1",
+                    "traits": {
+                        "sdm.devices.traits.ThermostatMode": {
+                            "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
+                            "mode": "HEAT",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    device = mgr.devices["my/device/name1"]
+    assert device.thermostat_hvac
+    assert device.thermostat_hvac.status == "OFF"
+    assert device.thermostat_mode
+    assert device.thermostat_mode.mode == "HEAT"
+
+    # Heating has started.
+    await mgr.async_handle_event(
+        fake_event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": "2019-01-01T00:00:01Z",
+                "resourceUpdate": {
+                    "name": "my/device/name1",
+                    "traits": {
+                        "sdm.devices.traits.ThermostatHvac": {
+                            "status": "HEATING",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    device = mgr.devices["my/device/name1"]
+    assert device.thermostat_hvac
+    assert device.thermostat_hvac.status == "HEATING"
+    assert device.thermostat_mode
+    assert device.thermostat_mode.mode == "HEAT"

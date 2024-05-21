@@ -5,7 +5,7 @@ from __future__ import annotations
 import datetime
 import logging
 from typing import Any, Awaitable, Callable
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field, fields, asdict
 
 from mashumaro import field_options, DataClassDictMixin
 from mashumaro.config import BaseConfig
@@ -306,7 +306,7 @@ class Device(TraitTypes):
             # fields present in the update trait
             if not (existing := getattr(self, trait_field.name)):
                 continue
-            for k, v in new.to_dict().items():
+            for k, v in asdict(new).items():
                 if v is not None:
                     setattr(existing, k, v)
             self._trait_event_ts[trait_field.name] = event_message.timestamp
