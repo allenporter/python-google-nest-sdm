@@ -534,9 +534,7 @@ class GoogleNestSubscriber:
         """Handle a received message."""
         try:
             async with asyncio.timeout(MESSAGE_ACK_TIMEOUT_SECONDS):
-                print("Async message callback with timeout, ", MESSAGE_ACK_TIMEOUT_SECONDS)
                 await self._async_message_callback(message)
-                print("Done")
         except TimeoutError as err:
             DIAGNOSTICS.increment("message_ack_timeout")
             raise TimeoutError("Message ack timeout processing message") from err
