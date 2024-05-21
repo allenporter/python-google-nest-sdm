@@ -639,7 +639,6 @@ async def test_subscribe_thread_update_new_events(
     subscriber.stop_async()
 
 
-
 async def test_message_ack_timeout(
     app: aiohttp.web.Application,
     device_handler: DeviceHandler,
@@ -650,7 +649,7 @@ async def test_message_ack_timeout(
     ],
     fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> None:
-    
+
     device_id = device_handler.add_device(
         traits={
             "sdm.devices.traits.Connectivity": {
@@ -660,14 +659,14 @@ async def test_message_ack_timeout(
     )
     structure_id = structure_handler.add_structure()
 
-    subscriber = await subscriber_client()
+    subscriber = await subscriber_client(subscriber_factory)
     subscriber.cache_policy.event_cache_size = 5
     await subscriber.start_async()
     device_manager = await subscriber.async_get_device_manager()
     devices = device_manager.devices
     assert device_id in devices
 
-    async def async_handle_event(_):
+    async def async_handle_event(_: Any) -> None:
         await asyncio.sleep(10)
 
     subscriber.set_update_callback(async_handle_event)
@@ -681,7 +680,9 @@ async def test_message_ack_timeout(
         },
         "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
     }
-    with patch("google_nest_sdm.google_nest_subscriber.MESSAGE_ACK_TIMEOUT_SECONDS", 0.01):
+    with patch(
+        "google_nest_sdm.google_nest_subscriber.MESSAGE_ACK_TIMEOUT_SECONDS", 0.01
+    ):
         with pytest.raises(TimeoutError, match="Message ack timeout"):
             await subscriber_factory.async_push_event(event)
 
