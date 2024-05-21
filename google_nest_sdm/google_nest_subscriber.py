@@ -539,7 +539,7 @@ class GoogleNestSubscriber:
                 print("Done")
         except TimeoutError as err:
             DIAGNOSTICS.increment("message_ack_timeout")
-            raise TimeoutError(f"Message ack timeout processing message") from err
+            raise TimeoutError("Message ack timeout processing message") from err
 
     async def _async_message_callback(
         self, message: pubsub_v1.subscriber.message.Message
