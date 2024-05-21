@@ -57,6 +57,8 @@ WATCHDOG_RESET_THRESHOLD_SECONDS = 60
 
 DEFAULT_MESSAGE_RETENTION_SECONDS = 15 * 60  # 15 minutes
 
+MESSAGE_ACK_TIMEOUT_SECONDS = 30.0
+
 # Note: Users of non-prod instances will have to manually configure a topic
 TOPIC_FORMAT = "projects/sdm-prod/topics/enterprise-{project_id}"
 
@@ -199,14 +201,13 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
         """Creates a subscription name if it does not already exist."""
         _validate_subscription_name(subscription_name)
         _validate_topic_name(topic_name)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            await loop.run_in_executor(
-                executor,
-                self._create_subscription,
-                creds,
-                subscription_name,
-                topic_name,
-            )
+        await loop.run_in_executor(
+            None,
+            self._create_subscription,
+            creds,
+            subscription_name,
+            topic_name,
+        )
 
     def _create_subscription(
         self,
@@ -250,13 +251,12 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
         loop: asyncio.AbstractEventLoop,
     ) -> None:
         """Creates a subscription name if it does not already exist."""
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            await loop.run_in_executor(
-                executor,
-                self._delete_subscription,
-                creds,
-                subscription_name,
-            )
+        await loop.run_in_executor(
+            None,
+            self._delete_subscription,
+            creds,
+            subscription_name,
+        )
 
     def _delete_subscription(
         self,
@@ -281,21 +281,18 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
         """Create a new subscriber with a blocking to async bridge."""
 
         def callback_wrapper(message: pubsub_v1.subscriber.message.Message) -> None:
-            if loop.is_closed():
-                return
             future: concurrent.futures.Future = asyncio.run_coroutine_threadsafe(
                 async_callback(message), loop
             )
             future.result()
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            return await loop.run_in_executor(
-                executor,
-                self._new_subscriber,
-                creds,
-                subscription_name,
-                callback_wrapper,
-            )
+        return await loop.run_in_executor(
+            None,
+            self._new_subscriber,
+            creds,
+            subscription_name,
+            callback_wrapper,
+        )
 
     def _new_subscriber(
         self,
@@ -335,7 +332,7 @@ class GoogleNestSubscriber:
         self._subscriber_id = subscriber_id
         self._project_id = project_id
         self._api = GoogleNestAPI(auth, project_id)
-        self._loop = loop or asyncio.get_event_loop()
+        self._loop = loop or asyncio.get_running_loop()
         self._device_manager_task: asyncio.Task[DeviceManager] | None = None
         self._subscriber_factory = subscriber_factory
         self._subscriber_future: (
@@ -437,7 +434,7 @@ class GoogleNestSubscriber:
         try:
             self._subscriber_future = (
                 await self._subscriber_factory.async_new_subscriber(
-                    creds, self._subscriber_id, self._loop, self._async_message_callback
+                    creds, self._subscriber_id, self._loop, self._async_message_callback_with_timeout
                 )
             )
         except NotFound as err:
@@ -530,6 +527,19 @@ class GoogleNestSubscriber:
             if self._healthy:
                 self._healthy = False
             _LOGGER.debug("Subscriber disconnected, will restart: %s: %s", type(ex), ex)
+
+    async def _async_message_callback_with_timeout(
+        self, message: pubsub_v1.subscriber.message.Message
+    ) -> None:
+        """Handle a received message."""
+        try:
+            async with asyncio.timeout(MESSAGE_ACK_TIMEOUT_SECONDS):
+                print("Async message callback with timeout, ", MESSAGE_ACK_TIMEOUT_SECONDS)
+                await self._async_message_callback(message)
+                print("Done")
+        except TimeoutError as err:
+            DIAGNOSTICS.increment("message_ack_timeout")
+            raise TimeoutError("Message ack timeout processing message") from err
 
     async def _async_message_callback(
         self, message: pubsub_v1.subscriber.message.Message
