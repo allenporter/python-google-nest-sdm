@@ -7,6 +7,8 @@ import pytest
 
 from google_nest_sdm.device import Device
 
+from .conftest import assert_diagnostics
+
 
 def test_info_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
@@ -23,6 +25,23 @@ def test_info_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     assert "sdm.devices.traits.Info" in device.traits
     trait = device.traits["sdm.devices.traits.Info"]
     assert "Device Name" == trait.custom_name
+
+
+    assert_diagnostics(
+        device.get_diagnostics(),
+        {
+            "data": {
+                "name": "**REDACTED**",
+                "parentRelations": [],
+                "traits": {
+                    "sdm.devices.traits.Info": {
+                        "custom_name": "**REDACTED**",
+                    }
+                },
+            },
+        },
+    )
+
 
 
 def test_connectivity_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:

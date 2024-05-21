@@ -87,8 +87,8 @@ def get_diagnostics() -> dict[str, Any]:
 
 REDACT_KEYS = {
     "name",
-    "customName",
-    "displayName",
+    "custom_name",
+    "display_name",
     "parent",
     "assignee",
     "subject",
