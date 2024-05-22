@@ -6,6 +6,8 @@ import pytest
 
 from google_nest_sdm.device import Device
 
+from .conftest import assert_diagnostics
+
 
 def test_device_id(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
@@ -99,6 +101,21 @@ def test_parent_relation(fake_device: Callable[[Dict[str, Any]], Device]) -> Non
     )
     assert "my/device/name" == device.name
     assert {"my/structure/or/room": "Some Name"} == device.parent_relations
+
+    assert_diagnostics(
+        device.get_diagnostics(),
+        {
+            "data": {
+                "name": "**REDACTED**",
+                "parentRelations": [
+                    {
+                        "parent": "**REDACTED**",
+                        "displayName": "**REDACTED**",
+                    }
+                ],
+            },
+        },
+    )
 
 
 def test_multiple_parent_relations(
