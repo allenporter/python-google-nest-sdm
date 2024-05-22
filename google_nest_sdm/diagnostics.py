@@ -12,6 +12,7 @@ __all__ = [
     "get_diagnostics",
 ]
 
+
 class Diagnostics:
     """Information for the library."""
 
@@ -88,7 +89,7 @@ def get_diagnostics() -> dict[str, Any]:
 REDACT_KEYS = {
     "name",
     "custom_name",
-    "display_name",
+    "displayName",
     "parent",
     "assignee",
     "subject",
