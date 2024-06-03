@@ -15,7 +15,7 @@ async-timeout==4.0.3
 google-api-core==2.19.0
 google-auth==2.29.0
 google-cloud-pubsub==2.21.2
-googleapis-common-protos==1.63.0
+googleapis-common-protos==1.63.1
 grpcio==1.64.0
 grpcio-status==1.62.2
 protobuf==4.25.3
