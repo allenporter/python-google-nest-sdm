@@ -59,6 +59,8 @@ DEFAULT_MESSAGE_RETENTION_SECONDS = 15 * 60  # 15 minutes
 
 MESSAGE_ACK_TIMEOUT_SECONDS = 30.0
 
+NEW_SUBSCRIBER_TIMEOUT_SECONDS = 30.0
+
 # Note: Users of non-prod instances will have to manually configure a topic
 TOPIC_FORMAT = "projects/sdm-prod/topics/enterprise-{project_id}"
 
@@ -294,6 +296,7 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
             callback_wrapper,
         )
 
+
     def _new_subscriber(
         self,
         creds: Credentials,
@@ -301,7 +304,9 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
         callback_wrapper: Callable[[pubsub_v1.subscriber.message.Message], None],
     ) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
         """Issue a command to verify subscriber creds are correct."""
+        _LOGGER.debug("Creating subscriber '%s'", subscription_name)
         creds = refresh_creds(creds)
+        _LOGGER.debug("Subscriber credentials refreshed")
         subscriber = pubsub_v1.SubscriberClient(credentials=creds)
         subscription = subscriber.get_subscription(subscription=subscription_name)
         if subscription.topic:
@@ -311,6 +316,7 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
                 subscription_name,
                 subscription.topic,
             )
+        _LOGGER.debug("Starting subscriber '%s'", subscription_name)
         return subscriber.subscribe(subscription_name, callback_wrapper)
 
 
@@ -432,11 +438,17 @@ class GoogleNestSubscriber:
             raise AuthException(f"Access token failure: {err}") from err
 
         try:
-            self._subscriber_future = (
-                await self._subscriber_factory.async_new_subscriber(
-                    creds, self._subscriber_id, self._loop, self._async_message_callback_with_timeout
+            async with asyncio.timeout(NEW_SUBSCRIBER_TIMEOUT_SECONDS):        
+                self._subscriber_future = (
+                    await self._subscriber_factory.async_new_subscriber(
+                        creds, self._subscriber_id, self._loop, self._async_message_callback_with_timeout
+                    )
                 )
-            )
+        except asyncio.TimeoutError as err:
+            DIAGNOSTICS.increment("start.timeout_error")
+            raise SubscriberException(
+                f"Failed to create subscriber '{self._subscriber_id}': {err}"
+            ) from err
         except NotFound as err:
             DIAGNOSTICS.increment("start.not_found_error")
             raise ConfigurationException(

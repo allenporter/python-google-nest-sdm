@@ -307,6 +307,42 @@ async def test_subscriber_watchdog(
     subscriber.stop_async()
 
 
+async def test_subscriber_timeout(
+    app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    structure_handler: StructureHandler,
+    subscriber_client: Callable[
+        [Optional[AbstractSubscriberFactory]], Awaitable[GoogleNestSubscriber]
+    ],
+) -> None:
+    class FailingFactory(FakeSubscriberFactory):
+        async def async_new_subscriber(
+            self,
+            creds: Credentials,
+            subscription_name: str,
+            loop: asyncio.AbstractEventLoop,
+            async_callback: Callable[
+                [pubsub_v1.subscriber.message.Message], Awaitable[None]
+            ],
+        ) -> pubsub_v1.subscriber.futures.StreamingPullFuture:
+            raise asyncio.TimeoutError("Some error")
+
+    subscriber = await subscriber_client(FailingFactory())
+
+    with pytest.raises(SubscriberException):
+        await subscriber.start_async()
+    subscriber.stop_async()
+
+    assert_diagnostics(
+        diagnostics.get_diagnostics(),
+        {
+            "subscriber": {
+                "start": 1,
+                "start.timeout_error": 1,
+                "stop": 1,
+            },
+        },
+    )
 async def test_subscriber_error(
     app: aiohttp.web.Application,
     device_handler: DeviceHandler,
