@@ -60,6 +60,9 @@ DEFAULT_MESSAGE_RETENTION_SECONDS = 15 * 60  # 15 minutes
 MESSAGE_ACK_TIMEOUT_SECONDS = 30.0
 
 NEW_SUBSCRIBER_TIMEOUT_SECONDS = 30.0
+NEW_SUBSCRIBER_THREAD_TIMEOUT_SECONDS = 50.0
+GET_SUBSCRIPTION_TIMEOUT = 10.0
+
 
 # Note: Users of non-prod instances will have to manually configure a topic
 TOPIC_FORMAT = "projects/sdm-prod/topics/enterprise-{project_id}"
@@ -114,6 +117,7 @@ def _validate_subscription_name(subscription_name: str) -> None:
     """
     if not EXPECTED_SUBSCRIBER_REGEXP.match(subscription_name):
         DIAGNOSTICS.increment("subscription_name_invalid")
+        _LOGGER.debug("Subscription name did not match pattern: %s", subscription_name)
         raise ConfigurationException(
             "Subscription misconfigured. Expected subscriber_id to "
             f"match '{EXPECTED_SUBSCRIBER_REGEXP.pattern}' but was "
@@ -128,6 +132,7 @@ def _validate_topic_name(topic_name: str) -> None:
     """
     if not EXPECTED_TOPIC_REGEXP.match(topic_name):
         DIAGNOSTICS.increment("topic_name_invalid")
+        _LOGGER.debug("Topic name did not match pattern: %s", topic_name)
         raise ConfigurationException(
             "Subscription misconfigured. Expected topic name to "
             f"match '{EXPECTED_TOPIC_REGEXP.pattern}' but was "
@@ -286,7 +291,7 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
             future: concurrent.futures.Future = asyncio.run_coroutine_threadsafe(
                 async_callback(message), loop
             )
-            future.result()
+            future.result(NEW_SUBSCRIBER_TIMEOUT_SECONDS)
 
         return await loop.run_in_executor(
             None,
@@ -308,7 +313,11 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
         creds = refresh_creds(creds)
         _LOGGER.debug("Subscriber credentials refreshed")
         subscriber = pubsub_v1.SubscriberClient(credentials=creds)
-        subscription = subscriber.get_subscription(subscription=subscription_name)
+        subscription = subscriber.get_subscription(
+            subscription=subscription_name,
+            timeout=GET_SUBSCRIPTION_TIMEOUT
+        )
+        _LOGGER.debug("Found subscription: %s", subscription_name)
         if subscription.topic:
             _validate_topic_name(subscription.topic)
             _LOGGER.debug(
@@ -316,7 +325,7 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
                 subscription_name,
                 subscription.topic,
             )
-        _LOGGER.debug("Starting subscriber '%s'", subscription_name)
+        _LOGGER.debug("Starting subscriber future '%s'", subscription_name)
         return subscriber.subscribe(subscription_name, callback_wrapper)
 
 
@@ -389,16 +398,16 @@ class GoogleNestSubscriber:
         except NotFound as err:
             DIAGNOSTICS.increment("create_subscription.not_found")
             raise ConfigurationException(
-                f"Failed to create subscriber '{self._subscriber_id}' "
+                f"Failed to create subscription '{self._subscriber_id}' "
                 + "(cloud project id incorrect?)"
             ) from err
         except Unauthenticated as err:
             DIAGNOSTICS.increment("create_subscription.unauthenticated")
-            raise AuthException("Failed to authenticate subscriber: {err}") from err
+            raise AuthException("Failed to authenticate when creating subscription: {err}") from err
         except GoogleAPIError as err:
             DIAGNOSTICS.increment("create_subscription.api_error")
             raise SubscriberException(
-                f"Failed to create subscriber '{self._subscriber_id}': {err}"
+                f"Failed to create subscription '{self._subscriber_id}': {err}"
             ) from err
 
     async def delete_subscription(self) -> None:
@@ -420,7 +429,7 @@ class GoogleNestSubscriber:
             return
         except Unauthenticated as err:
             DIAGNOSTICS.increment("delete_subscription.unauthenticated")
-            raise AuthException("Failed to authenticate subscriber: {err}") from err
+            raise AuthException("Failed to authenticate when deleting subscription: {err}") from err
         except GoogleAPIError as err:
             DIAGNOSTICS.increment("delete_subscription.api_error")
             raise SubscriberException(
@@ -429,6 +438,7 @@ class GoogleNestSubscriber:
 
     async def start_async(self) -> None:
         """Start the subscriber."""
+        _LOGGER.debug("Starting subscriber %s", self._subscriber_id)
         DIAGNOSTICS.increment("start")
         _validate_subscription_name(self._subscriber_id)
         try:
@@ -438,7 +448,7 @@ class GoogleNestSubscriber:
             raise AuthException(f"Access token failure: {err}") from err
 
         try:
-            async with asyncio.timeout(NEW_SUBSCRIBER_TIMEOUT_SECONDS):        
+            async with asyncio.timeout(NEW_SUBSCRIBER_THREAD_TIMEOUT_SECONDS):        
                 self._subscriber_future = (
                     await self._subscriber_factory.async_new_subscriber(
                         creds, self._subscriber_id, self._loop, self._async_message_callback_with_timeout
@@ -447,7 +457,7 @@ class GoogleNestSubscriber:
         except asyncio.TimeoutError as err:
             DIAGNOSTICS.increment("start.timeout_error")
             raise SubscriberException(
-                f"Failed to create subscriber '{self._subscriber_id}': {err}"
+                f"Failed to create subscriber '{self._subscriber_id}' with timeout: {err}"
             ) from err
         except NotFound as err:
             DIAGNOSTICS.increment("start.not_found_error")
@@ -460,7 +470,7 @@ class GoogleNestSubscriber:
         except GoogleAPIError as err:
             DIAGNOSTICS.increment("start.api_error")
             raise SubscriberException(
-                f"Failed to create subscriber '{self._subscriber_id}': {err}"
+                f"Failed to create subscriber '{self._subscriber_id}' with api error: {err}"
             ) from err
 
         if not self._healthy:
