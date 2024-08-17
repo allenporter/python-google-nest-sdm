@@ -60,8 +60,8 @@ DEFAULT_MESSAGE_RETENTION_SECONDS = 15 * 60  # 15 minutes
 MESSAGE_ACK_TIMEOUT_SECONDS = 30.0
 
 NEW_SUBSCRIBER_TIMEOUT_SECONDS = 30.0
-NEW_SUBSCRIBER_THREAD_TIMEOUT_SECONDS = 50.0
-GET_SUBSCRIPTION_TIMEOUT = 10.0
+NEW_SUBSCRIBER_THREAD_TIMEOUT_SECONDS = 120.0
+GET_SUBSCRIPTION_TIMEOUT = 30.0
 
 
 # Note: Users of non-prod instances will have to manually configure a topic
@@ -455,19 +455,23 @@ class GoogleNestSubscriber:
                     )
                 )
         except asyncio.TimeoutError as err:
+            _LOGGER.debug("Failed to create subscriber '%s' with timeout: %s", self._subscriber_id, err)
             DIAGNOSTICS.increment("start.timeout_error")
             raise SubscriberException(
                 f"Failed to create subscriber '{self._subscriber_id}' with timeout: {err}"
             ) from err
         except NotFound as err:
+            _LOGGER.debug("Failed to create subscriber '%s' id was not found: %s", self._subscriber_id, err)
             DIAGNOSTICS.increment("start.not_found_error")
             raise ConfigurationException(
                 f"Failed to create subscriber '{self._subscriber_id}' id was not found"
             ) from err
         except Unauthenticated as err:
+            _LOGGER.debug("Failed to authenticate subscriber: %s", err)
             DIAGNOSTICS.increment("start.unauthenticated")
             raise AuthException("Failed to authenticate subscriber: {err}") from err
         except GoogleAPIError as err:
+            _LOGGER.debug("Failed to create subscriber '%s' with api error: %s", self._subscriber_id, err)
             DIAGNOSTICS.increment("start.api_error")
             raise SubscriberException(
                 f"Failed to create subscriber '{self._subscriber_id}' with api error: {err}"
