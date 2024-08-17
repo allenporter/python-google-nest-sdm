@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from asyncio import TimeoutError
-from typing import Any, Mapping
+from typing import Any
 
 import aiohttp
 from aiohttp.client_exceptions import ClientError, ClientResponseError
