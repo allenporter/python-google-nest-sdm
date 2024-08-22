@@ -20,7 +20,7 @@ grpcio==1.65.5
 grpcio-status==1.65.5
 protobuf==5.27.3
 pytest-aiohttp==1.0.5
-pytest-asyncio==0.23.8
+pytest-asyncio==0.24.0
 pytest-mock==3.14.0
 PyYAML==6.0.2
 typed-ast==1.5.5
