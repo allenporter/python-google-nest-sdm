@@ -52,7 +52,11 @@ class DeviceManager:
     def set_update_callback(
         self, target: Callable[[EventMessage], Awaitable[None]]
     ) -> None:
-        """Register a callback invoked when new messages are received."""
+        """Register a callback invoked when new messages are received.
+        
+        If the event is associated with media, then the callback will only
+        be invoked once the media has been fetched.
+        """
         self._callback = target
         for device in self._devices.values():
             device.event_media_manager.set_update_callback(target)

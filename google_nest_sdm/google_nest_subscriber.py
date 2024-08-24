@@ -374,7 +374,11 @@ class GoogleNestSubscriber:
     def set_update_callback(
         self, target: Callable[[EventMessage], Awaitable[None]]
     ) -> None:
-        """Register a callback invoked when new messages are received."""
+        """Register a callback invoked when new messages are received.
+        
+        If the event is associated with media, then the callback will only
+        be invoked once the media has been fetched.
+        """
         self._callback = target
         if self._device_manager_task and self._device_manager_task.done():
             self._device_manager_task.result().set_update_callback(target)
@@ -577,7 +581,7 @@ class GoogleNestSubscriber:
         # Only accept device events once the Device Manager has been loaded.
         # We are ok with missing messages on startup since the device manager
         # will do a live read. This checks for an exception to avoid throwing
-        # inside the pubsub callback and further weding the pubsub client library.
+        # inside the pubsub callback and further wedging the pubsub client library.
         if (
             self._device_manager_task
             and self._device_manager_task.done()
