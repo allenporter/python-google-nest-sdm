@@ -238,6 +238,9 @@ class Device(TraitTypes):
     def add_update_listener(self, target: Callable[[], None]) -> Callable[[], None]:
         """Register a simple event listener notified on updates.
 
+        This will not block on media being fetched. To wait for media, use
+        the callback form the `EventMediaManager`.
+
         The return value is a callable that will unregister the callback.
         """
 
@@ -251,6 +254,9 @@ class Device(TraitTypes):
     ) -> Callable[[], None]:
         """Register an event callback for updates to this device.
 
+        This will not block on media being fetched. To wait for media, use
+        the callback form the `EventMediaManager`.
+
         The return value is a callable that will unregister the callback.
         """
         self._callbacks.append(target)
@@ -262,7 +268,12 @@ class Device(TraitTypes):
         return remove_callback
 
     async def async_handle_event(self, event_message: EventMessage) -> None:
-        """Process an event from the pubsub subscriber."""
+        """Process an event from the pubsub subscriber.
+        
+        This will invoke any directly registered callbacks (before fetching media)
+        as well as any callbacks registered with the event media manager that
+        fire post-media.
+        """
         _LOGGER.debug(
             "Processing update %s @ %s", event_message.event_id, event_message.timestamp
         )
@@ -273,9 +284,9 @@ class Device(TraitTypes):
                 f"Mismatch {self.name} != {event_message.resource_update_name}"
             )
         self._async_handle_traits(event_message)
-        await self._event_media_manager.async_handle_events(event_message)
         for callback in self._callbacks:
             await callback(event_message)
+        await self._event_media_manager.async_handle_events(event_message)
 
     def _async_handle_traits(self, event_message: EventMessage) -> None:
         traits = event_message.resource_update_traits

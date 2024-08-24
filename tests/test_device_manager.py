@@ -662,7 +662,7 @@ async def test_publish_without_media(
     fake_device: Callable[[Dict[str, Any]], Device],
     fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> None:
-    """Test event callback is registered before the device is added."""
+    """Test publishing an event without any associated event media."""
 
     callback = EventCallback()
     mgr = DeviceManager()

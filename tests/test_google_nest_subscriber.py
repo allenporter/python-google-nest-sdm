@@ -503,8 +503,11 @@ async def test_subscribe_thread_update(
     devices = device_manager.devices
     assert device_id in devices
 
-    callback = EventCallback()
-    subscriber.set_update_callback(callback.async_handle_event)
+    subscriber_callback = EventCallback()
+    subscriber.set_update_callback(subscriber_callback.async_handle_event)
+
+    device_callback = EventCallback()
+    devices[device_id].add_event_callback(device_callback.async_handle_event)
 
     event = {
         "eventId": "6f29332e-5537-47f6-a3f9-840c307340f5",
@@ -530,6 +533,14 @@ async def test_subscribe_thread_update(
         "eventThreadState": "STARTED",
     }
     await subscriber_factory.async_push_event(event)
+
+    # Verify the message is received. The full content is verified below.
+    assert len(subscriber_callback.messages) == 1
+    message: EventMessage = subscriber_callback.messages[0]
+    assert message.event_id == "6f29332e-5537-47f6-a3f9-840c307340f5"
+
+    # Device-level callback also received the message
+    assert len(device_callback.messages) == 1
 
     # End the thread (resource update is identical)
     event = {
@@ -557,8 +568,8 @@ async def test_subscribe_thread_update(
     }
     await subscriber_factory.async_push_event(event)
 
-    assert len(callback.messages) == 1
-    message: EventMessage = callback.messages[0]
+    assert len(subscriber_callback.messages) == 1
+    message: EventMessage = subscriber_callback.messages[0]
     assert message.event_id == "6f29332e-5537-47f6-a3f9-840c307340f5"
     assert message.event_sessions
     assert len(message.event_sessions) == 1
@@ -567,6 +578,13 @@ async def test_subscribe_thread_update(
     assert len(events) == 2
     assert "sdm.devices.events.CameraMotion.Motion" in events
     assert "sdm.devices.events.CameraClipPreview.ClipPreview" in events
+
+    # Device-level callback recieves both raw messages
+    assert len(device_callback.messages) == 2
+    message: EventMessage = device_callback.messages[0]
+    assert message.event_id == "6f29332e-5537-47f6-a3f9-840c307340f5"
+    message: EventMessage = device_callback.messages[1]
+    assert message.event_id == "7f29332e-5537-47f6-a3f9-840c307340f5"
 
     subscriber.stop_async()
 
@@ -596,6 +614,9 @@ async def test_subscribe_thread_update_new_events(
 
     callback = EventCallback()
     subscriber.set_update_callback(callback.async_handle_event)
+
+    device_callback = EventCallback()
+    devices[device_id].add_event_callback(device_callback.async_handle_event)
 
     event = {
         "eventId": "6f29332e-5537-47f6-a3f9-840c307340f5",
@@ -671,6 +692,9 @@ async def test_subscribe_thread_update_new_events(
     events = message.event_sessions["CjY5Y3VKaTZwR3o4Y19YbTVfMF..."]
     assert len(events) == 1
     assert "sdm.devices.events.CameraPerson.Person" in events
+
+    # Device also receives the same messages
+    assert len(device_callback.messages) == 2
 
     subscriber.stop_async()
 
