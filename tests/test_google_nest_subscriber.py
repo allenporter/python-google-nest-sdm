@@ -569,7 +569,7 @@ async def test_subscribe_thread_update(
     await subscriber_factory.async_push_event(event)
 
     assert len(subscriber_callback.messages) == 1
-    message: EventMessage = subscriber_callback.messages[0]
+    message = subscriber_callback.messages[0]
     assert message.event_id == "6f29332e-5537-47f6-a3f9-840c307340f5"
     assert message.event_sessions
     assert len(message.event_sessions) == 1
@@ -581,9 +581,9 @@ async def test_subscribe_thread_update(
 
     # Device-level callback invoked with both raw messages
     assert len(device_callback.messages) == 2
-    message: EventMessage = device_callback.messages[0]
+    message = device_callback.messages[0]
     assert message.event_id == "6f29332e-5537-47f6-a3f9-840c307340f5"
-    message: EventMessage = device_callback.messages[1]
+    message = device_callback.messages[1]
     assert message.event_id == "7f29332e-5537-47f6-a3f9-840c307340f5"
 
     subscriber.stop_async()
