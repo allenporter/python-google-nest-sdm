@@ -579,7 +579,7 @@ async def test_subscribe_thread_update(
     assert "sdm.devices.events.CameraMotion.Motion" in events
     assert "sdm.devices.events.CameraClipPreview.ClipPreview" in events
 
-    # Device-level callback recieves both raw messages
+    # Device-level callback invoked with both raw messages
     assert len(device_callback.messages) == 2
     message: EventMessage = device_callback.messages[0]
     assert message.event_id == "6f29332e-5537-47f6-a3f9-840c307340f5"
