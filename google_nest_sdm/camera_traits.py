@@ -24,6 +24,7 @@ from .event import (
     EventType,
 )
 from .traits import CommandDataClass, TraitType
+from .webrtc_util import WebRTCUtility
 
 __all__ = [
     "CameraImageTrait",
@@ -62,9 +63,7 @@ ANSWER_SDP = "answerSdp"
 MEDIA_SESSION_ID = "mediaSessionId"
 
 EVENT_IMAGE_CLIP_PREVIEW = "clip_preview"
-WEBRTC_STREAM_DIRECTION_SENDONLY = "sendonly"
-WEBRTC_STREAM_DIRECTION_SENDRECV = "sendrecv"
-WEBRTC_STREAM_DIRECTION_RECVONLY = "recvonly"
+
 
 @dataclass
 class Resolution:
@@ -268,31 +267,6 @@ class CameraLiveStreamTrait(DataClassDictMixin, CommandDataClass):
         obj._cmd = self.cmd
         return obj
 
-    def get_direction(self, text, section):
-        for part in text.split("\nm="):
-            if part.startswith(section):
-                if "\na="+WEBRTC_STREAM_DIRECTION_SENDRECV in part:
-                    return WEBRTC_STREAM_DIRECTION_SENDRECV
-                elif "\na="+WEBRTC_STREAM_DIRECTION_RECVONLY in part:
-                    return WEBRTC_STREAM_DIRECTION_RECVONLY
-        return None
-
-    def set_direction(self, text, section, from_direction, to_direction):
-        for part in text.split("\nm="):
-            if part.startswith(section) and "\na="+from_direction in part:
-                return text.replace("m="+part, "m="+part.replace("\na="+from_direction, "\na="+to_direction))
-        return text
-
-    def set_candidate_foundation(self, text):
-        result = text
-        index = 1
-        for line in text.split("\r\n"):
-            if line.startswith("a=candidate: "):
-                result = result.replace(line, line.replace(
-                    "a=candidate: ", "a=candidate:"+str(index)+" "))
-                index += 1
-        return result
-
     async def generate_web_rtc_stream(self, offer_sdp: str) -> WebRtcStream:
         """Request a token to access a Web RTC live stream URL."""
         if StreamingProtocol.WEB_RTC not in self.supported_protocols:
@@ -307,13 +281,9 @@ class CameraLiveStreamTrait(DataClassDictMixin, CommandDataClass):
         obj._cmd = self.cmd
         _LOGGER.debug("Received answer_sdp: %s", obj.answer_sdp)
         if "mozilla" in offer_sdp:
-            if self.get_direction(offer_sdp, "video") == WEBRTC_STREAM_DIRECTION_RECVONLY:
-                obj.answer_sdp = self.set_direction(
-                    obj.answer_sdp, "video", WEBRTC_STREAM_DIRECTION_SENDRECV, WEBRTC_STREAM_DIRECTION_SENDONLY)
-            if self.get_direction(offer_sdp, "audio") == WEBRTC_STREAM_DIRECTION_RECVONLY:
-                obj.answer_sdp = self.set_direction(
-                    obj.answer_sdp, "audio", WEBRTC_STREAM_DIRECTION_SENDRECV, WEBRTC_STREAM_DIRECTION_SENDONLY)
-            obj.answer_sdp = self.set_candidate_foundation(obj.answer_sdp)
+            obj.answer_sdp = WebRTCUtility().fix_mozilla_sdp_answer(
+                offer_sdp, obj.answer_sdp
+            )
             _LOGGER.debug("Return obj.answer_sdp: %s", obj.answer_sdp)
         return obj
 
