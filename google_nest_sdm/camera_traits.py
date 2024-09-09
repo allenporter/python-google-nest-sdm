@@ -24,7 +24,7 @@ from .event import (
     EventType,
 )
 from .traits import CommandDataClass, TraitType
-from .webrtc_util import WebRTCUtility
+from .webrtc_util import fix_mozilla_sdp_answer
 
 __all__ = [
     "CameraImageTrait",
@@ -280,11 +280,10 @@ class CameraLiveStreamTrait(DataClassDictMixin, CommandDataClass):
         obj = WebRtcStream.from_dict(results)
         obj._cmd = self.cmd
         _LOGGER.debug("Received answer_sdp: %s", obj.answer_sdp)
-        if "mozilla" in offer_sdp:
-            obj.answer_sdp = WebRTCUtility().fix_mozilla_sdp_answer(
+        obj.answer_sdp = fix_mozilla_sdp_answer(
                 offer_sdp, obj.answer_sdp
             )
-            _LOGGER.debug("Return obj.answer_sdp: %s", obj.answer_sdp)
+        _LOGGER.debug("Return answer_sdp: %s", obj.answer_sdp)
         return obj
 
     class Config(BaseConfig):
