@@ -3,8 +3,8 @@
 from enum import StrEnum
 
 
-# SDP direction constants
 class SDPDirection(StrEnum):
+    """SDP direction constants."""
     SENDRECV = "sendrecv"
     SENDONLY = "sendonly"
     RECVONLY = "recvonly"
@@ -19,16 +19,8 @@ class SDPMediaKind(StrEnum):
 
 
 def _get_media_direction(sdp: str, kind: SDPMediaKind) -> SDPDirection | None:
-    """
-    Retrieves the direction of media tracks from the SDP based on the kind (audio/video).
+    """Retrieves the direction of media tracks from the SDP based on the kind (audio/video)."""
 
-    Args:
-        sdp (str): The SDP content
-        kind (SDPMediaKind): The kind of media track to check ('audio' or 'video').
-
-    Returns:
-        SDPMediaKind: The direction of the media track. One of 'sendrecv', 'sendonly', 'recvonly', or 'inactive'.
-    """
     # Track if we are in the desired media section
     in_media_section = False
 
