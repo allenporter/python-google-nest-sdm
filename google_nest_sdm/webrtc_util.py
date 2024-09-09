@@ -19,12 +19,7 @@ class SDPMediaKind(StrEnum):
 
 
 def _get_media_direction(sdp: str, kind: SDPMediaKind) -> SDPDirection | None:
-    """
-    Retrieves the direction of media tracks from the SDP based on the kind (audio/video).
-
-    Args:
-        sdp (str): The SDP content
-        kind (SDPMediaKind): The kind of media track to check ('audio' or 'video').
+    """Retrieves the direction of media tracks from the SDP based on the kind (audio/video)."""
 
     Returns:
         SDPMediaKind: The direction of the media track. One of 'sendrecv', 'sendonly', 'recvonly', or 'inactive'.
