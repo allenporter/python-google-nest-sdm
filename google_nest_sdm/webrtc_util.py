@@ -3,8 +3,8 @@
 from enum import StrEnum
 
 
-# SDP direction constants
 class SDPDirection(StrEnum):
+    """SDP direction constants."""
     SENDRECV = "sendrecv"
     SENDONLY = "sendonly"
     RECVONLY = "recvonly"
