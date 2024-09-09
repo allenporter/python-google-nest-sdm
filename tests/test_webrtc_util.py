@@ -1,7 +1,14 @@
 """Tests for WebRTC utility."""
 
-import pytest
-from google_nest_sdm.webrtc_util import SDPDirection, SDPMediaKind, _add_foundation_to_candidates, _get_media_direction, _update_direction_in_answer, fix_mozilla_sdp_answer
+from google_nest_sdm.webrtc_util import (
+    SDPDirection,
+    SDPMediaKind,
+    _add_foundation_to_candidates,
+    _get_media_direction,
+    _update_direction_in_answer,
+    fix_mozilla_sdp_answer,
+)
+
 
 def test_fix_mozilla_sdp_answer():
     """
@@ -74,10 +81,11 @@ def test_fix_mozilla_sdp_answer():
     )
     fixed_sdp = fix_mozilla_sdp_answer(firefox_offer_sdp, answer_sdp)
     assert expected_answer_sdp == fixed_sdp
-    
+
     fixed_sdp = fix_mozilla_sdp_answer(chrome_offer_sdp, answer_sdp)
     assert answer_sdp == fixed_sdp
-    
+
+
 def test_get_media_direction():
     """
     Test getting the direction in the SDP.
@@ -95,13 +103,14 @@ def test_get_media_direction():
         "a=rtpmap:96 H264/90000\r\n"
         "a=sendonly\r\n"
     )
-    
+
     direction = _get_media_direction(sdp, SDPMediaKind.AUDIO)
     assert direction == SDPDirection.SENDRECV
     direction = _get_media_direction(sdp, SDPMediaKind.VIDEO)
     assert direction == SDPDirection.SENDONLY
     direction = _get_media_direction(sdp, SDPMediaKind.APPLICATION)
-    assert direction == None
+    assert direction is None
+
 
 def test_update_direction_in_answer():
     """
@@ -137,7 +146,8 @@ def test_update_direction_in_answer():
     )
 
     new_sdp = _update_direction_in_answer(
-        original_sdp, SDPMediaKind.AUDIO, SDPDirection.SENDRECV, SDPDirection.SENDONLY)
+        original_sdp, SDPMediaKind.AUDIO, SDPDirection.SENDRECV, SDPDirection.SENDONLY
+    )
 
     assert new_sdp == expected_sdp
 

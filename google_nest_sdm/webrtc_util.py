@@ -1,5 +1,7 @@
 """Library with functions for manipulating WebRTC requests/responses."""
+
 from enum import StrEnum
+
 
 # SDP direction constants
 class SDPDirection(StrEnum):
@@ -8,11 +10,13 @@ class SDPDirection(StrEnum):
     RECVONLY = "recvonly"
     INACTIVE = "inactive"
 
+
 # SDP media kind constants
 class SDPMediaKind(StrEnum):
     AUDIO = "audio"
     VIDEO = "video"
     APPLICATION = "application"
+
 
 def _get_media_direction(sdp: str, kind: SDPMediaKind) -> SDPDirection | None:
     """
@@ -40,7 +44,12 @@ def _get_media_direction(sdp: str, kind: SDPMediaKind) -> SDPDirection | None:
     return None
 
 
-def _update_direction_in_answer(answer_sdp: str, kind: SDPMediaKind, old_direction: SDPDirection, new_direction: SDPDirection) -> str:
+def _update_direction_in_answer(
+    answer_sdp: str,
+    kind: SDPMediaKind,
+    old_direction: SDPDirection,
+    new_direction: SDPDirection,
+) -> str:
     """
     Updates the direction of a specific media track in the SDP answer if it matches a certain direction.
 
@@ -84,7 +93,9 @@ def _add_foundation_to_candidates(sdp: str) -> str:
     index = 1
     for line in sdp.split("\r\n"):
         if line.startswith("a=candidate: "):
-            updated_sdp_lines.append(line.replace("a=candidate: ", f"a=candidate:{index} "))
+            updated_sdp_lines.append(
+                line.replace("a=candidate: ", f"a=candidate:{index} ")
+            )
             index += 1
             continue
         updated_sdp_lines.append(line)
@@ -98,11 +109,25 @@ def fix_mozilla_sdp_answer(offer_sdp: str, answer_sdp: str) -> str:
     2. If the ICE candidates in answer SDP must contain "foundation" field.
     """
     if "mozilla" in offer_sdp:
-        if _get_media_direction(sdp=offer_sdp, kind=SDPMediaKind.VIDEO) == SDPDirection.RECVONLY:
+        if (
+            _get_media_direction(sdp=offer_sdp, kind=SDPMediaKind.VIDEO)
+            == SDPDirection.RECVONLY
+        ):
             answer_sdp = _update_direction_in_answer(
-                answer_sdp=answer_sdp, kind=SDPMediaKind.VIDEO, old_direction=SDPDirection.SENDRECV, new_direction=SDPDirection.SENDONLY)
-        if _get_media_direction(sdp=offer_sdp, kind=SDPMediaKind.AUDIO) == SDPDirection.RECVONLY:
+                answer_sdp=answer_sdp,
+                kind=SDPMediaKind.VIDEO,
+                old_direction=SDPDirection.SENDRECV,
+                new_direction=SDPDirection.SENDONLY,
+            )
+        if (
+            _get_media_direction(sdp=offer_sdp, kind=SDPMediaKind.AUDIO)
+            == SDPDirection.RECVONLY
+        ):
             answer_sdp = _update_direction_in_answer(
-                answer_sdp=answer_sdp, kind=SDPMediaKind.AUDIO, old_direction=SDPDirection.SENDRECV, new_direction=SDPDirection.SENDONLY)
+                answer_sdp=answer_sdp,
+                kind=SDPMediaKind.AUDIO,
+                old_direction=SDPDirection.SENDRECV,
+                new_direction=SDPDirection.SENDONLY,
+            )
         return _add_foundation_to_candidates(answer_sdp)
     return answer_sdp

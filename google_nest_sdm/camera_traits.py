@@ -280,9 +280,7 @@ class CameraLiveStreamTrait(DataClassDictMixin, CommandDataClass):
         obj = WebRtcStream.from_dict(results)
         obj._cmd = self.cmd
         _LOGGER.debug("Received answer_sdp: %s", obj.answer_sdp)
-        obj.answer_sdp = fix_mozilla_sdp_answer(
-                offer_sdp, obj.answer_sdp
-            )
+        obj.answer_sdp = fix_mozilla_sdp_answer(offer_sdp, obj.answer_sdp)
         _LOGGER.debug("Return answer_sdp: %s", obj.answer_sdp)
         return obj
 
