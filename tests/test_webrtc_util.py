@@ -80,10 +80,10 @@ def test_fix_mozilla_sdp_answer():
         "c=IN IP4 0.0.0.0\r\n"
     )
     fixed_sdp = fix_mozilla_sdp_answer(firefox_offer_sdp, answer_sdp)
-    assert expected_answer_sdp == fixed_sdp
+    assert fixed_sdp == expected_answer_sdp
 
     fixed_sdp = fix_mozilla_sdp_answer(chrome_offer_sdp, answer_sdp)
-    assert answer_sdp == fixed_sdp
+    assert fixed_sdp == answer_sdp
 
 
 def test_get_media_direction():
