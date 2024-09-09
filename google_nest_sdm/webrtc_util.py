@@ -30,12 +30,12 @@ def _get_media_direction(sdp: str, kind: SDPMediaKind) -> SDPDirection | None:
 
     for line in sdp.splitlines():
         # Check if the line is a media description line
-        if line.startswith('m='):
-            in_media_section = line.startswith(f'm={kind}')
+        if line.startswith("m="):
+            in_media_section = line.startswith(f"m={kind}")
         # If we're in the desired media section, check for direction
-        if in_media_section:
+        if in_media_section and line.startswith("a="):
             for direction in SDPDirection:
-                if line.startswith(f'a={direction}'):
+                if line.startswith(f"a={direction}"):
                     return direction
     return None
 
@@ -59,7 +59,7 @@ def _update_direction_in_answer(answer_sdp: str, kind: SDPMediaKind, old_directi
     in_media_section = False
     for line in answer_sdp.split("\r\n"):
         if line.startswith("m="):
-            in_media_section = (kind in line)
+            in_media_section = line.startswith(f"m={kind}")
         if in_media_section and line.startswith("a="):
             # Update the direction line if it matches the kind
             if line.startswith(f"a={old_direction}"):
