@@ -10,7 +10,7 @@ from google_nest_sdm.webrtc_util import (
 )
 
 
-def test_fix_mozilla_sdp_answer():
+def test_fix_mozilla_sdp_answer() -> None:
     """
     Test the fix in the SDP for Firefox.
     """
@@ -86,7 +86,7 @@ def test_fix_mozilla_sdp_answer():
     assert fixed_sdp == answer_sdp
 
 
-def test_get_media_direction():
+def test_get_media_direction() -> None:
     """
     Test getting the direction in the SDP.
     """
@@ -112,7 +112,7 @@ def test_get_media_direction():
     assert direction is None
 
 
-def test_update_direction_in_answer():
+def test_update_direction_in_answer() -> None:
     """
     Test updating the direction in the SDP answer.
     """
@@ -152,7 +152,7 @@ def test_update_direction_in_answer():
     assert new_sdp == expected_sdp
 
 
-def test_add_foundation_to_candidates():
+def test_add_foundation_to_candidates() -> None:
     """
     Test adding a foundation value to ICE candidates.
     """
