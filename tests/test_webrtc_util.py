@@ -11,9 +11,7 @@ from google_nest_sdm.webrtc_util import (
 
 
 def test_fix_mozilla_sdp_answer() -> None:
-    """
-    Test the fix in the SDP for Firefox.
-    """
+    """Test the fix in the SDP for Firefox."""
     firefox_offer_sdp = (
         "v=0\r\n"
         "o=mozilla...THIS_IS_SDPARTA-99.0 137092584186714854 0 IN IP4 0.0.0.0\r\n"
@@ -87,9 +85,7 @@ def test_fix_mozilla_sdp_answer() -> None:
 
 
 def test_get_media_direction() -> None:
-    """
-    Test getting the direction in the SDP.
-    """
+    """Test getting the direction in the SDP."""
     sdp = (
         "v=0\r\n"
         "o=- 123456 654321 IN IP4 127.0.0.1\r\n"
@@ -113,9 +109,7 @@ def test_get_media_direction() -> None:
 
 
 def test_update_direction_in_answer() -> None:
-    """
-    Test updating the direction in the SDP answer.
-    """
+    """Test updating the direction in the SDP answer."""
     original_sdp = (
         "v=0\r\n"
         "o=- 123456 654321 IN IP4 127.0.0.1\r\n"
