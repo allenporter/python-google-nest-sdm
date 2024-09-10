@@ -153,9 +153,7 @@ def test_update_direction_in_answer() -> None:
 
 
 def test_add_foundation_to_candidates() -> None:
-    """
-    Test adding a foundation value to ICE candidates.
-    """
+    """Test adding a foundation value to ICE candidates."""
     original_sdp = (
         "v=0\r\n"
         "o=- 123456 654321 IN IP4 127.0.0.1\r\n"
