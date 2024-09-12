@@ -29,5 +29,5 @@ types-protobuf==5.27.0.20240907
 types-PyYAML==6.0.12.20240808
 typing-extensions==4.12.2
 typing-inspect==0.9.0
-urllib3==2.2.2
+urllib3==2.2.3
 mashumaro==3.13.1
