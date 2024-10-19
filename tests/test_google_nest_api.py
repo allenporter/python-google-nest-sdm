@@ -1,13 +1,20 @@
 import json
 from typing import Awaitable, Callable
 from unittest.mock import patch
+import re
+from http import HTTPStatus
 
 import aiohttp
 import pytest
 
 from google_nest_sdm import google_nest_api
 from google_nest_sdm.auth import AbstractAuth
-from google_nest_sdm.exceptions import ApiException, AuthException
+from google_nest_sdm.exceptions import (
+    ApiException,
+    AuthException,
+    NotFoundException,
+    ApiForbiddenException,
+)
 
 from .conftest import (
     FAKE_TOKEN,
@@ -300,10 +307,79 @@ async def test_get_structure_missing_structures(
     assert structure is None
 
 
+@pytest.mark.parametrize(
+    "status,error_dict,exc_type,err_match",
+    [
+        (
+            HTTPStatus.BAD_REQUEST,
+            {
+                "code": 400,
+                "message": "Some error message",
+                "status": "FAILED_PRECONDITION",
+            },
+            ApiException,
+            re.compile(r"Bad Request response from API \(400\).*Some error message"),
+        ),
+        (
+            HTTPStatus.UNAUTHORIZED,
+            {
+                "code": 401,
+                "message": "Some error message",
+                "status": "UNAUTHENTICATED",
+            },
+            AuthException,
+            re.compile(r"Unauthorized response from API \(401\).*Some error message"),
+        ),
+        (
+            HTTPStatus.FORBIDDEN,
+            {
+                "code": 403,
+                "message": "Some error message",
+                "status": "PERMISSION_DENIED",
+            },
+            ApiForbiddenException,
+            re.compile(r"Forbidden response from API \(403\):.*Some error message"),
+        ),
+        (
+            HTTPStatus.NOT_FOUND,
+            {
+                "code": 404,
+                "message": "Some error message",
+                "status": "NOT_FOUND",
+            },
+            NotFoundException,
+            re.compile(r"Not Found response from API \(404\):.*Some error message"),
+        ),
+        (
+            HTTPStatus.INTERNAL_SERVER_ERROR,
+            {
+                "code": 500,
+                "message": "Some error message",
+                "status": "INTERNAL",
+            },
+            ApiException,
+            re.compile(r"Internal Server Error response from API \(500\).*Some error message"),
+        ),
+        (
+            503,
+            {
+                "code": 503,
+                "message": "Some error message",
+                "status": "UNAVAILABLE",
+            },
+            ApiException,
+            re.escape("Service Unavailable response from API (503)"),
+        ),
+    ],
+)
 async def test_api_post_error_with_json_response(
     app: aiohttp.web.Application,
     device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    status: int,
+    error_dict: dict,
+    exc_type: type[Exception],
+    err_match: str,
 ) -> None:
     device_id = device_handler.add_device(
         traits={
@@ -315,17 +391,15 @@ async def test_api_post_error_with_json_response(
     )
 
     json_response = {
-        "error": {
-            "code": 400,
-            "message": "Some error message",
-            "status": "FAILED_PRECONDITION",
-        },
+        "error": error_dict,
     }
 
     async def fail_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
         return aiohttp.web.Response(
-            status=400, body=json.dumps(json_response), content_type="application/json"
+            status=status,
+            body=json.dumps(json_response),
+            content_type="application/json",
         )
 
     app.router.add_post(f"/{device_id}:executeCommand", fail_handler)
@@ -337,7 +411,5 @@ async def test_api_post_error_with_json_response(
     assert device.name == device_id
     trait = device.traits["sdm.devices.traits.ThermostatTemperatureSetpoint"]
 
-    with pytest.raises(
-        ApiException, match=r".*FAILED_PRECONDITION: Some error message.*"
-    ):
+    with pytest.raises(exc_type, match=err_match):
         await trait.set_heat(25.0)
