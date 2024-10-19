@@ -30,7 +30,7 @@ from google_nest_sdm.google_nest_subscriber import (
 from .conftest import DeviceHandler, EventCallback, StructureHandler, assert_diagnostics
 
 PROJECT_ID = "project-id1"
-SUBSCRIBER_ID = "projects/some-project-id/subscriptions/subscriber-id1"
+SUBSCRIPTION_NAME = "projects/some-project-id/subscriptions/subscriber-id1"
 
 
 class FakeSubscriberFactory(AbstractSubscriberFactory):
@@ -89,7 +89,7 @@ def subscriber_client(
     ) -> GoogleNestSubscriber:
         auth = await auth_client()
         assert factory
-        return GoogleNestSubscriber(auth, PROJECT_ID, SUBSCRIBER_ID, factory)
+        return GoogleNestSubscriber(auth, PROJECT_ID, SUBSCRIPTION_NAME, factory)
 
     return make_subscriber
 
@@ -291,7 +291,7 @@ async def test_subscriber_watchdog(
     subscriber = GoogleNestSubscriber(
         auth,
         PROJECT_ID,
-        SUBSCRIBER_ID,
+        SUBSCRIPTION_NAME,
         subscriber_factory=subscriber_factory,
         watchdog_check_interval_seconds=0.1,
         watchdog_restart_delay_min_seconds=0.1,
@@ -427,7 +427,7 @@ async def test_auth_refresh(
 
     auth = await refreshing_auth_client()
     subscriber = GoogleNestSubscriber(
-        auth, PROJECT_ID, SUBSCRIBER_ID, subscriber_factory
+        auth, PROJECT_ID, SUBSCRIPTION_NAME, subscriber_factory
     )
     await subscriber.start_async()
     device_manager = await subscriber.async_get_device_manager()
@@ -456,7 +456,7 @@ async def test_auth_refresh_error(
 
     auth = await refreshing_auth_client()
     subscriber = GoogleNestSubscriber(
-        auth, PROJECT_ID, SUBSCRIBER_ID, subscriber_factory
+        auth, PROJECT_ID, SUBSCRIPTION_NAME, subscriber_factory
     )
 
     with pytest.raises(AuthException):
@@ -893,3 +893,27 @@ def test_api_env_preprod() -> None:
 def test_api_env_invalid() -> None:
     with pytest.raises(ValueError):
         get_api_env("invalid")
+
+
+
+async def test_topic_id(
+    app: aiohttp.web.Application,
+    device_handler: DeviceHandler,
+    structure_handler: StructureHandler,
+    auth_client: Callable[[], Awaitable[AbstractAuth]],
+    subscriber_factory: FakeSubscriberFactory,
+) -> None:
+    """Test that creates a client with a specific topic id."""
+
+    auth = await auth_client()
+    # Just exercise the constructor
+    subscriber = GoogleNestSubscriber(
+        auth,
+        PROJECT_ID,
+        subscriber_name=SUBSCRIPTION_NAME,
+        topic_name="projects/some-project-id/topics/some-topic-id",
+        subscriber_factory=subscriber_factory,
+        watchdog_check_interval_seconds=0.1,
+        watchdog_restart_delay_min_seconds=0.1,
+    )
+    await subscriber.create_subscription()

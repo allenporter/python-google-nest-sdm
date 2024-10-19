@@ -45,7 +45,7 @@ _LOGGER = logging.getLogger(__name__)
 EXPECTED_SUBSCRIBER_REGEXP = re.compile("projects/.*/subscriptions/.*")
 
 # Used to catch a topic misconfiguration
-EXPECTED_TOPIC_REGEXP = re.compile("projects/sdm-[a-z]+/topics/.*")
+EXPECTED_TOPIC_REGEXP = re.compile("projects/.*/topics/.*")
 
 WATCHDOG_CHECK_INTERVAL_SECONDS = 10
 
@@ -336,15 +336,20 @@ class GoogleNestSubscriber:
         self,
         auth: AbstractAuth,
         project_id: str,
-        subscriber_id: str,
+        subscriber_name: str,
         subscriber_factory: AbstractSubscriberFactory = DefaultSubscriberFactory(),
+        topic_name: str | None = None,
         loop: asyncio.AbstractEventLoop | None = None,
         watchdog_check_interval_seconds: float = WATCHDOG_CHECK_INTERVAL_SECONDS,
         watchdog_restart_delay_min_seconds: float = WATCHDOG_RESTART_DELAY_MIN_SECONDS,
     ):
         """Initialize the subscriber for the specified topic."""
         self._auth = auth
-        self._subscriber_id = subscriber_id
+        self._subscriber_name = subscriber_name
+        if topic_name is None:
+            self._topic_name = TOPIC_FORMAT.format(project_id=project_id)
+        else:
+            self._topic_name = topic_name
         self._project_id = project_id
         self._api = GoogleNestAPI(auth, project_id)
         self._loop = loop or asyncio.get_running_loop()
@@ -363,8 +368,8 @@ class GoogleNestSubscriber:
 
     @property
     def subscriber_id(self) -> str:
-        """Return the configured subscriber_id."""
-        return self._subscriber_id
+        """Return the configured subscriber name."""
+        return self._subscriber_name
 
     @property
     def project_id(self) -> str:
@@ -385,7 +390,7 @@ class GoogleNestSubscriber:
 
     async def create_subscription(self) -> None:
         """Create the subscription if it does not already exist."""
-        _validate_subscription_name(self._subscriber_id)
+        _validate_subscription_name(self._subscriber_name)
         DIAGNOSTICS.increment("create_subscription.attempt")
         try:
             creds = await self._auth.async_get_creds()
@@ -395,14 +400,14 @@ class GoogleNestSubscriber:
         try:
             await self._subscriber_factory.async_create_subscription(
                 creds,
-                self._subscriber_id,
-                TOPIC_FORMAT.format(project_id=self._project_id),
+                self._subscriber_name,
+                self._topic_name,
                 self._loop,
             )
         except NotFound as err:
             DIAGNOSTICS.increment("create_subscription.not_found")
             raise ConfigurationException(
-                f"Failed to create subscription '{self._subscriber_id}' "
+                f"Failed to create subscription '{self._subscriber_name}' "
                 + "(cloud project id incorrect?)"
             ) from err
         except Unauthenticated as err:
@@ -411,7 +416,7 @@ class GoogleNestSubscriber:
         except GoogleAPIError as err:
             DIAGNOSTICS.increment("create_subscription.api_error")
             raise SubscriberException(
-                f"Failed to create subscription '{self._subscriber_id}': {err}"
+                f"Failed to create subscription '{self._subscriber_name}': {err}"
             ) from err
 
     async def delete_subscription(self) -> None:
@@ -425,7 +430,7 @@ class GoogleNestSubscriber:
 
         try:
             await self._subscriber_factory.async_delete_subscription(
-                creds, self._subscriber_id, self._loop
+                creds, self._subscriber_name, self._loop
             )
         except NotFound:
             DIAGNOSTICS.increment("delete_subscription.not_found")
@@ -437,14 +442,14 @@ class GoogleNestSubscriber:
         except GoogleAPIError as err:
             DIAGNOSTICS.increment("delete_subscription.api_error")
             raise SubscriberException(
-                f"Failed to delete subscription '{self._subscriber_id}': {err}"
+                f"Failed to delete subscription '{self._subscriber_name}': {err}"
             ) from err
 
     async def start_async(self) -> None:
         """Start the subscriber."""
-        _LOGGER.debug("Starting subscriber %s", self._subscriber_id)
+        _LOGGER.debug("Starting subscriber %s", self._subscriber_name)
         DIAGNOSTICS.increment("start")
-        _validate_subscription_name(self._subscriber_id)
+        _validate_subscription_name(self._subscriber_name)
         try:
             creds = await self._auth.async_get_creds()
         except ClientError as err:
@@ -455,30 +460,30 @@ class GoogleNestSubscriber:
             async with asyncio.timeout(NEW_SUBSCRIBER_THREAD_TIMEOUT_SECONDS):        
                 self._subscriber_future = (
                     await self._subscriber_factory.async_new_subscriber(
-                        creds, self._subscriber_id, self._loop, self._async_message_callback_with_timeout
+                        creds, self._subscriber_name, self._loop, self._async_message_callback_with_timeout
                     )
                 )
         except asyncio.TimeoutError as err:
-            _LOGGER.debug("Failed to create subscriber '%s' with timeout: %s", self._subscriber_id, err)
+            _LOGGER.debug("Failed to create subscriber '%s' with timeout: %s", self._subscriber_name, err)
             DIAGNOSTICS.increment("start.timeout_error")
             raise SubscriberException(
-                f"Failed to create subscriber '{self._subscriber_id}' with timeout: {err}"
+                f"Failed to create subscriber '{self._subscriber_name}' with timeout: {err}"
             ) from err
         except NotFound as err:
-            _LOGGER.debug("Failed to create subscriber '%s' id was not found: %s", self._subscriber_id, err)
+            _LOGGER.debug("Failed to create subscriber '%s' id was not found: %s", self._subscriber_name, err)
             DIAGNOSTICS.increment("start.not_found_error")
             raise ConfigurationException(
-                f"Failed to create subscriber '{self._subscriber_id}' id was not found"
+                f"Failed to create subscriber '{self._subscriber_name}' id was not found"
             ) from err
         except Unauthenticated as err:
             _LOGGER.debug("Failed to authenticate subscriber: %s", err)
             DIAGNOSTICS.increment("start.unauthenticated")
             raise AuthException("Failed to authenticate subscriber: {err}") from err
         except GoogleAPIError as err:
-            _LOGGER.debug("Failed to create subscriber '%s' with api error: %s", self._subscriber_id, err)
+            _LOGGER.debug("Failed to create subscriber '%s' with api error: %s", self._subscriber_name, err)
             DIAGNOSTICS.increment("start.api_error")
             raise SubscriberException(
-                f"Failed to create subscriber '{self._subscriber_id}' with api error: {err}"
+                f"Failed to create subscriber '{self._subscriber_name}' with api error: {err}"
             ) from err
 
         if not self._healthy:
