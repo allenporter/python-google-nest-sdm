@@ -8,6 +8,7 @@ clients are synchronous.
 
 import logging
 import re
+import asyncio
 from typing import Any
 from dataclasses import dataclass, field
 
@@ -172,35 +173,48 @@ class AdminClient:
         sdm_topic_name = SDM_MANAGED_TOPIC_FORMAT.format(
             device_access_project_id=device_access_project_id
         )
-        topics = []
-        try:
-            await self.get_topic(sdm_topic_name)
+
+        async def get_sdm_topic() -> str | None:
+            try:
+                await self.get_topic(sdm_topic_name)
+            except ApiForbiddenException:
+                _LOGGER.debug(
+                    "SDM topic exists but we do not have permission to access it (expected)"
+                )
+                # The SDM topic exists. It is normal that we do not have permission
+                # to access it.
+                return sdm_topic_name
+            except NotFoundException:
+                _LOGGER.debug(
+                    "SDM topic does not exist, proceeding to check cloud projects"
+                )
+                return None
+            except ApiException as err:
+                _LOGGER.error(
+                    "Unexpected error retrieving an SDM created topic: %s", err
+                )
+                raise ApiException("Error retrieving SDM created topic") from err
             _LOGGER.debug(
                 "SDM topic exists and we have permission to access it (unexpected)"
             )
-        except ApiForbiddenException:
-            _LOGGER.debug(
-                "SDM topic exists but we do not have permission to access it (expected)"
-            )
-            # The SDM topic exists. It is normal that we do not have permission
-            # to access it.
-            topics.append(sdm_topic_name)
-        except NotFoundException:
-            _LOGGER.debug(
-                "SDM topic does not exist, proceeding to check cloud projects"
-            )
-        except ApiException as err:
-            _LOGGER.error("Unexpected error retrieving an SDM created topic: %s", err)
-            raise ApiException("Error retrieving SDM created topic") from err
+            return sdm_topic_name
 
-        # List any topics created in the cloud project.
-        try:
-            topics.extend(await self.list_topics(f"projects/{self._cloud_project_id}"))
-        except ApiException as err:
-            _LOGGER.error("Unexpected error listing topics: %s", err)
-            raise ApiException(
-                "Error while listing existing cloud console topics"
-            ) from err
+        async def get_cloud_topics() -> list[str]:
+            try:
+                return await self.list_topics(f"projects/{self._cloud_project_id}")
+            except ApiException as err:
+                _LOGGER.error("Unexpected error listing topics: %s", err)
+                raise ApiException(
+                    "Error while listing existing cloud console topics"
+                ) from err
+
+        (sdm_topic_task, cloud_topics_task) = await asyncio.gather(
+            get_sdm_topic(), get_cloud_topics()
+        )
+        topics = []
+        if sdm_topic_task:
+            topics.append(sdm_topic_task)
+        topics.extend(cloud_topics_task)
         return EligibleTopics(topic_names=topics)
 
     async def list_eligible_subscriptions(
