@@ -101,6 +101,10 @@ class AbstractAuth(ABC):
         self._websession = websession
         self._host = host
 
+    def with_host(self, host: str) -> AbstractAuth:
+        """Return a new instance with a different host."""
+        return self.__class__(self._websession, host)
+
     @abstractmethod
     async def async_get_access_token(self) -> str:
         """Return a valid access token."""
