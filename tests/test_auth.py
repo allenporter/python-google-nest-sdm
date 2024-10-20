@@ -1,7 +1,6 @@
 """Tests for the request client library."""
 
 from typing import Awaitable, Callable
-from http import HTTPStatus
 
 import aiohttp
 import pytest
