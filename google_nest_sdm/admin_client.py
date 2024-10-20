@@ -29,9 +29,10 @@ __all__ = [
     "EligibleSubscriptions",
     "validate_subscription_name",
     "validate_topic_name",
+    "PUBSUB_API_HOST",
 ]
 
-API_HOST_FORMAT = "https://pubsub.googleapis.com/v1/"
+PUBSUB_API_HOST = "https://pubsub.googleapis.com/v1/"
 SDM_MANAGED_TOPIC_FORMAT = (
     "projects/sdm-prod/topics/enterprise-{device_access_project_id}"
 )
@@ -109,11 +110,14 @@ class AdminClient:
     """Admin client for the Google Nest SDM API."""
 
     def __init__(
-        self, auth: AbstractAuth, cloud_project_id: str, host: str | None = None
+        self, auth: AbstractAuth, cloud_project_id: str,
     ) -> None:
-        """Initialize the admin client."""
+        """Initialize the admin client.
+        
+        The auth instance must be configured with the correct host (PUBSUB_API_HOST).
+        """
         self._cloud_project_id = cloud_project_id
-        self._auth = auth.with_host(host if host is not None else API_HOST_FORMAT)
+        self._auth = auth
 
     async def create_topic(self, topic_name: str) -> None:
         """Create a pubsub topic for the project."""

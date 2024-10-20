@@ -26,7 +26,7 @@ def mock_admin_client(
 
     async def _make_admin_client() -> AdminClient:
         mock_auth = await auth_client()
-        return AdminClient(mock_auth, GOOGLE_CLOUD_CONSOLE_PROJECT_ID, host="")
+        return AdminClient(mock_auth, GOOGLE_CLOUD_CONSOLE_PROJECT_ID)
 
     return _make_admin_client
 
