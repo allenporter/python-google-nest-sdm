@@ -145,12 +145,13 @@ class AbstractAuth(ABC):
     async def _request(
         self, method: str, url: str, headers: dict[str, str], **kwargs: Any
     ) -> aiohttp.ClientResponse:
-        return await self._websession.request(method, url, **kwargs, headers=headers)
+        response = await self._websession.request(method, url, **kwargs, headers=headers)
+        return await AbstractAuth._raise_for_status(response)
+
 
     async def get(self, url: str, **kwargs: Any) -> aiohttp.ClientResponse:
         """Make a get request."""
-        resp = await self.request("get", url, **kwargs)
-        return await AbstractAuth._raise_for_status(resp)
+        return await self.request("get", url, **kwargs)
 
     async def get_json(self, url: str, **kwargs: Any) -> dict[str, Any]:
         """Make a get request and return json response."""
@@ -166,8 +167,7 @@ class AbstractAuth(ABC):
 
     async def post(self, url: str, **kwargs: Any) -> aiohttp.ClientResponse:
         """Make a post request."""
-        resp = await self.request("post", url, **kwargs)
-        return await AbstractAuth._raise_for_status(resp)
+        return await self.request("post", url, **kwargs)
 
     async def post_json(self, url: str, **kwargs: Any) -> dict[str, Any]:
         """Make a post request and return a json response."""
