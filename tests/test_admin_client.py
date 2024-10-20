@@ -195,6 +195,32 @@ async def test_create_subscription(
     }
 
 
+
+async def test_create_subscription_failure(
+    app: aiohttp.web.Application,
+    admin_client: Callable[[], Awaitable[AdminClient]],
+    recorder: Recorder,
+) -> None:
+    """Test creating a subscription."""
+
+    handler = NewHandler(
+        recorder,
+        [{}],
+        status=HTTPStatus.INTERNAL_SERVER_ERROR,
+    )
+    app.router.add_put(
+        f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/subscriptions/subscription-name",
+        handler,
+    )
+
+    client = await admin_client()
+    with pytest.raises(ApiException, match="Internal Server Error response from API \(500\)"):
+        await client.create_subscription(
+            f"projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/topics/topic-name",
+            f"projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/subscriptions/subscription-name",
+        )
+
+
 async def test_delete_subscription(
     app: aiohttp.web.Application,
     admin_client: Callable[[], Awaitable[AdminClient]],
