@@ -15,15 +15,23 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from asyncio import TimeoutError
 from typing import Any
+from http import HTTPStatus
 
 import aiohttp
-from aiohttp.client_exceptions import ClientError, ClientResponseError
+from aiohttp.client_exceptions import ClientError
 from google.auth.credentials import Credentials
 from google.oauth2.credentials import Credentials as OAuthCredentials
+from mashumaro.mixins.json import DataClassJSONMixin
 
-from .exceptions import ApiException, AuthException
+from .exceptions import (
+    ApiException,
+    AuthException,
+    ApiForbiddenException,
+    NotFoundException,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,6 +44,55 @@ STATUS = "status"
 MESSAGE = "message"
 
 
+@dataclass
+class Status(DataClassJSONMixin):
+    """Status of the media item."""
+
+    code: int = field(default=HTTPStatus.OK)
+    """The status code, which should be an enum value of google.rpc.Code"""
+
+    message: str | None = None
+    """A developer-facing error message, which should be in English"""
+
+    details: list[dict[str, Any]] = field(default_factory=list)
+    """A list of messages that carry the error details"""
+
+
+@dataclass
+class Error:
+    """Error details from the API response."""
+
+    status: str | None = None
+    code: int | None = None
+    message: str | None = None
+    details: list[dict[str, Any]] | None = field(default_factory=list)
+
+    def __str__(self) -> str:
+        """Return a string representation of the error details."""
+        error_message = ""
+        if self.status:
+            error_message += self.status
+        if self.code:
+            if error_message:
+                error_message += f" ({self.code})"
+            else:
+                error_message += str(self.code)
+        if self.message:
+            if error_message:
+                error_message += ": "
+            error_message += self.message
+        if self.details:
+            error_message += f"\nError details: ({self.details})"
+        return error_message
+
+
+@dataclass
+class ErrorResponse(DataClassJSONMixin):
+    """A response message that contains an error message."""
+
+    error: Error | None = None
+
+
 class AbstractAuth(ABC):
     """Abstract class to make authenticated requests."""
 
@@ -43,6 +100,10 @@ class AbstractAuth(ABC):
         """Initialize the AbstractAuth."""
         self._websession = websession
         self._host = host
+
+    def with_host(self, host: str) -> AbstractAuth:
+        """Return a new instance with a different host."""
+        return self.__class__(self._websession, host)
 
     @abstractmethod
     async def async_get_access_token(self) -> str:
@@ -124,34 +185,40 @@ class AbstractAuth(ABC):
         _LOGGER.debug("response=%s", result)
         return result
 
-    @staticmethod
-    async def _raise_for_status(resp: aiohttp.ClientResponse) -> aiohttp.ClientResponse:
+    @classmethod
+    async def _raise_for_status(
+        cls, resp: aiohttp.ClientResponse
+    ) -> aiohttp.ClientResponse:
         """Raise exceptions on failure methods."""
-        detail = await AbstractAuth._error_detail(resp)
+        error_detail = await cls._error_detail(resp)
         try:
             resp.raise_for_status()
-        except ClientResponseError as err:
-            if err.status == HTTP_UNAUTHORIZED:
-                raise AuthException(f"Unable to authenticate with API: {err}") from err
-            detail.append(err.message)
-            raise ApiException(": ".join(detail)) from err
-        except ClientError as err:
+        except aiohttp.ClientResponseError as err:
+            error_message = f"{err.message} response from API ({resp.status})"
+            if error_detail:
+                error_message += f": {error_detail}"
+            if err.status == HTTPStatus.FORBIDDEN:
+                raise ApiForbiddenException(error_message)
+            if err.status == HTTPStatus.UNAUTHORIZED:
+                raise AuthException(error_message)
+            if err.status == HTTPStatus.NOT_FOUND:
+                raise NotFoundException(error_message)
+            raise ApiException(error_message) from err
+        except aiohttp.ClientError as err:
             raise ApiException(f"Error from API: {err}") from err
         return resp
 
-    @staticmethod
-    async def _error_detail(resp: aiohttp.ClientResponse) -> list[str]:
+    @classmethod
+    async def _error_detail(cls, resp: aiohttp.ClientResponse) -> Error | None:
         """Returns an error message string from the APi response."""
         if resp.status < 400:
-            return []
+            return None
         try:
-            result = await resp.json()
-            error = result.get(ERROR, {})
+            result = await resp.text()
         except ClientError:
-            return []
-        message = ["Error from API", f"{resp.status}"]
-        if STATUS in error:
-            message.append(f"{error[STATUS]}")
-        if MESSAGE in error:
-            message.append(error[MESSAGE])
-        return message
+            return None
+        try:
+            error_response = ErrorResponse.from_json(result)
+        except (LookupError, ValueError):
+            return None
+        return error_response.error

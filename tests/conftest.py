@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from http import HTTPStatus
 from abc import ABC, abstractmethod
 from typing import (
     Any,
@@ -26,6 +27,8 @@ from google_nest_sdm.event import EventMessage
 
 FAKE_TOKEN = "some-token"
 PROJECT_ID = "project-id1"
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -51,6 +54,7 @@ def mock_server(
 ) -> Callable[[], Awaitable[TestServer]]:
     async def _make_server() -> TestServer:
         server = await aiohttp_server(app)
+        server.skip_url_asserts = True
         assert isinstance(server, TestServer)
         return server
 
@@ -59,7 +63,6 @@ def mock_server(
 
 @pytest.fixture(name="client")
 def mock_client(
-    #event_loop: Any,
     server: Callable[[], Awaitable[TestServer]],
     aiohttp_client: Callable[[TestServer], Awaitable[TestClient]],
 ) -> Callable[[], Awaitable[TestClient]]:
@@ -171,6 +174,7 @@ class JsonHandler(ABC):
         """Implemented by subclasses to return a response."""
 
     async def handler(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
+        _LOGGER.debug("Request: %s", request)
         assert request.headers["Authorization"] == "Bearer %s" % self.token
         s = await request.text()
         self.recorder.request = await request.json() if s else {}
@@ -274,13 +278,16 @@ class StructureHandler(JsonHandler):
 
 
 def NewHandler(
-    r: Recorder, responses: list[dict[str, Any]], token: str = FAKE_TOKEN
+    r: Recorder,
+    responses: list[dict[str, Any]],
+    token: str = FAKE_TOKEN,
+    status: HTTPStatus = HTTPStatus.OK,
 ) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
     async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
         assert request.headers["Authorization"] == "Bearer %s" % token
         s = await request.text()
         r.request = await request.json() if s else {}
-        return aiohttp.web.json_response(responses.pop(0))
+        return aiohttp.web.json_response(responses.pop(0), status=status)
 
     return handler
 
