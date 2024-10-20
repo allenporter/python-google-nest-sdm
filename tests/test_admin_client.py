@@ -106,7 +106,7 @@ async def test_list_topics(
             }
         ],
     )
-    app.router.add_get(f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}", handler)
+    app.router.add_get(f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/topics", handler)
 
     client = await admin_client()
     topics = await client.list_topics(f"projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}")
@@ -342,7 +342,7 @@ async def test_list_eligible_topics(
             }
         ],
     )
-    app.router.add_get(f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}", cloud_handler)
+    app.router.add_get(f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/topics", cloud_handler)
 
     client = await admin_client()
     eligible_topics = await client.list_eligible_topics(DEVICE_ACCESS_PROJECT_ID)
@@ -390,7 +390,7 @@ async def test_list_eligible_topics_no_sdm_topic(
             }
         ],
     )
-    app.router.add_get(f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}", cloud_handler)
+    app.router.add_get(f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/topics", cloud_handler)
 
     client = await admin_client()
     eligible_topics = await client.list_eligible_topics(DEVICE_ACCESS_PROJECT_ID)
