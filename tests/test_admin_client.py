@@ -241,7 +241,9 @@ async def test_list_subscriptions(
             }
         ],
     )
-    app.router.add_get(f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}", handler)
+    app.router.add_get(
+        f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/subscriptions", handler
+    )
 
     client = await admin_client()
     subscriptions = await client.list_subscriptions(
@@ -442,7 +444,9 @@ async def test_list_eligible_subscriptions(
             }
         ],
     )
-    app.router.add_get(f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}", cloud_handler)
+    app.router.add_get(
+        f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/subscriptions", cloud_handler
+    )
 
     client = await admin_client()
     eligible_subscriptions = await client.list_eligible_subscriptions(

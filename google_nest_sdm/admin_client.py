@@ -110,10 +110,12 @@ class AdminClient:
     """Admin client for the Google Nest SDM API."""
 
     def __init__(
-        self, auth: AbstractAuth, cloud_project_id: str,
+        self,
+        auth: AbstractAuth,
+        cloud_project_id: str,
     ) -> None:
         """Initialize the admin client.
-        
+
         The auth instance must be configured with the correct host (PUBSUB_API_HOST).
         """
         self._cloud_project_id = cloud_project_id
@@ -162,7 +164,7 @@ class AdminClient:
         The projects_prefix should be in the format `projects/{console_project_id}`.
         """
         validate_projects_prefix(projects_prefix)
-        response = await self._auth.get_json(projects_prefix)
+        response = await self._auth.get_json(f"{projects_prefix}/subscriptions")
         return response["subscriptions"]  # type: ignore[no-any-return]
 
     async def list_eligible_topics(
