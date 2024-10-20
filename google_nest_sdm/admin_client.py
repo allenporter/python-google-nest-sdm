@@ -137,7 +137,7 @@ class AdminClient:
         The topic prefix should be in the format `projects/{console_project_id}`.
         """
         validate_projects_prefix(projects_prefix)
-        response = await self._auth.get_json(projects_prefix)
+        response = await self._auth.get_json(f"{projects_prefix}/topics")
         return [topic["name"] for topic in response["topics"]]
 
     async def get_topic(self, topic_name: str) -> dict[str, Any]:
