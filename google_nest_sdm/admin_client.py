@@ -32,7 +32,7 @@ __all__ = [
     "PUBSUB_API_HOST",
 ]
 
-PUBSUB_API_HOST = "https://pubsub.googleapis.com/v1/"
+PUBSUB_API_HOST = "https://pubsub.googleapis.com/v1"
 SDM_MANAGED_TOPIC_FORMAT = (
     "projects/sdm-prod/topics/enterprise-{device_access_project_id}"
 )
