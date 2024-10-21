@@ -145,13 +145,12 @@ class AbstractAuth(ABC):
     async def _request(
         self, method: str, url: str, headers: dict[str, str], **kwargs: Any
     ) -> aiohttp.ClientResponse:
-        response = await self._websession.request(method, url, **kwargs, headers=headers)
-        return await AbstractAuth._raise_for_status(response)
-
+        return await self._websession.request(method, url, **kwargs, headers=headers)
 
     async def get(self, url: str, **kwargs: Any) -> aiohttp.ClientResponse:
         """Make a get request."""
-        return await self.request("get", url, **kwargs)
+        response = await self.request("get", url, **kwargs)
+        return await AbstractAuth._raise_for_status(response)
 
     async def get_json(self, url: str, **kwargs: Any) -> dict[str, Any]:
         """Make a get request and return json response."""
@@ -167,7 +166,8 @@ class AbstractAuth(ABC):
 
     async def post(self, url: str, **kwargs: Any) -> aiohttp.ClientResponse:
         """Make a post request."""
-        return await self.request("post", url, **kwargs)
+        response = await self.request("post", url, **kwargs)
+        return await AbstractAuth._raise_for_status(response)
 
     async def post_json(self, url: str, **kwargs: Any) -> dict[str, Any]:
         """Make a post request and return a json response."""
@@ -180,6 +180,16 @@ class AbstractAuth(ABC):
             raise ApiException("Server returned malformed response: %s" % result)
         _LOGGER.debug("response=%s", result)
         return result
+
+    async def put(self, url: str, **kwargs: Any) -> aiohttp.ClientResponse:
+        """Make a put request."""
+        response = await self.request("put", url, **kwargs)
+        return await AbstractAuth._raise_for_status(response)
+
+    async def delete(self, url: str, **kwargs: Any) -> aiohttp.ClientResponse:
+        """Make a delete request."""
+        response = await self.request("delete", url, **kwargs)
+        return await AbstractAuth._raise_for_status(response)
 
     @classmethod
     async def _raise_for_status(
