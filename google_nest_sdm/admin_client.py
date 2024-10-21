@@ -124,12 +124,12 @@ class AdminClient:
     async def create_topic(self, topic_name: str) -> None:
         """Create a pubsub topic for the project."""
         validate_topic_name(topic_name)
-        await self._auth.request("put", topic_name)
+        await self._auth.put(topic_name)
 
     async def delete_topic(self, topic_name: str) -> None:
         """Delete a pubsub topic for the project."""
         validate_topic_name(topic_name)
-        await self._auth.request("delete", topic_name)
+        await self._auth.delete(topic_name)
 
     async def list_topics(self, projects_prefix: str) -> list[str]:
         """List the pubsub topics for the project.
@@ -152,12 +152,12 @@ class AdminClient:
         validate_topic_name(topic_name)
         validate_subscription_name(subscription_name)
         body = {"topic": topic_name}
-        await self._auth.request("put", subscription_name, json=body)
+        await self._auth.put(subscription_name, json=body)
 
     async def delete_subscription(self, subscription_name: str) -> None:
         """Delete a pubsub subscription for the project."""
         validate_subscription_name(subscription_name)
-        await self._auth.request("delete", subscription_name)
+        await self._auth.delete(subscription_name)
 
     async def list_subscriptions(self, projects_prefix: str) -> list[dict[str, Any]]:
         """List the pubsub subscriptions for the project.
