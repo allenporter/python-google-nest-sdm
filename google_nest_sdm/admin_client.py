@@ -138,7 +138,7 @@ class AdminClient:
         """
         validate_projects_prefix(projects_prefix)
         response = await self._auth.get_json(f"{projects_prefix}/topics")
-        return [topic["name"] for topic in response["topics"]]
+        return [topic["name"] for topic in response.get("topics", ())]
 
     async def get_topic(self, topic_name: str) -> dict[str, Any]:
         """Get a pubsub topic for the project."""

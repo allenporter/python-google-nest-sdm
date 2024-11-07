@@ -118,6 +118,26 @@ async def test_list_topics(
     assert recorder.request == {}
 
 
+async def test_list_topics_empty_response(
+    app: aiohttp.web.Application,
+    admin_client: Callable[[], Awaitable[AdminClient]],
+    recorder: Recorder,
+) -> None:
+    """Test listing topics."""
+
+    handler = NewHandler(
+        recorder,
+        [{}],
+    )
+    app.router.add_get(f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/topics", handler)
+
+    client = await admin_client()
+    topics = await client.list_topics(f"projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}")
+
+    assert topics == []
+    assert recorder.request == {}
+
+
 async def test_list_topics_invalid_prefix(
     app: aiohttp.web.Application,
     admin_client: Callable[[], Awaitable[AdminClient]],
@@ -195,7 +215,6 @@ async def test_create_subscription(
     }
 
 
-
 async def test_create_subscription_failure(
     app: aiohttp.web.Application,
     admin_client: Callable[[], Awaitable[AdminClient]],
@@ -214,7 +233,9 @@ async def test_create_subscription_failure(
     )
 
     client = await admin_client()
-    with pytest.raises(ApiException, match="Internal Server Error response from API \(500\)"):
+    with pytest.raises(
+        ApiException, match=r"Internal Server Error response from API \(500\)"
+    ):
         await client.create_subscription(
             f"projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/topics/topic-name",
             f"projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/subscriptions/subscription-name",
@@ -342,7 +363,9 @@ async def test_list_eligible_topics(
             }
         ],
     )
-    app.router.add_get(f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/topics", cloud_handler)
+    app.router.add_get(
+        f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/topics", cloud_handler
+    )
 
     client = await admin_client()
     eligible_topics = await client.list_eligible_topics(DEVICE_ACCESS_PROJECT_ID)
@@ -390,7 +413,9 @@ async def test_list_eligible_topics_no_sdm_topic(
             }
         ],
     )
-    app.router.add_get(f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/topics", cloud_handler)
+    app.router.add_get(
+        f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/topics", cloud_handler
+    )
 
     client = await admin_client()
     eligible_topics = await client.list_eligible_topics(DEVICE_ACCESS_PROJECT_ID)
