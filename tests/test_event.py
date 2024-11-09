@@ -471,7 +471,6 @@ def test_event_message_repr(
     assert "CameraMotionEvent(" in repr(motion)
 
 
-
 def test_missing_preview_url(
     fake_event_message: Callable[[Dict[str, Any]], EventMessage]
 ) -> None:

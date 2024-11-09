@@ -196,7 +196,7 @@ async def mock_device(
 ) -> Device:
     api = await api_client()
     devices = await api.async_get_devices()
-    for device in devices: 
+    for device in devices:
         if device.name == device_id:
             return device
     raise ValueError("Invalid test state, couldn't find device.")
@@ -1703,7 +1703,6 @@ async def test_unknown_event_type(device: Device) -> None:
     assert event_token.event_id == "CiUA2vuxr_zoChpekrBmo..."
     assert event.event_type == "sdm.devices.events.DoorbellChime.Chime"
     assert event.timestamp.isoformat(timespec="seconds") == "2021-12-23T06:35:36+00:00"
-
 
 
 @pytest.mark.parametrize("device_traits", [IMAGE_DOORBELL_TRAITS])

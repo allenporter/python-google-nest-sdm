@@ -301,7 +301,6 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
             callback_wrapper,
         )
 
-
     def _new_subscriber(
         self,
         creds: Credentials,
@@ -314,8 +313,7 @@ class DefaultSubscriberFactory(AbstractSubscriberFactory):
         _LOGGER.debug("Subscriber credentials refreshed")
         subscriber = pubsub_v1.SubscriberClient(credentials=creds)
         subscription = subscriber.get_subscription(
-            subscription=subscription_name,
-            timeout=GET_SUBSCRIPTION_TIMEOUT
+            subscription=subscription_name, timeout=GET_SUBSCRIPTION_TIMEOUT
         )
         _LOGGER.debug("Found subscription: %s", subscription_name)
         if subscription.topic:
@@ -380,7 +378,7 @@ class GoogleNestSubscriber:
         self, target: Callable[[EventMessage], Awaitable[None]]
     ) -> None:
         """Register a callback invoked when new messages are received.
-        
+
         If the event is associated with media, then the callback will only
         be invoked once the media has been fetched.
         """
@@ -412,7 +410,9 @@ class GoogleNestSubscriber:
             ) from err
         except Unauthenticated as err:
             DIAGNOSTICS.increment("create_subscription.unauthenticated")
-            raise AuthException("Failed to authenticate when creating subscription: {err}") from err
+            raise AuthException(
+                "Failed to authenticate when creating subscription: {err}"
+            ) from err
         except GoogleAPIError as err:
             DIAGNOSTICS.increment("create_subscription.api_error")
             raise SubscriberException(
@@ -438,7 +438,9 @@ class GoogleNestSubscriber:
             return
         except Unauthenticated as err:
             DIAGNOSTICS.increment("delete_subscription.unauthenticated")
-            raise AuthException("Failed to authenticate when deleting subscription: {err}") from err
+            raise AuthException(
+                "Failed to authenticate when deleting subscription: {err}"
+            ) from err
         except GoogleAPIError as err:
             DIAGNOSTICS.increment("delete_subscription.api_error")
             raise SubscriberException(
@@ -457,20 +459,31 @@ class GoogleNestSubscriber:
             raise AuthException(f"Access token failure: {err}") from err
 
         try:
-            async with asyncio.timeout(NEW_SUBSCRIBER_THREAD_TIMEOUT_SECONDS):        
+            async with asyncio.timeout(NEW_SUBSCRIBER_THREAD_TIMEOUT_SECONDS):
                 self._subscriber_future = (
                     await self._subscriber_factory.async_new_subscriber(
-                        creds, self._subscriber_name, self._loop, self._async_message_callback_with_timeout
+                        creds,
+                        self._subscriber_name,
+                        self._loop,
+                        self._async_message_callback_with_timeout,
                     )
                 )
         except asyncio.TimeoutError as err:
-            _LOGGER.debug("Failed to create subscriber '%s' with timeout: %s", self._subscriber_name, err)
+            _LOGGER.debug(
+                "Failed to create subscriber '%s' with timeout: %s",
+                self._subscriber_name,
+                err,
+            )
             DIAGNOSTICS.increment("start.timeout_error")
             raise SubscriberException(
                 f"Failed to create subscriber '{self._subscriber_name}' with timeout: {err}"
             ) from err
         except NotFound as err:
-            _LOGGER.debug("Failed to create subscriber '%s' id was not found: %s", self._subscriber_name, err)
+            _LOGGER.debug(
+                "Failed to create subscriber '%s' id was not found: %s",
+                self._subscriber_name,
+                err,
+            )
             DIAGNOSTICS.increment("start.not_found_error")
             raise ConfigurationException(
                 f"Failed to create subscriber '{self._subscriber_name}' id was not found"
@@ -480,7 +493,11 @@ class GoogleNestSubscriber:
             DIAGNOSTICS.increment("start.unauthenticated")
             raise AuthException("Failed to authenticate subscriber: {err}") from err
         except GoogleAPIError as err:
-            _LOGGER.debug("Failed to create subscriber '%s' with api error: %s", self._subscriber_name, err)
+            _LOGGER.debug(
+                "Failed to create subscriber '%s' with api error: %s",
+                self._subscriber_name,
+                err,
+            )
             DIAGNOSTICS.increment("start.api_error")
             raise SubscriberException(
                 f"Failed to create subscriber '{self._subscriber_name}' with api error: {err}"

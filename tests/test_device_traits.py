@@ -26,7 +26,6 @@ def test_info_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     trait = device.traits["sdm.devices.traits.Info"]
     assert "Device Name" == trait.custom_name
 
-
     assert_diagnostics(
         device.get_diagnostics(),
         {
@@ -41,7 +40,6 @@ def test_info_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
             },
         },
     )
-
 
 
 def test_connectivity_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
