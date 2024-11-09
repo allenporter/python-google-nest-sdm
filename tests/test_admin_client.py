@@ -328,6 +328,7 @@ async def test_list_subscriptions_empty_response(
     )
 
     assert subscriptions == []
+    assert recorder.request == {}
 
 
 async def test_invalid_subscription_format(
