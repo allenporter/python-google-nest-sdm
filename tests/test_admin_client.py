@@ -316,7 +316,7 @@ async def test_list_subscriptions_empty_response(
 
     handler = NewHandler(
         recorder,
-        [{"subscriptions": []}],
+        [{}],
     )
     app.router.add_get(
         f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/subscriptions", handler
