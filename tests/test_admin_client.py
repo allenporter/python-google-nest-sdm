@@ -307,6 +307,30 @@ async def test_list_subscriptions(
     ]
 
 
+async def test_list_subscriptions_empty_response(
+    app: aiohttp.web.Application,
+    admin_client: Callable[[], Awaitable[AdminClient]],
+    recorder: Recorder,
+) -> None:
+    """Test listing subscriptions."""
+
+    handler = NewHandler(
+        recorder,
+        [{}],
+    )
+    app.router.add_get(
+        f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/subscriptions", handler
+    )
+
+    client = await admin_client()
+    subscriptions = await client.list_subscriptions(
+        f"projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}"
+    )
+
+    assert subscriptions == []
+    assert recorder.request == {}
+
+
 async def test_invalid_subscription_format(
     app: aiohttp.web.Application,
     admin_client: Callable[[], Awaitable[AdminClient]],

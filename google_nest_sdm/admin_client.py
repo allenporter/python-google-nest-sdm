@@ -165,7 +165,7 @@ class AdminClient:
         """
         validate_projects_prefix(projects_prefix)
         response = await self._auth.get_json(f"{projects_prefix}/subscriptions")
-        return response["subscriptions"]  # type: ignore[no-any-return]
+        return response.get("subscriptions", [])  # type: ignore[no-any-return]
 
     async def list_eligible_topics(
         self, device_access_project_id: str
