@@ -358,9 +358,7 @@ async def test_get_structure_missing_structures(
                 "status": "INTERNAL",
             },
             ApiException,
-            re.compile(
-                r"Internal Server Error response from API \(500\).*Some error message"
-            ),
+            re.compile(r"Internal Server Error response from API \(500\).*Some error message"),
         ),
         (
             503,

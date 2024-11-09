@@ -53,7 +53,7 @@ class DeviceManager:
         self, target: Callable[[EventMessage], Awaitable[None]]
     ) -> None:
         """Register a callback invoked when new messages are received.
-
+        
         If the event is associated with media, then the callback will only
         be invoked once the media has been fetched.
         """

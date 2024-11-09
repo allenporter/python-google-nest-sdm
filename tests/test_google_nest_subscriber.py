@@ -343,8 +343,6 @@ async def test_subscriber_timeout(
             },
         },
     )
-
-
 async def test_subscriber_error(
     app: aiohttp.web.Application,
     device_handler: DeviceHandler,
@@ -895,6 +893,7 @@ def test_api_env_preprod() -> None:
 def test_api_env_invalid() -> None:
     with pytest.raises(ValueError):
         get_api_env("invalid")
+
 
 
 async def test_topic_id(
