@@ -185,7 +185,7 @@ def test_info_traits_type_error(
     assert "my/device/name" == device.name
     assert "sdm.devices.traits.Info" in device.traits
     trait = device.traits["sdm.devices.traits.Info"]
-    assert trait.custom_name == 12345
+    assert trait.custom_name == "12345"
 
 
 def test_info_traits_missing_optional_field(
