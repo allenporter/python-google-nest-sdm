@@ -24,7 +24,7 @@ pytest-asyncio==0.24.0
 pytest-mock==3.14.0
 PyYAML==6.0.2
 types-futures==3.3.8
-types-protobuf==5.28.3.20241203
+types-protobuf==5.29.1.20241207
 types-PyYAML==6.0.12.20240917
 typing-extensions==4.12.2
 typing-inspect==0.9.0
