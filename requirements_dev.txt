@@ -10,7 +10,7 @@ pytest==8.3.4
 ruff==0.8.3
 
 
-aiohttp==3.11.10
+aiohttp==3.11.11
 async-timeout==5.0.1
 google-api-core==2.24.0
 google-auth==2.29.0
