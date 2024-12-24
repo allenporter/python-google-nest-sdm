@@ -75,7 +75,7 @@ def exception_handler[
                     "Failed to authenticate subscriber in %s: %s", func_name, err
                 )
                 DIAGNOSTICS.increment(f"{func_name}.unauthenticated")
-                raise AuthException("Failed to authenticate subscriber: {err}") from err
+                raise AuthException(f"Failed to authenticate {func_name}: {err}") from err
             except GoogleAPIError as err:
                 _LOGGER.debug("API error in %s: %s", func_name, err)
                 DIAGNOSTICS.increment(f"{func_name}.api_error")

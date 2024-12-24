@@ -86,9 +86,10 @@ async def test_streaming_pull() -> None:
 @pytest.mark.parametrize(
     ("raised", "expected", "message"),
     [
-        (NotFound("my error"), ConfigurationException, "NotFound error"),
-        (GoogleAPIError("my error"), SubscriberException, "API error"),
-        (Exception(), SubscriberException, "Unexpected error"),
+        (NotFound("my error"), ConfigurationException, "NotFound error calling streaming_pull: 404 my error"),
+        (GoogleAPIError("my error"), SubscriberException, "API error when calling streaming_pull: my error"),
+        (Unauthenticated("auth error"), AuthException, "Failed to authenticate streaming_pull: 401 auth error"),
+        (Exception("my error"), SubscriberException, "Unexpected error when calling streaming_pull: my error"),
     ],
 )
 async def test_streaming_pull_failure(
