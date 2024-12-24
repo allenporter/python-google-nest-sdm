@@ -271,12 +271,12 @@ async def RunTool(args: argparse.Namespace, user_creds: Credentials) -> None:
             else:
                 sub_callback = SubscribeCallback(args.output_type)
                 subscriber.set_update_callback(sub_callback.async_handle_event)
-            await subscriber.start_async()
+            unsub = await subscriber.start_async()
             try:
                 while True:
                     await asyncio.sleep(10)
             except KeyboardInterrupt:
-                subscriber.stop_async()
+                unsub()
 
         # All other commands require a device_id
         device: Device | None = await api.async_get_device(args.device_id)
