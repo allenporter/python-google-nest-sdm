@@ -56,7 +56,9 @@ async def test_ack_messages() -> None:
     """Test ack messages."""
 
     client = SubscriberClient(auth=AsyncMock(), subscription_name="test")
-    with patch("google_nest_sdm.subscriber_client.pubsub_v1.SubscriberAsyncClient") as mock_client:
+    with patch(
+        "google_nest_sdm.subscriber_client.pubsub_v1.SubscriberAsyncClient"
+    ) as mock_client:
         mock_acknowledge = AsyncMock()
         mock_acknowledge.return_value = None
         mock_client.return_value.acknowledge = mock_acknowledge
@@ -64,8 +66,7 @@ async def test_ack_messages() -> None:
 
     # Verify that acknowledge was called with the correct arguments
     mock_acknowledge.assert_awaited_once_with(
-        subscription="test",
-        ack_ids=["message1", "message2"]
+        subscription="test", ack_ids=["message1", "message2"]
     )
 
 
@@ -73,7 +74,9 @@ async def test_streaming_pull() -> None:
     """Test ack messages."""
 
     client = SubscriberClient(auth=AsyncMock(), subscription_name="test")
-    with patch("google_nest_sdm.subscriber_client.pubsub_v1.SubscriberAsyncClient") as mock_client:
+    with patch(
+        "google_nest_sdm.subscriber_client.pubsub_v1.SubscriberAsyncClient"
+    ) as mock_client:
         mock_streaming_pull = AsyncMock()
         mock_streaming_pull.return_value = None
         mock_client.return_value.streaming_pull = mock_streaming_pull
@@ -86,10 +89,26 @@ async def test_streaming_pull() -> None:
 @pytest.mark.parametrize(
     ("raised", "expected", "message"),
     [
-        (NotFound("my error"), ConfigurationException, "NotFound error calling streaming_pull: 404 my error"),
-        (GoogleAPIError("my error"), SubscriberException, "API error when calling streaming_pull: my error"),
-        (Unauthenticated("auth error"), AuthException, "Failed to authenticate streaming_pull: 401 auth error"),
-        (Exception("my error"), SubscriberException, "Unexpected error when calling streaming_pull: my error"),
+        (
+            NotFound("my error"),  # type: ignore[no-untyped-call]
+            ConfigurationException,
+            "NotFound error calling streaming_pull: 404 my error",
+        ),
+        (
+            GoogleAPIError("my error"),
+            SubscriberException,
+            "API error when calling streaming_pull: my error",
+        ),
+        (
+            Unauthenticated("auth error"),  # type: ignore[no-untyped-call]
+            AuthException,
+            "Failed to authenticate streaming_pull: 401 auth error",
+        ),
+        (
+            Exception("my error"),
+            SubscriberException,
+            "Unexpected error when calling streaming_pull: my error",
+        ),
     ],
 )
 async def test_streaming_pull_failure(
@@ -98,7 +117,9 @@ async def test_streaming_pull_failure(
     """Test ack messages."""
 
     client = SubscriberClient(auth=AsyncMock(), subscription_name="test")
-    with patch("google_nest_sdm.subscriber_client.pubsub_v1.SubscriberAsyncClient") as mock_client:
+    with patch(
+        "google_nest_sdm.subscriber_client.pubsub_v1.SubscriberAsyncClient"
+    ) as mock_client:
         mock_streaming_pull = AsyncMock()
         mock_streaming_pull.side_effect = raised
         mock_client.return_value.streaming_pull = mock_streaming_pull

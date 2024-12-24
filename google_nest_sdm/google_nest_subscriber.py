@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import datetime
 import enum
 import logging
 import re
@@ -34,20 +33,7 @@ _LOGGER = logging.getLogger(__name__)
 # Used to catch invalid subscriber id
 EXPECTED_SUBSCRIBER_REGEXP = re.compile("projects/.*/subscriptions/.*")
 
-# Used to catch a topic misconfiguration
-EXPECTED_TOPIC_REGEXP = re.compile("projects/.*/topics/.*")
-
-DEFAULT_MESSAGE_RETENTION_SECONDS = 15 * 60  # 15 minutes
-
 MESSAGE_ACK_TIMEOUT_SECONDS = 30.0
-
-NEW_SUBSCRIBER_TIMEOUT_SECONDS = 30.0
-GET_SUBSCRIPTION_TIMEOUT = 30.0
-
-MIN_BACKOFF_INTERVAL = datetime.timedelta(seconds=10)
-MAX_BACKOFF_INTERVAL = datetime.timedelta(minutes=10)
-BACKOFF_MULTIPLIER = 1.5
-
 
 # Note: Users of non-prod instances will have to manually configure a topic
 TOPIC_FORMAT = "projects/sdm-prod/topics/enterprise-{project_id}"
