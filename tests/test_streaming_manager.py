@@ -166,7 +166,9 @@ async def test_subscribe_no_events(
 ) -> None:
     streaming_manager = await factory()
     await streaming_manager.start()
+    assert streaming_manager.healthy
     streaming_manager.stop()
+    assert not streaming_manager.healthy
 
 
 async def test_events_received_at_start(
@@ -189,7 +191,9 @@ async def test_events_received_at_start(
     assert len(messages_received) == 2
     assert messages_received[0].payload == {"eventId": "1"}
     assert messages_received[1].payload == {"eventId": "2"}
+    assert streaming_manager.healthy
     streaming_manager.stop()
+    assert not streaming_manager.healthy
 
 
 async def test_events_received_after_start(
@@ -255,6 +259,8 @@ async def test_start_exception(
 
     with pytest.raises(expected):
         await streaming_manager.start()
+        assert not streaming_manager.healthy
+
 
     assert_diagnostics(
         diagnostics.get_diagnostics(),
@@ -296,7 +302,10 @@ async def test_run_loop_exception(
         },
     )
 
+    # Stream recovers and is still healthy
+    assert streaming_manager.healthy
     streaming_manager.stop()
+    assert not streaming_manager.healthy
 
 
 @pytest.mark.parametrize(
@@ -331,6 +340,7 @@ async def test_callback_exception(
             }
         },
     )
+    assert streaming_manager.healthy
 
     streaming_manager.stop()
 
@@ -350,6 +360,7 @@ async def test_reconnect_exception(
 
     await streaming_manager.start()
     await message_queue.async_push_events([{"eventId": "1"}])
+    assert streaming_manager.healthy
 
     assert_diagnostics(
         diagnostics.get_diagnostics(),
@@ -366,6 +377,7 @@ async def test_reconnect_exception(
     # Fail the active streaming pull. The next attempt to connect will also
     # fail because of the pull_exceptiopn fixture above.
     await message_queue.async_push_errors([SubscriberException("Error")])
+    assert not streaming_manager.healthy
 
     # Track next attempt to connect
     assert_diagnostics(
@@ -403,8 +415,10 @@ async def test_reconnect_exception(
             },
         },
     )
+    assert streaming_manager.healthy
 
     streaming_manager.stop()
+    assert not streaming_manager.healthy
 
     assert len(messages_received) == 2
     assert messages_received[0].payload == {"eventId": "1"}
@@ -418,7 +432,9 @@ async def test_uncaught_streaming_pull_exception(
     streaming_manager = await factory()
 
     await streaming_manager.start()
+    assert streaming_manager.healthy
     await message_queue.async_push_errors([Exception("Error")])
+    assert not streaming_manager.healthy
 
     assert_diagnostics(
         diagnostics.get_diagnostics(),

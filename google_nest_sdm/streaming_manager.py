@@ -69,19 +69,27 @@ class StreamingManager:
         self._background_task: asyncio.Task | None = None
         self._subscriber_client = SubscriberClient(auth, subscription_name)
         self._stream: AsyncIterable[pubsub_v1.types.StreamingPullResponse] | None = None
+        self._healthy = False
 
     async def start(self) -> None:
         """Start the subscription background task and wait for initial startup."""
         DIAGNOSTICS.increment("start")
         self._stream = await self._connect(allow_retries=False)
+        self._healthy = True
         loop = asyncio.get_event_loop()
         self._background_task = loop.create_task(self._run_task())
+
+    @property
+    def healthy(self) -> bool:
+        """Return True if the subscription is healthy."""
+        return self._healthy
 
     def stop(self) -> None:
         _LOGGER.debug("Stopping subscription %s", self._subscription_name)
         DIAGNOSTICS.increment("stop")
         if self._background_task:
             self._background_task.cancel()
+        self._healthy = False
 
     async def _run_task(self) -> None:
         """"""
@@ -92,6 +100,7 @@ class StreamingManager:
         except Exception as err:
             _LOGGER.error("Uncaught error in subscription loop: %s", err)
             DIAGNOSTICS.increment("uncaught_exception")
+        self._healthy = False
 
     async def _run(self) -> None:
         """Run the subscription loop."""
@@ -100,6 +109,7 @@ class StreamingManager:
             _LOGGER.debug("Subscriber connected and waiting for messages")
             if TYPE_CHECKING:
                 assert self._stream is not None
+            self._healthy = True
             try:
                 async for response in self._stream:
                     _LOGGER.debug(
@@ -119,6 +129,7 @@ class StreamingManager:
             except GoogleNestException as err:
                 _LOGGER.debug("Error while processing messages: %s", err)
                 DIAGNOSTICS.increment("exception")
+            self._healthy = False
 
             _LOGGER.debug("Reconnecting stream")
             self._stream = await self._connect(allow_retries=True)
