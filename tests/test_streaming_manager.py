@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Awaitable, Callable, Dict
+from typing import Any, Awaitable, Callable, Dict, TypeVar, TypeGuard
 from unittest.mock import Mock, patch, AsyncMock
 from collections.abc import AsyncGenerator, Generator
 import datetime
@@ -29,6 +29,13 @@ _LOGGER = logging.getLogger(__name__)
 
 PROJECT_ID = "project-id1"
 SUBSCRIPTION_NAME = "projects/some-project-id/subscriptions/subscriber-id1"
+
+_T = TypeVar("_T")
+
+
+def object_is(obj: Any, value: _T) -> TypeGuard[_T]:
+    """Assertion hack to workaround https://github.com/python/mypy/issues/11969"""
+    return obj is value
 
 
 class MessageQueue:
@@ -166,9 +173,9 @@ async def test_subscribe_no_events(
 ) -> None:
     streaming_manager = await factory()
     await streaming_manager.start()
-    assert streaming_manager.healthy
+    assert object_is(streaming_manager.healthy, True)
     streaming_manager.stop()
-    assert not streaming_manager.healthy
+    assert object_is(streaming_manager.healthy, False)
 
 
 async def test_events_received_at_start(
@@ -191,9 +198,9 @@ async def test_events_received_at_start(
     assert len(messages_received) == 2
     assert messages_received[0].payload == {"eventId": "1"}
     assert messages_received[1].payload == {"eventId": "2"}
-    assert streaming_manager.healthy
+    assert object_is(streaming_manager.healthy, True)
     streaming_manager.stop()
-    assert not streaming_manager.healthy
+    assert object_is(streaming_manager.healthy, False)
 
 
 async def test_events_received_after_start(
@@ -259,8 +266,7 @@ async def test_start_exception(
 
     with pytest.raises(expected):
         await streaming_manager.start()
-        assert not streaming_manager.healthy
-
+        assert object_is(streaming_manager.healthy, False)
 
     assert_diagnostics(
         diagnostics.get_diagnostics(),
@@ -303,9 +309,9 @@ async def test_run_loop_exception(
     )
 
     # Stream recovers and is still healthy
-    assert streaming_manager.healthy
+    assert object_is(streaming_manager.healthy, True)
     streaming_manager.stop()
-    assert not streaming_manager.healthy
+    assert object_is(streaming_manager.healthy, False)
 
 
 @pytest.mark.parametrize(
@@ -340,7 +346,7 @@ async def test_callback_exception(
             }
         },
     )
-    assert streaming_manager.healthy
+    assert object_is(streaming_manager.healthy, True)
 
     streaming_manager.stop()
 
@@ -360,7 +366,7 @@ async def test_reconnect_exception(
 
     await streaming_manager.start()
     await message_queue.async_push_events([{"eventId": "1"}])
-    assert streaming_manager.healthy
+    assert object_is(streaming_manager.healthy, True)
 
     assert_diagnostics(
         diagnostics.get_diagnostics(),
@@ -377,7 +383,8 @@ async def test_reconnect_exception(
     # Fail the active streaming pull. The next attempt to connect will also
     # fail because of the pull_exceptiopn fixture above.
     await message_queue.async_push_errors([SubscriberException("Error")])
-    assert not streaming_manager.healthy
+
+    assert object_is(streaming_manager.healthy, False)
 
     # Track next attempt to connect
     assert_diagnostics(
@@ -415,10 +422,10 @@ async def test_reconnect_exception(
             },
         },
     )
-    assert streaming_manager.healthy
+    assert object_is(streaming_manager.healthy, True)
 
     streaming_manager.stop()
-    assert not streaming_manager.healthy
+    assert object_is(streaming_manager.healthy, False)
 
     assert len(messages_received) == 2
     assert messages_received[0].payload == {"eventId": "1"}
@@ -432,9 +439,9 @@ async def test_uncaught_streaming_pull_exception(
     streaming_manager = await factory()
 
     await streaming_manager.start()
-    assert streaming_manager.healthy
+    assert object_is(streaming_manager.healthy, True)
     await message_queue.async_push_errors([Exception("Error")])
-    assert not streaming_manager.healthy
+    assert object_is(streaming_manager.healthy, False)
 
     assert_diagnostics(
         diagnostics.get_diagnostics(),
