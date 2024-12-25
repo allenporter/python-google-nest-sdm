@@ -19,13 +19,15 @@ Example usage:
         DEVICE_ACCESS_PROJECT_ID,
         SUBSCRIBER_ID,
     )
-    await subscriber.start_async()
+    unsub = await subscriber.start_async()
     device_manager = await subscriber.async_get_device_manager()
 
     for device in device_manager.devices.values():
         if device.temperature:
             temp = device.temperatureambient_temperature_celsius
             print("Device temperature: {temp:0.2f}")
+
+    unsub()  # Unsubscribe when done
 ```
 """
 
