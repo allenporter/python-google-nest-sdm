@@ -108,10 +108,10 @@ class StreamingManager:
         """Run the subscription loop."""
         DIAGNOSTICS.increment("run")
         while True:
-            _LOGGER.debug("Subscriber connected and waiting for messages")
             if TYPE_CHECKING:
                 assert self._stream is not None
             self._healthy = True
+            _LOGGER.info("Event stream connection established")
             try:
                 async for response in self._stream:
                     _LOGGER.debug(
@@ -127,6 +127,7 @@ class StreamingManager:
                 DIAGNOSTICS.increment("exception")
             self._healthy = False
 
+            log_failed = False
             while True:
                 _LOGGER.debug(
                     "Reconnecting stream in %s seconds", self._backoff.total_seconds()
@@ -136,7 +137,11 @@ class StreamingManager:
                     self._stream = await self._connect()
                     break
                 except GoogleNestException as err:
-                    _LOGGER.warning("Error while reconnecting stream: %s", err)
+                    if not log_failed:
+                        _LOGGER.warning("Error connecting to event stream: %s", err)
+                        log_failed = True
+                    else:
+                        _LOGGER.debug("Error connecting to event stream: %s", err)
                     self._backoff = min(
                         self._backoff * BACKOFF_MULTIPLIER, MAX_BACKOFF_INTERVAL
                     )
