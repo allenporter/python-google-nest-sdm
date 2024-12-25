@@ -117,7 +117,8 @@ def mock_callback_exception() -> Exception | None:
 
 @pytest.fixture(name="subscriber_async_client")
 def mock_subscriber_async_client(
-    message_queue: MessageQueue, pull_exception: Exception | list[Exception] | None,
+    message_queue: MessageQueue,
+    pull_exception: Exception | list[Exception] | None,
 ) -> Generator[Mock, None, None]:
     """Fixture to mock the subscriber."""
 
@@ -212,6 +213,7 @@ async def test_events_received_at_start(
     assert streaming_manager.pending_ack_ids() == ["ack-0", "ack-1"]
     assert not streaming_manager.pending_ack_ids()
 
+
 async def test_events_received_after_start(
     device_handler: DeviceHandler,
     factory: Callable[[], Awaitable[StreamingManager]],
@@ -304,7 +306,7 @@ async def test_run_loop_exception(
     messages_received: list[Message],
 ) -> None:
     streaming_manager = await factory()
-    await message_queue.async_push_errors([AuthException("Auth error")])
+    await message_queue.async_push_errors([Unauthenticated("Auth error")])  # type: ignore[no-untyped-call]
 
     await streaming_manager.start()
     await asyncio.sleep(0)  # yield to wake background task
@@ -318,7 +320,8 @@ async def test_run_loop_exception(
                 "connect": 2,
                 "run": 1,
                 "start": 1,
-            }
+            },
+            "subscriber": {"streaming_iterator.unauthenticated": 1},
         },
     )
 
@@ -415,6 +418,7 @@ async def test_reconnect_exception(
                 "process_message": 1,
             },
             "subscriber": {
+                "streaming_iterator.api_error": 1,
                 "streaming_pull.api_error": 1,
             },
         },
@@ -434,6 +438,7 @@ async def test_reconnect_exception(
                 "process_message": 2,
             },
             "subscriber": {
+                "streaming_iterator.api_error": 1,
                 "streaming_pull.api_error": 1,
             },
         },
@@ -466,8 +471,11 @@ async def test_uncaught_streaming_pull_exception(
                 "connect": 1,
                 "run": 1,
                 "start": 1,
-                "uncaught_exception": 1,
-            }
+                "exception": 1,
+            },
+            "subscriber": {
+                "streaming_iterator.api_error": 1,
+            },
         },
     )
 

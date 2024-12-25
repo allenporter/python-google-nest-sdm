@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Awaitable, Callable, AsyncIterable, Any
+from typing import Awaitable, Callable, AsyncIterable, Any, TypeVar
 from collections.abc import AsyncGenerator
 
 from aiohttp.client_exceptions import ClientError
@@ -24,6 +24,7 @@ from .exceptions import (
 
 _LOGGER = logging.getLogger(__name__)
 
+_T = TypeVar("_T")
 
 RPC_TIMEOUT_SECONDS = 10.0
 STREAM_ACK_TIMEOUT_SECONDS = 30
@@ -111,6 +112,36 @@ async def pull_request_generator(
         )
 
 
+async def aiter_exception_handler(iterable: AsyncIterable[_T]) -> AsyncIterable[_T]:
+    """Wrap an async iterable with pub/sub exception handling."""
+
+    try:
+        async for item in iterable:
+            yield item
+    except NotFound as err:
+        _LOGGER.debug("NotFound error in streaming pull: %s", err)
+        DIAGNOSTICS.increment("streaming_iterator.not_found_error")
+        raise ConfigurationException(
+            f"NotFound error calling streaming iterator: {err}"
+        ) from err
+    except Unauthenticated as err:
+        _LOGGER.debug("Failed to authenticate subscriber in streaming pull: %s", err)
+        DIAGNOSTICS.increment("streaming_iterator.unauthenticated")
+        raise AuthException(
+            f"Failed to authenticate in streaming iterator: {err}"
+        ) from err
+    except GoogleAPIError as err:
+        _LOGGER.debug("API error in streaming pull: %s", err)
+        DIAGNOSTICS.increment("streaming_iterator.api_error")
+        raise SubscriberException(f"API error when streaming iterator: {err}") from err
+    except Exception as err:
+        _LOGGER.debug("Uncaught error in streaming pull: %s", err)
+        DIAGNOSTICS.increment("streaming_iterator.api_error")
+        raise SubscriberException(
+            f"Unexpected error when streaming iterator: {err}"
+        ) from err
+
+
 class SubscriberClient:
     """Pub/sub subscriber client library."""
 
@@ -146,9 +177,10 @@ class SubscriberClient:
 
         client = await self._async_get_client()
         _LOGGER.debug("Sending streaming pull request for %s", self._subscription_name)
-        return await client.streaming_pull(
+        stream = await client.streaming_pull(
             requests=pull_request_generator(self._subscription_name, ack_ids_generator)
         )
+        return aiter_exception_handler(stream)
 
     @exception_handler("acknowledge")
     async def ack_messages(self, ack_ids: list[str]) -> None:
