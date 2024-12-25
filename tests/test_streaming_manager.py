@@ -291,10 +291,11 @@ async def test_run_loop_exception(
     messages_received: list[Message],
 ) -> None:
     streaming_manager = await factory()
-    await message_queue.async_push_errors([AuthException()])
+    await message_queue.async_push_errors([AuthException("Auth error")])
 
     await streaming_manager.start()
-    await asyncio.sleep(0)  # yield to background task
+    await asyncio.sleep(0)  # yield to wake background task
+    await asyncio.sleep(0)  # yield to sleep on retry
 
     assert_diagnostics(
         diagnostics.get_diagnostics(),
@@ -385,6 +386,7 @@ async def test_reconnect_exception(
     await message_queue.async_push_errors([SubscriberException("Error")])
 
     assert object_is(streaming_manager.healthy, False)
+    await asyncio.sleep(0)  # yield to sleep on retry
 
     # Track next attempt to connect
     assert_diagnostics(
