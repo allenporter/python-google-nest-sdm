@@ -98,11 +98,16 @@ def exception_handler[
 
 async def pull_request_generator(
     subscription_name: str,
-) -> AsyncGenerator[pubsub_v1.StreamingPullRequest]:
+    ack_ids_generator: Callable[[], list[str]],
+) -> AsyncGenerator[pubsub_v1.StreamingPullRequest, list[str]]:
+    yield pubsub_v1.StreamingPullRequest(
+        subscription=subscription_name,
+        stream_ack_deadline_seconds=STREAM_ACK_TIMEOUT_SECONDS,
+    )
     while True:
         yield pubsub_v1.StreamingPullRequest(
-            subscription=subscription_name,
             stream_ack_deadline_seconds=STREAM_ACK_TIMEOUT_SECONDS,
+            ack_ids=ack_ids_generator(),
         )
 
 
@@ -135,13 +140,14 @@ class SubscriberClient:
     @exception_handler(func_name="streaming_pull")
     async def streaming_pull(
         self,
+        ack_ids_generator: Callable[[], list[str]],
     ) -> AsyncIterable[pubsub_v1.types.StreamingPullResponse]:
         """Start the streaming pull."""
 
         client = await self._async_get_client()
         _LOGGER.debug("Sending streaming pull request for %s", self._subscription_name)
         return await client.streaming_pull(
-            requests=pull_request_generator(self._subscription_name)
+            requests=pull_request_generator(self._subscription_name, ack_ids_generator)
         )
 
     @exception_handler("acknowledge")
