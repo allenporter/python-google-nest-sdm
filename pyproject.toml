@@ -1,5 +1,4 @@
 [tool.mypy]
-requires-python = ">=3.10"
 exclude = [
   "setup.py",
   "venv/",
