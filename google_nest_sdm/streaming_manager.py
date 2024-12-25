@@ -123,11 +123,10 @@ class StreamingManager:
                         if await self._process_message(received_message.message):
                             self._ack_ids.append(received_message.ack_id)
             except GoogleNestException as err:
-                _LOGGER.debug("Error while processing messages: %s", err)
+                _LOGGER.error("Disconnected from event stream: %s", err)
                 DIAGNOSTICS.increment("exception")
             self._healthy = False
 
-            log_failed = False
             while True:
                 _LOGGER.debug(
                     "Reconnecting stream in %s seconds", self._backoff.total_seconds()
@@ -137,11 +136,7 @@ class StreamingManager:
                     self._stream = await self._connect()
                     break
                 except GoogleNestException as err:
-                    if not log_failed:
-                        _LOGGER.warning("Error connecting to event stream: %s", err)
-                        log_failed = True
-                    else:
-                        _LOGGER.debug("Error connecting to event stream: %s", err)
+                    _LOGGER.debug("Error connecting to event stream: %s", err)
                     self._backoff = min(
                         self._backoff * BACKOFF_MULTIPLIER, MAX_BACKOFF_INTERVAL
                     )
