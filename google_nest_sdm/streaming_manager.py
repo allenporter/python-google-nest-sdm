@@ -69,6 +69,7 @@ class StreamingManager:
         self._background_task: asyncio.Task | None = None
         self._subscriber_client = SubscriberClient(auth, subscription_name)
         self._stream: AsyncIterable[pubsub_v1.types.StreamingPullResponse] | None = None
+        self._ack_ids = []
         self._healthy = False
         self._backoff = MIN_BACKOFF_INTERVAL
 
@@ -118,17 +119,9 @@ class StreamingManager:
                     )
                     # Reset backoff anytime we receive messages
                     self._backoff = MIN_BACKOFF_INTERVAL
-                    ack_ids = []
                     for received_message in response.received_messages:
                         if await self._process_message(received_message.message):
-                            ack_ids.append(received_message.ack_id)
-
-                    if ack_ids:
-                        _LOGGER.debug("Acknowledging %s messages", len(ack_ids))
-                        try:
-                            await self._subscriber_client.ack_messages(ack_ids)
-                        except GoogleNestException as err:
-                            _LOGGER.debug("Error while acknowledging messages: %s", err)
+                            self._ack_ids.append(received_message.ack_id)
             except GoogleNestException as err:
                 _LOGGER.debug("Error while processing messages: %s", err)
                 DIAGNOSTICS.increment("exception")
@@ -150,8 +143,13 @@ class StreamingManager:
         """Connect to the streaming pull."""
         _LOGGER.debug("Connecting with streaming pull")
         DIAGNOSTICS.increment("connect")
-        return await self._subscriber_client.streaming_pull()
+        return await self._subscriber_client.streaming_pull(self.pending_ack_ids)
 
+    def pending_ack_ids(self) -> list[str]:
+        """Generate the ack IDs for the next streaming pull request and clear."""
+        ack_ids = [*self._ack_ids]
+        self._ack_ids = []
+        return ack_ids
 
     async def _process_message(self, message: pubsub_v1.types.PubsubMessage) -> bool:
         """Process an incoming message from the stream."""

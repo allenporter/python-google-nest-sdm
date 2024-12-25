@@ -45,6 +45,7 @@ class MessageQueue:
         self.event = asyncio.Event()
         self.messages: list[pubsub_v1.types.PubsubMessage] = []
         self.errors: list[Exception] = []
+        self.next_ack_id = 0
 
     async def async_push_events(
         self, events: list[Dict[str, Any]], sleep: bool = True
@@ -81,13 +82,19 @@ class MessageQueue:
             yield pubsub_v1.types.StreamingPullResponse(
                 received_messages=[
                     pubsub_v1.types.ReceivedMessage(
-                        ack_id="1",
+                        ack_id=self.next_id(),
                         message=message,
                         delivery_attempt=1,
                     )
                     for message in messages
                 ]
             )
+
+    def next_id(self) -> str:
+        """Generate a new ack ID."""
+        ack_id = f"ack-{self.next_ack_id}"
+        self.next_ack_id += 1
+        return ack_id
 
 
 @pytest.fixture(name="message_queue")
@@ -110,7 +117,7 @@ def mock_callback_exception() -> Exception | None:
 
 @pytest.fixture(name="subscriber_async_client")
 def mock_subscriber_async_client(
-    message_queue: MessageQueue, pull_exception: Exception | list[Exception] | None
+    message_queue: MessageQueue, pull_exception: Exception | list[Exception] | None,
 ) -> Generator[Mock, None, None]:
     """Fixture to mock the subscriber."""
 
@@ -202,6 +209,8 @@ async def test_events_received_at_start(
     streaming_manager.stop()
     assert object_is(streaming_manager.healthy, False)
 
+    assert streaming_manager.pending_ack_ids() == ["ack-0", "ack-1"]
+    assert not streaming_manager.pending_ack_ids()
 
 async def test_events_received_after_start(
     device_handler: DeviceHandler,
@@ -218,6 +227,9 @@ async def test_events_received_after_start(
     assert messages_received[0].payload == {"eventId": "1"}
     streaming_manager.stop()
 
+    assert streaming_manager.pending_ack_ids() == ["ack-0"]
+    assert not streaming_manager.pending_ack_ids()
+
 
 async def test_cancel_after_message_received(
     device_handler: DeviceHandler,
@@ -233,6 +245,7 @@ async def test_cancel_after_message_received(
     await asyncio.sleep(0)
 
     assert len(messages_received) == 0
+    assert not streaming_manager.pending_ack_ids()
     streaming_manager.stop()
 
 
@@ -348,6 +361,7 @@ async def test_callback_exception(
         },
     )
     assert object_is(streaming_manager.healthy, True)
+    assert not streaming_manager.pending_ack_ids()
 
     streaming_manager.stop()
 

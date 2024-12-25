@@ -80,7 +80,7 @@ async def test_streaming_pull() -> None:
         mock_streaming_pull = AsyncMock()
         mock_streaming_pull.return_value = None
         mock_client.return_value.streaming_pull = mock_streaming_pull
-        await client.streaming_pull()
+        await client.streaming_pull(lambda _: [])
 
     # Verify the call was invoked with the correct arguments
     mock_streaming_pull.assert_awaited_once()
@@ -125,16 +125,31 @@ async def test_streaming_pull_failure(
         mock_client.return_value.streaming_pull = mock_streaming_pull
 
         with pytest.raises(expected, match=message):
-            await client.streaming_pull()
+            await client.streaming_pull(lambda _: [])
 
 
 async def test_request_generator() -> None:
     """Test the streaming pull request generator."""
-    stream = pull_request_generator("projects/some-project-id/subscriptions/sub-1")
-    try:
-        async for request in stream:
-            assert request.subscription == "projects/some-project-id/subscriptions/sub-1"
-            assert request.stream_ack_deadline_seconds == 30
-            break
-    finally:
-        await stream.aclose()
+    ack_ids = [
+        ["ack-id-1", "ack-id-2"],
+        ["ack-id-3", "ack-id-4"],
+        [],
+    ]
+    stream = pull_request_generator("projects/some-project-id/subscriptions/sub-1", lambda: ack_ids.pop(0))
+    stream_iter = aiter(stream)
+    request = await anext(stream_iter)
+    assert request.subscription == "projects/some-project-id/subscriptions/sub-1"
+    assert request.stream_ack_deadline_seconds == 30
+    assert not request.ack_ids
+
+    request = await anext(stream_iter)
+    assert request.subscription == ""
+    assert request.stream_ack_deadline_seconds == 30
+    assert request.ack_ids == ["ack-id-1", "ack-id-2"]
+
+    request = await anext(stream_iter)
+    assert request.subscription == ""
+    assert request.stream_ack_deadline_seconds == 30
+    assert request.ack_ids == ["ack-id-3", "ack-id-4"]
+
+    await stream.aclose()
