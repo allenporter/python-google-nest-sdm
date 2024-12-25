@@ -15,6 +15,7 @@ from google_nest_sdm.exceptions import (
 from google_nest_sdm.subscriber_client import (
     refresh_creds,
     SubscriberClient,
+    pull_request_generator
 )
 
 
@@ -82,6 +83,19 @@ async def test_streaming_pull() -> None:
         mock_client.return_value.streaming_pull = mock_streaming_pull
         await client.streaming_pull()
 
+
+async def test_streaming_pull() -> None:
+    """Test ack messages."""
+
+    client = SubscriberClient(auth=AsyncMock(), subscription_name="test")
+    with patch(
+        "google_nest_sdm.subscriber_client.pubsub_v1.SubscriberAsyncClient"
+    ) as mock_client:
+        mock_streaming_pull = AsyncMock()
+        mock_streaming_pull.return_value = None
+        mock_client.return_value.streaming_pull = mock_streaming_pull
+        await client.streaming_pull()
+
     # Verify the call was invoked with the correct arguments
     mock_streaming_pull.assert_awaited_once()
 
@@ -126,3 +140,15 @@ async def test_streaming_pull_failure(
 
         with pytest.raises(expected, match=message):
             await client.streaming_pull()
+
+
+async def test_request_generator() -> None:
+    """Test the streaming pull request generator."""
+    stream = pull_request_generator("projects/some-project-id/subscriptions/sub-1")
+    try:
+        async for request in stream:
+            assert request.subscription == "projects/some-project-id/subscriptions/sub-1"
+            assert request.stream_ack_deadline_seconds == 30
+            break
+    finally:
+        await stream.aclose()
