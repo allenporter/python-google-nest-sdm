@@ -69,7 +69,7 @@ class StreamingManager:
         self._background_task: asyncio.Task | None = None
         self._subscriber_client = SubscriberClient(auth, subscription_name)
         self._stream: AsyncIterable[pubsub_v1.types.StreamingPullResponse] | None = None
-        self._ack_ids = []
+        self._ack_ids: list[str] = []
         self._healthy = False
         self._backoff = MIN_BACKOFF_INTERVAL
 
@@ -128,16 +128,19 @@ class StreamingManager:
             self._healthy = False
 
             while True:
-                _LOGGER.debug("Reconnecting stream in %s seconds", self._backoff.total_seconds())
+                _LOGGER.debug(
+                    "Reconnecting stream in %s seconds", self._backoff.total_seconds()
+                )
                 await asyncio.sleep(self._backoff.total_seconds())
                 try:
                     self._stream = await self._connect()
                     break
                 except GoogleNestException as err:
                     _LOGGER.warning("Error while reconnecting stream: %s", err)
-                    self._backoff = min(self._backoff * BACKOFF_MULTIPLIER, MAX_BACKOFF_INTERVAL)
+                    self._backoff = min(
+                        self._backoff * BACKOFF_MULTIPLIER, MAX_BACKOFF_INTERVAL
+                    )
                     DIAGNOSTICS.increment("backoff")
-
 
     async def _connect(self) -> AsyncIterable[pubsub_v1.types.StreamingPullResponse]:
         """Connect to the streaming pull."""
