@@ -70,22 +70,8 @@ async def test_ack_messages() -> None:
         subscription="test", ack_ids=["message1", "message2"]
     )
 
-
 async def test_streaming_pull() -> None:
-    """Test ack messages."""
-
-    client = SubscriberClient(auth=AsyncMock(), subscription_name="test")
-    with patch(
-        "google_nest_sdm.subscriber_client.pubsub_v1.SubscriberAsyncClient"
-    ) as mock_client:
-        mock_streaming_pull = AsyncMock()
-        mock_streaming_pull.return_value = None
-        mock_client.return_value.streaming_pull = mock_streaming_pull
-        await client.streaming_pull()
-
-
-async def test_streaming_pull() -> None:
-    """Test ack messages."""
+    """Test streaming pull call."""
 
     client = SubscriberClient(auth=AsyncMock(), subscription_name="test")
     with patch(
