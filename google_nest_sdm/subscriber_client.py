@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from typing import Awaitable, Callable, AsyncIterable, Any
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 
 from aiohttp.client_exceptions import ClientError
 from google.api_core.exceptions import GoogleAPIError, NotFound, Unauthenticated
@@ -75,7 +75,9 @@ def exception_handler[
                     "Failed to authenticate subscriber in %s: %s", func_name, err
                 )
                 DIAGNOSTICS.increment(f"{func_name}.unauthenticated")
-                raise AuthException(f"Failed to authenticate {func_name}: {err}") from err
+                raise AuthException(
+                    f"Failed to authenticate {func_name}: {err}"
+                ) from err
             except GoogleAPIError as err:
                 _LOGGER.debug("API error in %s: %s", func_name, err)
                 DIAGNOSTICS.increment(f"{func_name}.api_error")
@@ -94,12 +96,15 @@ def exception_handler[
     return wrapped
 
 
-async def pull_request_generator(subscription_name: str) -> AsyncIterator[pubsub_v1.StreamingPullRequest]:
+async def pull_request_generator(
+    subscription_name: str,
+) -> AsyncGenerator[pubsub_v1.StreamingPullRequest]:
     while True:
         yield pubsub_v1.StreamingPullRequest(
             subscription=subscription_name,
             stream_ack_deadline_seconds=STREAM_ACK_TIMEOUT_SECONDS,
         )
+
 
 class SubscriberClient:
     """Pub/sub subscriber client library."""
@@ -135,7 +140,9 @@ class SubscriberClient:
 
         client = await self._async_get_client()
         _LOGGER.debug("Sending streaming pull request for %s", self._subscription_name)
-        return await client.streaming_pull(requests=pull_request_generator(self._subscription_name))
+        return await client.streaming_pull(
+            requests=pull_request_generator(self._subscription_name)
+        )
 
     @exception_handler("acknowledge")
     async def ack_messages(self, ack_ids: list[str]) -> None:
