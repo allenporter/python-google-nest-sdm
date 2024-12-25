@@ -196,7 +196,7 @@ class AdminClient:
                 )
                 return None
             except ApiException as err:
-                _LOGGER.error(
+                _LOGGER.info(
                     "Unexpected error retrieving an SDM created topic: %s", err
                 )
                 raise ApiException("Error retrieving SDM created topic") from err
@@ -209,7 +209,7 @@ class AdminClient:
             try:
                 return await self.list_topics(f"projects/{self._cloud_project_id}")
             except ApiException as err:
-                _LOGGER.error("Unexpected error listing topics: %s", err)
+                _LOGGER.info("Unexpected error listing topics: %s", err)
                 raise ApiException(
                     "Error while listing existing cloud console topics"
                 ) from err
