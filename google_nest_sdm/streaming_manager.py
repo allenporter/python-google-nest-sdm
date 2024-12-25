@@ -100,7 +100,7 @@ class StreamingManager:
         except asyncio.CancelledError:
             _LOGGER.debug("Subscription loop cancelled")
         except Exception as err:
-            _LOGGER.error("Uncaught error in subscription loop: %s", err)
+            _LOGGER.info("Uncaught error in subscription loop: %s", err)
             DIAGNOSTICS.increment("uncaught_exception")
         self._healthy = False
 
@@ -123,7 +123,7 @@ class StreamingManager:
                         if await self._process_message(received_message.message):
                             self._ack_ids.append(received_message.ack_id)
             except GoogleNestException as err:
-                _LOGGER.error("Disconnected from event stream: %s", err)
+                _LOGGER.info("Disconnected from event stream: %s", err)
                 DIAGNOSTICS.increment("exception")
             self._healthy = False
 
@@ -163,9 +163,9 @@ class StreamingManager:
                 return True
         except TimeoutError as err:
             DIAGNOSTICS.increment("process_message_timeout")
-            _LOGGER.error("Unexpected timeout while processing message: %s", err)
+            _LOGGER.info("Unexpected timeout while processing message: %s", err)
             return False
         except Exception as err:
             DIAGNOSTICS.increment("process_message_exception")
-            _LOGGER.error("Uncaught error while processing message: %s", err)
+            _LOGGER.info("Uncaught error while processing message: %s", err)
             return False
