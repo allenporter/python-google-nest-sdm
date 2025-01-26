@@ -530,3 +530,28 @@ async def test_list_eligible_subscriptions(
     assert eligible_subscriptions.subscription_names == [
         f"projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/subscriptions/sdm-testing-sub",
     ]
+
+
+
+async def test_set_topic_iam_policy(
+    app: aiohttp.web.Application,
+    admin_client: Callable[[], Awaitable[AdminClient]],
+    recorder: Recorder,
+) -> None:
+    """Test setting an IAM policy on a topic."""
+
+    handler = NewHandler(
+        recorder,
+        [{}],
+    )
+    app.router.add_post(
+        f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/topics/topic-name:setIamPolicy", handler
+    )
+
+    client = await admin_client()
+    await client.set_topic_iam_policy(
+        f"projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/topics/topic-name",
+        {"bindings": [{"role": "roles/pubsub.publisher", "members": ["user:foo"]}]},
+    )
+
+    assert recorder.request == {"policy": {"bindings": [{"role": "roles/pubsub.publisher", "members": ["user:foo"]}]}}
