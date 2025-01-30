@@ -140,20 +140,20 @@ async def test_request_generator() -> None:
         stream = pull_request_generator(
             "projects/some-project-id/subscriptions/sub-1", lambda: ack_ids.pop(0)
         )
-    stream_iter = aiter(stream)
-    request = await anext(stream_iter)
-    assert request.subscription == "projects/some-project-id/subscriptions/sub-1"
-    assert request.stream_ack_deadline_seconds == 180
-    assert not request.ack_ids
+        stream_iter = aiter(stream)
+        request = await anext(stream_iter)
+        assert request.subscription == "projects/some-project-id/subscriptions/sub-1"
+        assert request.stream_ack_deadline_seconds == 180
+        assert not request.ack_ids
 
-    request = await anext(stream_iter)
-    assert request.subscription == ""
-    assert request.stream_ack_deadline_seconds == 180
-    assert request.ack_ids == ["ack-id-1", "ack-id-2"]
+        request = await anext(stream_iter)
+        assert request.subscription == ""
+        assert request.stream_ack_deadline_seconds == 180
+        assert request.ack_ids == ["ack-id-1", "ack-id-2"]
 
-    request = await anext(stream_iter)
-    assert request.subscription == ""
-    assert request.stream_ack_deadline_seconds == 180
-    assert request.ack_ids == ["ack-id-3", "ack-id-4"]
+        request = await anext(stream_iter)
+        assert request.subscription == ""
+        assert request.stream_ack_deadline_seconds == 180
+        assert request.ack_ids == ["ack-id-3", "ack-id-4"]
 
-    await stream.aclose()
+        await stream.aclose()
