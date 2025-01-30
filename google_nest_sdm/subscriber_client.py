@@ -27,7 +27,8 @@ _LOGGER = logging.getLogger(__name__)
 _T = TypeVar("_T")
 
 RPC_TIMEOUT_SECONDS = 10.0
-STREAM_ACK_TIMEOUT_SECONDS = 30
+STREAM_ACK_TIMEOUT_SECONDS = 180
+STREAM_ACK_FREQUENCY_SECONDS = 90
 
 
 def refresh_creds(creds: Credentials) -> Credentials:
@@ -50,13 +51,12 @@ def refresh_creds(creds: Credentials) -> Credentials:
     return creds
 
 
-def exception_handler[
-    _T: Any
-](func_name: str) -> Callable[..., Callable[..., Awaitable[_T]]]:
+def exception_handler[_T: Any](
+    func_name: str,
+) -> Callable[..., Callable[..., Awaitable[_T]]]:
     """Wrap a function with exception handling."""
 
     def wrapped(func: Callable[..., Awaitable[_T]]) -> Callable[..., Awaitable[_T]]:
-
         async def wrapped_func(*args: Any, **kwargs: Any) -> _T:
             try:
                 async with asyncio.timeout(RPC_TIMEOUT_SECONDS):
@@ -106,10 +106,13 @@ async def pull_request_generator(
         stream_ack_deadline_seconds=STREAM_ACK_TIMEOUT_SECONDS,
     )
     while True:
+        ids = ack_ids_generator()
+        _LOGGER.debug("Sending streaming pull request (acking %s messages)", len(ids))
         yield pubsub_v1.StreamingPullRequest(
             stream_ack_deadline_seconds=STREAM_ACK_TIMEOUT_SECONDS,
-            ack_ids=ack_ids_generator(),
+            ack_ids=ids,
         )
+        await asyncio.sleep(STREAM_ACK_FREQUENCY_SECONDS)
 
 
 async def aiter_exception_handler(iterable: AsyncIterable[_T]) -> AsyncIterable[_T]:
