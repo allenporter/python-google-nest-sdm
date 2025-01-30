@@ -15,7 +15,7 @@ from google_nest_sdm.exceptions import (
 from google_nest_sdm.subscriber_client import (
     refresh_creds,
     SubscriberClient,
-    pull_request_generator
+    pull_request_generator,
 )
 
 
@@ -69,6 +69,7 @@ async def test_ack_messages() -> None:
     mock_acknowledge.assert_awaited_once_with(
         subscription="test", ack_ids=["message1", "message2"]
     )
+
 
 async def test_streaming_pull() -> None:
     """Test streaming pull call."""
@@ -135,21 +136,24 @@ async def test_request_generator() -> None:
         ["ack-id-3", "ack-id-4"],
         [],
     ]
-    stream = pull_request_generator("projects/some-project-id/subscriptions/sub-1", lambda: ack_ids.pop(0))
-    stream_iter = aiter(stream)
-    request = await anext(stream_iter)
-    assert request.subscription == "projects/some-project-id/subscriptions/sub-1"
-    assert request.stream_ack_deadline_seconds == 30
-    assert not request.ack_ids
+    with patch("asyncio.sleep", return_value=None):
+        stream = pull_request_generator(
+            "projects/some-project-id/subscriptions/sub-1", lambda: ack_ids.pop(0)
+        )
+        stream_iter = aiter(stream)
+        request = await anext(stream_iter)
+        assert request.subscription == "projects/some-project-id/subscriptions/sub-1"
+        assert request.stream_ack_deadline_seconds == 180
+        assert not request.ack_ids
 
-    request = await anext(stream_iter)
-    assert request.subscription == ""
-    assert request.stream_ack_deadline_seconds == 30
-    assert request.ack_ids == ["ack-id-1", "ack-id-2"]
+        request = await anext(stream_iter)
+        assert request.subscription == ""
+        assert request.stream_ack_deadline_seconds == 180
+        assert request.ack_ids == ["ack-id-1", "ack-id-2"]
 
-    request = await anext(stream_iter)
-    assert request.subscription == ""
-    assert request.stream_ack_deadline_seconds == 30
-    assert request.ack_ids == ["ack-id-3", "ack-id-4"]
+        request = await anext(stream_iter)
+        assert request.subscription == ""
+        assert request.stream_ack_deadline_seconds == 180
+        assert request.ack_ids == ["ack-id-3", "ack-id-4"]
 
-    await stream.aclose()
+        await stream.aclose()
