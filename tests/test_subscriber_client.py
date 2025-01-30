@@ -136,9 +136,10 @@ async def test_request_generator() -> None:
         ["ack-id-3", "ack-id-4"],
         [],
     ]
-    stream = pull_request_generator(
-        "projects/some-project-id/subscriptions/sub-1", lambda: ack_ids.pop(0)
-    )
+    with patch("asyncio.sleep", return_value=None):
+        stream = pull_request_generator(
+            "projects/some-project-id/subscriptions/sub-1", lambda: ack_ids.pop(0)
+        )
     stream_iter = aiter(stream)
     request = await anext(stream_iter)
     assert request.subscription == "projects/some-project-id/subscriptions/sub-1"
