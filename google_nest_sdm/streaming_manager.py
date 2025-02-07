@@ -67,7 +67,8 @@ class StreamingManager:
         self._subscription_name = subscription_name
         self._callback = callback
         self._background_task: asyncio.Task | None = None
-        self._subscriber_client = SubscriberClient(auth, subscription_name)
+        self._auth = auth
+        self._subscriber_client: SubscriberClient | None = None
         self._stream: AsyncIterable[pubsub_v1.types.StreamingPullResponse] | None = None
         self._ack_ids: list[str] = []
         self._healthy = False
@@ -92,6 +93,7 @@ class StreamingManager:
         if self._background_task:
             self._background_task.cancel()
         self._healthy = False
+        self._subscriber_client = None
 
     async def _run_task(self) -> None:
         """"""
@@ -126,6 +128,7 @@ class StreamingManager:
                 _LOGGER.info("Disconnected from event stream: %s", err)
                 DIAGNOSTICS.increment("exception")
             self._healthy = False
+            self._subscriber_client = None
 
             while True:
                 _LOGGER.debug(
@@ -146,6 +149,7 @@ class StreamingManager:
         """Connect to the streaming pull."""
         _LOGGER.debug("Connecting with streaming pull")
         DIAGNOSTICS.increment("connect")
+        self._subscriber_client = SubscriberClient(self._auth, self._subscription_name)
         return await self._subscriber_client.streaming_pull(self.pending_ack_ids)
 
     def pending_ack_ids(self) -> list[str]:
