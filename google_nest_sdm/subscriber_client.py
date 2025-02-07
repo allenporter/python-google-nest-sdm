@@ -167,6 +167,7 @@ class SubscriberClient:
             except ClientError as err:
                 DIAGNOSTICS.increment("create_subscription.creds_error")
                 raise AuthException(f"Access token failure: {err}") from err
+            _LOGGER.debug("Credentials refreshed, new expiry %s", creds.expiry)
             self._creds = creds
             self._client = pubsub_v1.SubscriberAsyncClient(credentials=self._creds)
         return self._client
