@@ -81,7 +81,7 @@ async def test_streaming_pull() -> None:
         mock_streaming_pull = AsyncMock()
         mock_streaming_pull.return_value = None
         mock_client.return_value.streaming_pull = mock_streaming_pull
-        await client.streaming_pull(lambda _: [])
+        await client.streaming_pull(lambda: [])
 
     # Verify the call was invoked with the correct arguments
     mock_streaming_pull.assert_awaited_once()
@@ -126,7 +126,7 @@ async def test_streaming_pull_failure(
         mock_client.return_value.streaming_pull = mock_streaming_pull
 
         with pytest.raises(expected, match=message):
-            await client.streaming_pull(lambda _: [])
+            await client.streaming_pull(lambda: [])
 
 
 async def test_request_generator() -> None:

@@ -27,6 +27,7 @@ _LOGGER = logging.getLogger(__name__)
 _T = TypeVar("_T")
 
 RPC_TIMEOUT_SECONDS = 30.0
+STREAMING_PULL_TIMEOUT_SECONDS = 45.0
 STREAM_ACK_TIMEOUT_SECONDS = 180
 STREAM_ACK_FREQUENCY_SECONDS = 90
 
@@ -52,14 +53,14 @@ def refresh_creds(creds: Credentials) -> Credentials:
 
 
 def exception_handler[_T: Any](
-    func_name: str,
+    func_name: str, timeout: float = RPC_TIMEOUT_SECONDS
 ) -> Callable[..., Callable[..., Awaitable[_T]]]:
     """Wrap a function with exception handling."""
 
     def wrapped(func: Callable[..., Awaitable[_T]]) -> Callable[..., Awaitable[_T]]:
         async def wrapped_func(*args: Any, **kwargs: Any) -> _T:
             try:
-                async with asyncio.timeout(RPC_TIMEOUT_SECONDS):
+                async with asyncio.timeout(timeout):
                     return await func(*args, **kwargs)
             except asyncio.TimeoutError as err:
                 _LOGGER.debug("Timeout in %s: %s", func_name, err)
@@ -117,6 +118,7 @@ async def pull_request_generator(
 
 async def aiter_exception_handler(iterable: AsyncIterable[_T]) -> AsyncIterable[_T]:
     """Wrap an async iterable with pub/sub exception handling."""
+    _LOGGER.debug("Starting streaming iterator")
 
     try:
         async for item in iterable:
@@ -172,19 +174,28 @@ class SubscriberClient:
             self._client = pubsub_v1.SubscriberAsyncClient(credentials=self._creds)
         return self._client
 
-    @exception_handler(func_name="streaming_pull")
     async def streaming_pull(
         self,
         ack_ids_generator: Callable[[], list[str]],
     ) -> AsyncIterable[pubsub_v1.types.StreamingPullResponse]:
         """Start the streaming pull."""
-
-        client = await self._async_get_client()
-        _LOGGER.debug("Sending streaming pull request for %s", self._subscription_name)
-        stream = await client.streaming_pull(
-            requests=pull_request_generator(self._subscription_name, ack_ids_generator)
+        stream: AsyncIterable[pubsub_v1.types.StreamingPullResponse] = (
+            await self._streaming_pull_req(ack_ids_generator)
         )
         return aiter_exception_handler(stream)
+
+    @exception_handler(
+        func_name="streaming_pull", timeout=STREAMING_PULL_TIMEOUT_SECONDS
+    )
+    async def _streaming_pull_req(
+        self,
+        ack_ids_generator: Callable[[], list[str]],
+    ) -> AsyncIterable[pubsub_v1.types.StreamingPullResponse]:
+        client = await self._async_get_client()
+        _LOGGER.debug("Sending streaming pull request for %s", self._subscription_name)
+        return await client.streaming_pull(
+            requests=pull_request_generator(self._subscription_name, ack_ids_generator)
+        )
 
     @exception_handler("acknowledge")
     async def ack_messages(self, ack_ids: list[str]) -> None:
