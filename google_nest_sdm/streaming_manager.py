@@ -113,7 +113,7 @@ class StreamingManager:
             if TYPE_CHECKING:
                 assert self._stream is not None
             self._healthy = True
-            _LOGGER.info("Event stream connection established")
+            _LOGGER.debug("Event stream connection established")
             try:
                 async for response in self._stream:
                     _LOGGER.debug(
@@ -125,7 +125,7 @@ class StreamingManager:
                         if await self._process_message(received_message.message):
                             self._ack_ids.append(received_message.ack_id)
             except GoogleNestException as err:
-                _LOGGER.info("Disconnected from event stream: %s", err)
+                _LOGGER.debug("Disconnected from event stream: %s", err)
                 DIAGNOSTICS.increment("exception")
             self._healthy = False
             self._subscriber_client = None
