@@ -12,7 +12,7 @@ ruff==0.9.10
 
 aiohttp==3.11.13
 async-timeout==5.0.1
-google-api-core==2.24.1
+google-api-core==2.24.2
 google-auth==2.29.0
 google-cloud-pubsub==2.28.0
 googleapis-common-protos==1.69.1
