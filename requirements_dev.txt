@@ -26,7 +26,7 @@ PyYAML==6.0.2
 types-futures==3.3.8
 types-protobuf==5.29.1.20250315
 types-PyYAML==6.0.12.20250326
-typing-extensions==4.12.2
+typing-extensions==4.13.0
 typing-inspect==0.9.0
 urllib3==2.3.0
 mashumaro==3.15
