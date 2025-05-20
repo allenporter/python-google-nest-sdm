@@ -29,4 +29,4 @@ types-PyYAML==6.0.12.20250516
 typing-extensions==4.13.2
 typing-inspect==0.9.0
 urllib3==2.4.0
-mashumaro==3.15
+mashumaro==3.16
