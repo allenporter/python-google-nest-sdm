@@ -18,7 +18,7 @@ google-cloud-pubsub==2.29.0
 googleapis-common-protos==1.70.0
 grpcio==1.71.0
 grpcio-status==1.71.0
-protobuf==5.29.4
+protobuf==5.29.5
 pytest-aiohttp==1.1.0
 pytest-asyncio==1.0.0
 pytest-mock==3.14.1
