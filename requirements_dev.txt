@@ -16,7 +16,7 @@ google-api-core==2.24.2
 google-auth==2.29.0
 google-cloud-pubsub==2.29.0
 googleapis-common-protos==1.70.0
-grpcio==1.71.0
+grpcio==1.72.1
 grpcio-status==1.71.0
 protobuf==5.29.5
 pytest-aiohttp==1.1.0
