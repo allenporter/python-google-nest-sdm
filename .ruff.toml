@@ -2,3 +2,4 @@ target-version = "py310"
 
 [lint]
 ignore = ["E501"]
+target-version = "py313"
