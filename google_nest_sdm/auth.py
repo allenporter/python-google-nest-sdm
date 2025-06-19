@@ -108,7 +108,7 @@ class AbstractAuth(ABC):
     async def async_get_creds(self) -> Credentials:
         """Return creds for subscriber API."""
         token = await self.async_get_access_token()
-        return OAuthCredentials(token=token)
+        return OAuthCredentials(token=token)  # type: ignore[no-untyped-call]
 
     async def request(
         self,
