@@ -31,9 +31,9 @@ async def test_refresh_creds() -> None:
 @pytest.mark.parametrize(
     ("raised", "expected"),
     [
-        (RefreshError(), AuthException),
-        (TransportError(), SubscriberException),
-        (GoogleAuthError(), SubscriberException),
+        (RefreshError(), AuthException),  # type: ignore[no-untyped-call]
+        (TransportError(), SubscriberException),  # type: ignore[no-untyped-call]
+        (GoogleAuthError(), SubscriberException),  # type: ignore[no-untyped-call]
     ],
 )
 async def test_refresh_creds_error(raised: Exception, expected: Any) -> None:

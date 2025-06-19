@@ -38,7 +38,7 @@ def refresh_creds(creds: Credentials) -> Credentials:
     This is not part of the subscriber API, exposed only to facilitate testing.
     """
     try:
-        creds.refresh(Request())
+        creds.refresh(Request())  # type: ignore[no-untyped-call]
     except RefreshError as err:
         raise AuthException(f"Authentication refresh failure: {err}") from err
     except TransportError as err:
@@ -165,7 +165,7 @@ class SubscriberClient:
                 DIAGNOSTICS.increment("create_subscription.creds_error")
                 raise AuthException(f"Access token failure: {err}") from err
             _LOGGER.debug("Credentials refreshed, new expiry %s", creds.expiry)
-            self._creds = creds
+            self._creds = creds  # type: ignore[no-untyped-call]
             self._client = pubsub_v1.SubscriberAsyncClient(credentials=self._creds)
         return self._client
 

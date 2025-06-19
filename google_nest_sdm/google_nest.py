@@ -155,7 +155,7 @@ def CreateCreds(args: argparse.Namespace) -> Credentials:
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
+            creds.refresh(Request())  # type: ignore[no-untyped-call]
         else:
             if not args.client_id or not args.client_secret:
                 raise ValueError("Required flag --client_id or --client_secret missing")
@@ -182,7 +182,7 @@ def CreateCreds(args: argparse.Namespace) -> Credentials:
                     raise
         with open(token_cache, "wb") as token:
             pickle.dump(creds, token)
-    return creds
+    return creds  # type: ignore[no-untyped-call]
 
 
 def PrintStructure(structure: Structure, output_type: str) -> None:
