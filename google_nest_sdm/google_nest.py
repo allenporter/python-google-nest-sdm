@@ -182,7 +182,7 @@ def CreateCreds(args: argparse.Namespace) -> Credentials:
                     raise
         with open(token_cache, "wb") as token:
             pickle.dump(creds, token)
-    return creds  # type: ignore[no-untyped-call]
+    return creds  # type: ignore[no-any-return]
 
 
 def PrintStructure(structure: Structure, output_type: str) -> None:
