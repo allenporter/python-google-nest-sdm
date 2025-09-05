@@ -21,7 +21,7 @@ grpcio-status==1.71.0
 protobuf==5.29.5
 pytest-aiohttp==1.1.0
 pytest-asyncio==1.1.0
-pytest-mock==3.14.1
+pytest-mock==3.15.0
 PyYAML==6.0.2
 types-futures==3.3.8
 types-protobuf==5.29.1.20250403
