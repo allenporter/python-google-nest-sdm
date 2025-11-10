@@ -6,11 +6,11 @@ from google_nest_sdm.webrtc_util import (
     _add_foundation_to_candidates,
     _get_media_direction,
     _update_direction_in_answer,
-    fix_mozilla_sdp_answer,
+    fix_sdp_answer,
 )
 
 
-def test_fix_mozilla_sdp_answer() -> None:
+def test_fix_firefox_sdp_answer() -> None:
     """Test the fix in the SDP for Firefox."""
     firefox_offer_sdp = (
         "v=0\r\n"
@@ -45,7 +45,7 @@ def test_fix_mozilla_sdp_answer() -> None:
         "m=application 9 DTLS/SCTP 5000\r\n"
         "c=IN IP4 0.0.0.0\r\n"
     )
-    expected_answer_sdp = (
+    expected_firefox_answer_sdp = (
         "v=0\r\n"
         "o=- 0 2 IN IP4 127.0.0.1\r\n"
         "m=audio 19305 UDP/TLS/RTP/SAVPF 109\r\n"
@@ -65,6 +65,13 @@ def test_fix_mozilla_sdp_answer() -> None:
         "m=application 9 DTLS/SCTP 5000\r\n"
         "c=IN IP4 0.0.0.0\r\n"
     )
+
+    fixed_sdp = fix_sdp_answer(firefox_offer_sdp, answer_sdp)
+    assert fixed_sdp == expected_firefox_answer_sdp
+
+
+def test_fix_chrome_sdp_answer() -> None:
+    """Test the fix in the SDP for Chrome."""
     chrome_offer_sdp = (
         "v=0\r\n"
         "o=- 6714414228100263102 2 IN IP4 127.0.0.1\r\n"
@@ -77,11 +84,49 @@ def test_fix_mozilla_sdp_answer() -> None:
         "m=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\n"
         "c=IN IP4 0.0.0.0\r\n"
     )
-    fixed_sdp = fix_mozilla_sdp_answer(firefox_offer_sdp, answer_sdp)
-    assert fixed_sdp == expected_answer_sdp
+    answer_sdp = (
+        "v=0\r\n"
+        "o=- 0 2 IN IP4 127.0.0.1\r\n"
+        "m=audio 19305 UDP/TLS/RTP/SAVPF 109\r\n"
+        "c=IN IP4 74.125.247.118\r\n"
+        "a=rtcp:9 IN IP4 0.0.0.0\r\n"
+        "a=candidate: 1 udp 2113939711 2001:4860:4864:4::118 19305 typ host generation 0\r\n"
+        "a=candidate: 1 tcp 2113939710 2001:4860:4864:4::118 19305 typ host tcptype passive generation 0\r\n"
+        "a=candidate: 1 ssltcp 2113939709 2001:4860:4864:4::118 443 typ host generation 0\r\n"
+        "a=candidate: 1 udp 2113932031 74.125.247.118 19305 typ host generation 0\r\n"
+        "a=candidate: 1 tcp 2113932030 74.125.247.118 19305 typ host tcptype passive generation 0\r\n"
+        "a=candidate: 1 ssltcp 2113932029 74.125.247.118 443 typ host generation 0\r\n"
+        "a=sendrecv\r\n"
+        "m=video 9 UDP/TLS/RTP/SAVPF 126 127\r\n"
+        "c=IN IP4 0.0.0.0\r\n"
+        "a=rtcp:9 IN IP4 0.0.0.0\r\n"
+        "a=sendrecv\r\n"
+        "m=application 9 DTLS/SCTP 5000\r\n"
+        "c=IN IP4 0.0.0.0\r\n"
+    )
+    expected_chrome_answer_sdp = (
+        "v=0\r\n"
+        "o=- 0 2 IN IP4 127.0.0.1\r\n"
+        "m=audio 19305 UDP/TLS/RTP/SAVPF 109\r\n"
+        "c=IN IP4 74.125.247.118\r\n"
+        "a=rtcp:9 IN IP4 0.0.0.0\r\n"
+        "a=candidate: 1 udp 2113939711 2001:4860:4864:4::118 19305 typ host generation 0\r\n"
+        "a=candidate: 1 tcp 2113939710 2001:4860:4864:4::118 19305 typ host tcptype passive generation 0\r\n"
+        "a=candidate: 1 ssltcp 2113939709 2001:4860:4864:4::118 443 typ host generation 0\r\n"
+        "a=candidate: 1 udp 2113932031 74.125.247.118 19305 typ host generation 0\r\n"
+        "a=candidate: 1 tcp 2113932030 74.125.247.118 19305 typ host tcptype passive generation 0\r\n"
+        "a=candidate: 1 ssltcp 2113932029 74.125.247.118 443 typ host generation 0\r\n"
+        "a=sendonly\r\n"
+        "m=video 9 UDP/TLS/RTP/SAVPF 126 127\r\n"
+        "c=IN IP4 0.0.0.0\r\n"
+        "a=rtcp:9 IN IP4 0.0.0.0\r\n"
+        "a=sendonly\r\n"
+        "m=application 9 DTLS/SCTP 5000\r\n"
+        "c=IN IP4 0.0.0.0\r\n"
+    )
 
-    fixed_sdp = fix_mozilla_sdp_answer(chrome_offer_sdp, answer_sdp)
-    assert fixed_sdp == answer_sdp
+    fixed_sdp = fix_sdp_answer(chrome_offer_sdp, answer_sdp)
+    assert fixed_sdp == expected_chrome_answer_sdp
 
 
 def test_get_media_direction() -> None:
