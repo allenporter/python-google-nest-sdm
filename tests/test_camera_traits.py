@@ -62,7 +62,7 @@ def test_otional_fields(
 
 
 def test_camera_live_stream_traits(
-    fake_device: Callable[[Dict[str, Any]], Device]
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     raw = {
         "name": "my/device/name",
@@ -89,7 +89,7 @@ def test_camera_live_stream_traits(
 
 
 def test_camera_live_stream_webrtc_protocol(
-    fake_device: Callable[[Dict[str, Any]], Device]
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     raw = {
         "name": "my/device/name",
@@ -106,7 +106,7 @@ def test_camera_live_stream_webrtc_protocol(
 
 
 def test_camera_live_stream_multiple_protocols(
-    fake_device: Callable[[Dict[str, Any]], Device]
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     raw = {
         "name": "my/device/name",
@@ -126,7 +126,7 @@ def test_camera_live_stream_multiple_protocols(
 
 
 def test_camera_live_stream_unknown_protocols(
-    fake_device: Callable[[Dict[str, Any]], Device]
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     raw = {
         "name": "my/device/name",

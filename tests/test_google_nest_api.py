@@ -146,10 +146,13 @@ async def test_client_error(
 ) -> None:
     # No server endpoint registered
     api = await api_client()
-    with patch(
-        "google_nest_sdm.google_nest_api.AbstractAuth._request",
-        side_effect=aiohttp.ClientConnectionError(),
-    ), pytest.raises(ApiException):
+    with (
+        patch(
+            "google_nest_sdm.google_nest_api.AbstractAuth._request",
+            side_effect=aiohttp.ClientConnectionError(),
+        ),
+        pytest.raises(ApiException),
+    ):
         await api.async_get_structures()
 
 
@@ -358,7 +361,9 @@ async def test_get_structure_missing_structures(
                 "status": "INTERNAL",
             },
             ApiException,
-            re.compile(r"Internal Server Error response from API \(500\).*Some error message"),
+            re.compile(
+                r"Internal Server Error response from API \(500\).*Some error message"
+            ),
         ),
         (
             503,

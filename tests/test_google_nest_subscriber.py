@@ -412,7 +412,6 @@ async def test_message_ack_timeout(
     subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
     fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> None:
-
     device_id = device_handler.add_device(
         traits={
             "sdm.devices.traits.Connectivity": {

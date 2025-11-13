@@ -18,7 +18,7 @@ def test_doorbell_chime(fake_device: Callable[[Dict[str, Any]], Device]) -> None
 
 
 def test_doorbell_chime_trait_hack(
-    fake_device: Callable[[Dict[str, Any]], Device]
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     """Adds the DoorbellChime trait even when missing from the API to fix an API bug."""
     device = fake_device(
@@ -33,7 +33,7 @@ def test_doorbell_chime_trait_hack(
 
 
 def test_doorbell_chime_trait_hack_empty_traits(
-    fake_device: Callable[[Dict[str, Any]], Device]
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     """Adds the DoorbellChime trait even when missing from the API to fix an API bug."""
     device = fake_device(
@@ -47,7 +47,7 @@ def test_doorbell_chime_trait_hack_empty_traits(
 
 
 def test_doorbell_chime_trait_hack_not_applied(
-    fake_device: Callable[[Dict[str, Any]], Device]
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     """The doorbell chime trait hack is not applied for other types."""
     device = fake_device(

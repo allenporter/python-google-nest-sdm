@@ -180,9 +180,9 @@ class SubscriberClient:
         _LOGGER.debug("Sending streaming pull request for %s", self._subscription_name)
         try:
             async with asyncio.timeout(STREAMING_PULL_TIMEOUT_SECONDS):
-                stream: AsyncIterable[pubsub_v1.types.StreamingPullResponse] = (
-                    await client.streaming_pull(requests=req_gen)
-                )
+                stream: AsyncIterable[
+                    pubsub_v1.types.StreamingPullResponse
+                ] = await client.streaming_pull(requests=req_gen)
         except asyncio.TimeoutError as err:
             _LOGGER.debug("Timeout in streaming_pull %s", err)
             DIAGNOSTICS.increment("streaming_pull.timeout")

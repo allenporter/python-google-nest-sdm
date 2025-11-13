@@ -34,7 +34,7 @@ def test_thermostat_eco_traits(fake_device: Callable[[Dict[str, Any]], Device]) 
 
 
 def test_thermostat_hvac_traits(
-    fake_device: Callable[[Dict[str, Any]], Device]
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     device = fake_device(
         {
@@ -52,7 +52,7 @@ def test_thermostat_hvac_traits(
 
 
 def test_thermostat_mode_traits(
-    fake_device: Callable[[Dict[str, Any]], Device]
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     device = fake_device(
         {
@@ -72,7 +72,7 @@ def test_thermostat_mode_traits(
 
 
 def test_thermostat_temperature_setpoint_traits(
-    fake_device: Callable[[Dict[str, Any]], Device]
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     device = fake_device(
         {
@@ -114,7 +114,7 @@ def test_thermostat_temperature_setpoint_optional_fields(
 
 
 def test_thermostat_multiple_traits(
-    fake_device: Callable[[Dict[str, Any]], Device]
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     device = fake_device(
         {

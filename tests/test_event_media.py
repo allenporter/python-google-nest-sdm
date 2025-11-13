@@ -196,7 +196,7 @@ async def mock_device(
 ) -> Device:
     api = await api_client()
     devices = await api.async_get_devices()
-    for device in devices: 
+    for device in devices:
         if device.name == device_id:
             return device
     raise ValueError("Invalid test state, couldn't find device.")
@@ -1448,9 +1448,12 @@ async def test_clip_preview_transcode(
 
         return func
 
-    with patch("google_nest_sdm.transcoder.os.path.exists", new_callable=values), patch(
-        "google_nest_sdm.event_media.InMemoryEventMediaStore.async_load_media",
-        return_value=b"fake-video-thumb-bytes",
+    with (
+        patch("google_nest_sdm.transcoder.os.path.exists", new_callable=values),
+        patch(
+            "google_nest_sdm.event_media.InMemoryEventMediaStore.async_load_media",
+            return_value=b"fake-video-thumb-bytes",
+        ),
     ):
         media = await event_media_manager.get_clip_thumbnail_from_token(
             event.event_token
@@ -1591,11 +1594,12 @@ async def test_event_manager_event_expiration_with_transcode(
             return func
 
         # Cache a clip thumbnail to ensure it is expired later
-        with patch(
-            "google_nest_sdm.transcoder.os.path.exists", new_callable=values
-        ), patch(
-            "google_nest_sdm.event_media.InMemoryEventMediaStore.async_load_media",
-            return_value=b"fake-video-thumb-bytes",
+        with (
+            patch("google_nest_sdm.transcoder.os.path.exists", new_callable=values),
+            patch(
+                "google_nest_sdm.event_media.InMemoryEventMediaStore.async_load_media",
+                return_value=b"fake-video-thumb-bytes",
+            ),
         ):
             media = await event_media_manager.get_clip_thumbnail_from_token(event_token)
             assert media
@@ -1703,7 +1707,6 @@ async def test_unknown_event_type(device: Device) -> None:
     assert event_token.event_id == "CiUA2vuxr_zoChpekrBmo..."
     assert event.event_type == "sdm.devices.events.DoorbellChime.Chime"
     assert event.timestamp.isoformat(timespec="seconds") == "2021-12-23T06:35:36+00:00"
-
 
 
 @pytest.mark.parametrize("device_traits", [IMAGE_DOORBELL_TRAITS])

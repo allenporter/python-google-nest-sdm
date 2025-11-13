@@ -23,7 +23,6 @@ DEVICE_ACCESS_PROJECT_ID = "device-access-project-id"
 def mock_admin_client(
     auth_client: Callable[[], Awaitable[AbstractAuth]],
 ) -> Callable[[], Awaitable[AdminClient]]:
-
     async def _make_admin_client() -> AdminClient:
         mock_auth = await auth_client()
         return AdminClient(mock_auth, GOOGLE_CLOUD_CONSOLE_PROJECT_ID)
@@ -532,7 +531,6 @@ async def test_list_eligible_subscriptions(
     ]
 
 
-
 async def test_set_topic_iam_policy(
     app: aiohttp.web.Application,
     admin_client: Callable[[], Awaitable[AdminClient]],
@@ -545,7 +543,8 @@ async def test_set_topic_iam_policy(
         [{}],
     )
     app.router.add_post(
-        f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/topics/topic-name:setIamPolicy", handler
+        f"/projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/topics/topic-name:setIamPolicy",
+        handler,
     )
 
     client = await admin_client()
@@ -554,4 +553,8 @@ async def test_set_topic_iam_policy(
         {"bindings": [{"role": "roles/pubsub.publisher", "members": ["user:foo"]}]},
     )
 
-    assert recorder.request == {"policy": {"bindings": [{"role": "roles/pubsub.publisher", "members": ["user:foo"]}]}}
+    assert recorder.request == {
+        "policy": {
+            "bindings": [{"role": "roles/pubsub.publisher", "members": ["user:foo"]}]
+        }
+    }
