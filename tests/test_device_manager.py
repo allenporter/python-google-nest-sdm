@@ -14,7 +14,7 @@ from .conftest import EventCallback
 
 @pytest.fixture
 def event_message_with_time(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> Callable[[str, str], EventMessage]:
     def make_event(timestamp: str, status: str) -> EventMessage:
         return fake_event_message(

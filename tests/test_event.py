@@ -18,7 +18,7 @@ from google_nest_sdm.exceptions import DecodeException
 
 
 def test_camera_sound_event(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> None:
     event = fake_event_message(
         {
@@ -53,7 +53,7 @@ def test_camera_sound_event(
 
 
 def test_camera_person_event(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> None:
     event = fake_event_message(
         {
@@ -86,7 +86,7 @@ def test_camera_person_event(
 
 
 def test_camera_motion_event(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> None:
     event = fake_event_message(
         {
@@ -119,7 +119,7 @@ def test_camera_motion_event(
 
 
 def test_doorbell_chime_event(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> None:
     event = fake_event_message(
         {
@@ -180,7 +180,7 @@ def test_relation(fake_event_message: Callable[[Dict[str, Any]], EventMessage]) 
 
 
 def test_camera_clip_preview_event(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> None:
     event = fake_event_message(
         {
@@ -221,7 +221,7 @@ def test_camera_clip_preview_event(
 
 
 def test_event_serialization(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> None:
     event = fake_event_message(
         {
@@ -275,7 +275,7 @@ def test_event_serialization(
 
 
 def test_update_from_events(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> None:
     event = fake_event_message(
         {
@@ -381,7 +381,7 @@ def test_decode_token_failure_dict() -> None:
 
 
 def test_event_zone(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> None:
     event = fake_event_message(
         {
@@ -416,7 +416,7 @@ def test_event_zone(
 
 
 def test_unknown_event_type(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> None:
     """Test at event published with a type that is not recognized."""
     event = fake_event_message(
@@ -444,7 +444,7 @@ def test_unknown_event_type(
 
 
 def test_event_message_repr(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> None:
     """Test at event published with a type that is not recognized."""
     event = fake_event_message(
@@ -471,9 +471,8 @@ def test_event_message_repr(
     assert "CameraMotionEvent(" in repr(motion)
 
 
-
 def test_missing_preview_url(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage]
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> None:
     with pytest.raises(ValueError, match="EventMessage has invalid value"):
         fake_event_message(

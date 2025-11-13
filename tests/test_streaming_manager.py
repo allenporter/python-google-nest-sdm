@@ -156,7 +156,6 @@ def mock_streaming_manager_factory(
     messages_received: list[Message],
     callback_exception: Exception | None,
 ) -> Generator[Callable[[], Awaitable[StreamingManager]], None, None]:
-
     async def create() -> StreamingManager:
         auth = await auth_client()
 

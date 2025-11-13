@@ -61,7 +61,7 @@ def test_no_parent_relations(fake_device: Callable[[Dict[str, Any]], Device]) ->
 
 
 def test_empty_parent_relations(
-    fake_device: Callable[[Dict[str, Any]], Device]
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     device = fake_device(
         {
@@ -74,7 +74,7 @@ def test_empty_parent_relations(
 
 
 def test_invalid_parent_relations(
-    fake_device: Callable[[Dict[str, Any]], Device]
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     """Invalid parentRelations should be ignored."""
     device = fake_device(
@@ -119,7 +119,7 @@ def test_parent_relation(fake_device: Callable[[Dict[str, Any]], Device]) -> Non
 
 
 def test_multiple_parent_relations(
-    fake_device: Callable[[Dict[str, Any]], Device]
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     device = fake_device(
         {

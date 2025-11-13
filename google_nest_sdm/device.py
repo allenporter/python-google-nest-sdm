@@ -269,7 +269,7 @@ class Device(TraitTypes):
 
     async def async_handle_event(self, event_message: EventMessage) -> None:
         """Process an event from the pubsub subscriber.
-        
+
         This will invoke any directly registered callbacks (before fetching media)
         as well as any callbacks registered with the event media manager that
         fire post-media.

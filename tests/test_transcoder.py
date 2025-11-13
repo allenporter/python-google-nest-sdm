@@ -45,9 +45,12 @@ async def test_transcoder_failure(tmp_path: str) -> None:
     t = Transcoder("/bin/false", path_prefix=tmp_path)
     with open(f"{tmp_path}/in_file.mp4", mode="w") as f:
         f.write("some-input")
-    with patch(
-        "google_nest_sdm.transcoder.asyncio.create_subprocess_shell"
-    ) as mock_shell, pytest.raises(TranscodeException):
+    with (
+        patch(
+            "google_nest_sdm.transcoder.asyncio.create_subprocess_shell"
+        ) as mock_shell,
+        pytest.raises(TranscodeException),
+    ):
         process_mock = Mock()
         future: asyncio.Future = asyncio.Future()
         future.set_result(("", ""))

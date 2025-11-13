@@ -139,7 +139,6 @@ class EventToken:
 
 
 class EventImageTypeSerializationStrategy(SerializationStrategy):
-
     def serialize(self, value: EventImageContentType) -> str:
         return value.content_type
 

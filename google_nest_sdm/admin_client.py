@@ -60,14 +60,13 @@ class EligibleSubscriptions:
 
     subscription_names: list[str] = field(default_factory=list)
 
+
 # Policy that gives Device Access Console permission to publish to a topic
 DEFAULT_TOPIC_IAM_POLICY = {
     "bindings": [
         {
-            "members": [
-                "group:sdm-publisher@googlegroups.com"
-            ],
-            "role": "roles/pubsub.publisher"
+            "members": ["group:sdm-publisher@googlegroups.com"],
+            "role": "roles/pubsub.publisher",
         }
     ]
 }
@@ -157,15 +156,13 @@ class AdminClient:
         validate_topic_name(topic_name)
         return await self._auth.get_json(topic_name)
 
-    async def set_topic_iam_policy(self, topic_name: str, policy: dict[str, Any]) -> None:
+    async def set_topic_iam_policy(
+        self, topic_name: str, policy: dict[str, Any]
+    ) -> None:
         """Create a pubsub topic for the project."""
         validate_topic_name(topic_name)
         path = f"{topic_name}:setIamPolicy"
-        await self._auth.post(
-            path,
-            json={"policy":policy}
-        )
-
+        await self._auth.post(path, json={"policy": policy})
 
     async def create_subscription(
         self, topic_name: str, subscription_name: str
