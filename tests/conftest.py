@@ -224,7 +224,7 @@ class DeviceHandler:
         self,
         device_type: str = "sdm.devices.types.device-type1",
         traits: dict[str, Any] = {},
-        parentRelations: list[dict[str, Any]] = [],
+        parent_relations: list[dict[str, Any]] = [],
     ) -> str:
         """Add a fake device reply."""
         uid = uuid.uuid4().hex
@@ -233,7 +233,7 @@ class DeviceHandler:
             "name": device_id,
             "type": device_type,
             "traits": traits,
-            "parentRelations": parentRelations,
+            "parentRelations": parent_relations,
         }
         return device_id
 

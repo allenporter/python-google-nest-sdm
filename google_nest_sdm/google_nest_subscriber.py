@@ -169,14 +169,8 @@ class GoogleNestSubscriber:
 
     async def _async_create_device_manager(self) -> DeviceManager:
         """Create a DeviceManager, populated with initial state."""
-        device_manager = DeviceManager(self._cache_policy)
-        structures = await self._api.async_get_structures()
-        for structure in structures:
-            device_manager.add_structure(structure)
-        # Subscriber starts after a device fetch
-        devices = await self._api.async_get_devices()
-        for device in devices:
-            device_manager.add_device(device)
+        device_manager = DeviceManager(self._api, self._cache_policy)
+        await device_manager.async_refresh()
         if self._callback:
             device_manager.set_update_callback(self._callback)
         return device_manager
@@ -211,7 +205,7 @@ class GoogleNestSubscriber:
                     "Ignoring event with invalid update traits; Refreshing devices: %s",
                     event.resource_update_traits,
                 )
-                await _hack_refresh_devices(self._api, device_manager)
+                await _hack_refresh_devices(device_manager)
             else:
                 await device_manager.async_handle_event(event)
 
@@ -235,17 +229,13 @@ def _is_invalid_thermostat_trait_update(event: EventMessage) -> bool:
     return False
 
 
-async def _hack_refresh_devices(
-    api: GoogleNestAPI, device_manager: DeviceManager
-) -> None:
+async def _hack_refresh_devices(device_manager: DeviceManager) -> None:
     """Update the device manager with refreshed devices from the API."""
     DIAGNOSTICS.increment("invalid-thermostat-update")
     try:
-        devices = await api.async_get_devices()
+        await device_manager.async_refresh()
     except ApiException:
         DIAGNOSTICS.increment("invalid-thermostat-update-refresh-failure")
         _LOGGER.debug("Failed to refresh devices after invalid message")
     else:
         DIAGNOSTICS.increment("invalid-thermostat-update-refresh-success")
-        for device in devices:
-            device_manager.add_device(device)
