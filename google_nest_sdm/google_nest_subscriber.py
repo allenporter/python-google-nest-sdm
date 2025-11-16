@@ -157,11 +157,6 @@ class GoogleNestSubscriber:
         )
         await stream.start()
 
-        device_manager = await self.async_get_device_manager()
-        self._refresh_task = asyncio.create_task(
-            self._async_run_refresh(device_manager)
-        )
-
         def stop_subscription() -> None:
             if self._refresh_task:
                 self._refresh_task.cancel()
@@ -180,7 +175,12 @@ class GoogleNestSubscriber:
             self._device_manager_task = asyncio.create_task(
                 self._async_create_device_manager()
             )
-        return await self._device_manager_task
+        device_manager = await self._device_manager_task
+        if not self._refresh_task:
+            self._refresh_task = asyncio.create_task(
+                self._async_run_refresh(device_manager)
+            )
+        return device_manager
 
     async def _async_create_device_manager(self) -> DeviceManager:
         """Create a DeviceManager, populated with initial state."""
