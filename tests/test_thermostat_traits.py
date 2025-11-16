@@ -1,6 +1,6 @@
 """Tests for thermostat traits."""
 
-from typing import Any, Awaitable, Callable, Dict
+from typing import Any, Callable, Dict
 
 import aiohttp
 import pytest

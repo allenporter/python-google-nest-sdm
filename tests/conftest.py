@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import uuid
-from http import HTTPStatus
 from abc import ABC
 from typing import (
     Any,
@@ -85,6 +84,7 @@ def mock_api_client(
     auth_client: Callable[[], Awaitable[AbstractAuth]],
 ) -> Callable[[], Awaitable[google_nest_api.GoogleNestAPI]]:
     """Fixture to provide an API client to avoid freezing the http router."""
+
     async def make_api() -> google_nest_api.GoogleNestAPI:
         auth = await auth_client()
         return google_nest_api.GoogleNestAPI(auth, project_id)
@@ -93,7 +93,9 @@ def mock_api_client(
 
 
 @pytest.fixture(name="api")
-async def api_fixture(api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]]) -> google_nest_api.GoogleNestAPI:
+async def api_fixture(
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> google_nest_api.GoogleNestAPI:
     """Fixture to provide an API client."""
     return await api_client()
 
@@ -242,7 +244,6 @@ class DeviceHandler:
         if device_id not in self.device_commands:
             self.device_commands[device_id] = []
         self.device_commands[device_id].extend(responses)
-
 
     def get_response(self, request: aiohttp.web.Request) -> dict[str, Any] | None:
         """Return devices API response."""
