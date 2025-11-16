@@ -7,14 +7,18 @@ from typing import Awaitable, Callable, Dict
 from .device import Device, ParentRelation
 from .event import EventMessage, RelationUpdate
 from .event_media import CachePolicy
+from .google_nest_api import GoogleNestAPI
 from .structure import Structure
 
 
 class DeviceManager:
     """DeviceManager holds current state of all devices."""
 
-    def __init__(self, cache_policy: CachePolicy | None = None) -> None:
+    def __init__(
+        self, api: GoogleNestAPI, cache_policy: CachePolicy | None = None
+    ) -> None:
         """Initialize DeviceManager."""
+        self._api = api
         self._devices: Dict[str, Device] = {}
         self._structures: Dict[str, Structure] = {}
         self._cache_policy = cache_policy if cache_policy else CachePolicy()
@@ -29,20 +33,6 @@ class DeviceManager:
     def structures(self) -> Dict[str, Structure]:
         """Return current state of structures."""
         return self._structures
-
-    def add_device(self, device: Device) -> None:
-        """Track the specified device."""
-        assert device.name
-        self._devices[device.name] = device
-        # Share a single cache policy across all devices
-        device.event_media_manager.cache_policy = self._cache_policy
-        if self._callback:
-            device.event_media_manager.set_update_callback(self._callback)
-
-    def add_structure(self, structure: Structure) -> None:
-        """Track the specified device."""
-        assert structure.name
-        self._structures[structure.name] = structure
 
     @property
     def cache_policy(self) -> CachePolicy:
@@ -103,3 +93,42 @@ class DeviceManager:
                     }
                 )
             )
+
+    async def async_refresh(self) -> None:
+        """Refresh devices and structures from the API."""
+        # Refresh structures
+        structures = await self._api.async_get_structures()
+        new_structures = {
+            structure.name: structure for structure in structures if structure.name
+        }
+        for structure_id, structure in new_structures.items():
+            self._add_structure(structure)
+        removed_structure_ids = self._structures.keys() - new_structures.keys()
+        for structure_id in removed_structure_ids:
+            del self._structures[structure_id]
+
+        # Refresh devices
+        devices = await self._api.async_get_devices()
+        new_devices = {device.name: device for device in devices if device.name}
+        # Add/update devices
+        for device_id, device in new_devices.items():
+            self._add_device(device)
+
+        # Remove devices that no longer exist
+        removed_ids = self._devices.keys() - new_devices.keys()
+        for device_id in removed_ids:
+            del self._devices[device_id]
+
+    def _add_device(self, device: Device) -> None:
+        """Track the specified device."""
+        assert device.name
+        self._devices[device.name] = device
+        # Share a single cache policy across all devices
+        device.event_media_manager.cache_policy = self._cache_policy
+        if self._callback:
+            device.event_media_manager.set_update_callback(self._callback)
+
+    def _add_structure(self, structure: Structure) -> None:
+        """Track the specified device."""
+        assert structure.name
+        self._structures[structure.name] = structure

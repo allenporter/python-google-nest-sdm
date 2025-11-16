@@ -3,26 +3,36 @@ from typing import Any, Callable, Dict
 
 import pytest
 
+from google_nest_sdm.google_nest_api import GoogleNestAPI
 from google_nest_sdm.device import Device
 from google_nest_sdm.device_manager import DeviceManager
 from google_nest_sdm.device_traits import ConnectivityTrait
 from google_nest_sdm.event import EventMessage
-from google_nest_sdm.structure import Structure
 
-from .conftest import EventCallback
+from .conftest import DeviceHandler, EventCallback, StructureHandler
+
+
+@pytest.fixture(name="device_manager")
+async def device_manager_fixture(
+    device_handler: DeviceHandler,
+    structure_handler: StructureHandler,
+    api: GoogleNestAPI,
+) -> DeviceManager:
+    """Create a DeviceManager fixture."""
+    return DeviceManager(api)
 
 
 @pytest.fixture
 def event_message_with_time(
     fake_event_message: Callable[[Dict[str, Any]], EventMessage],
-) -> Callable[[str, str], EventMessage]:
-    def make_event(timestamp: str, status: str) -> EventMessage:
+) -> Callable[[str, str, str], EventMessage]:
+    def make_event(device_id: str, timestamp: str, status: str) -> EventMessage:
         return fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": timestamp,
                 "resourceUpdate": {
-                    "name": "my/device/name1",
+                    "name": device_id,
                     "traits": {
                         "sdm.devices.traits.Connectivity": {
                             "status": status,
@@ -36,80 +46,47 @@ def event_message_with_time(
     return make_event
 
 
-def test_add_device(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
-    mgr = DeviceManager()
-    mgr.add_device(
-        fake_device(
-            {
-                "name": "my/device/name1",
-                "type": "sdm.devices.types.SomeDeviceType",
-            }
-        )
-    )
-    assert 1 == len(mgr.devices)
-    mgr.add_device(
-        fake_device(
-            {
-                "name": "my/device/name2",
-                "type": "sdm.devices.types.SomeDeviceType",
-            }
-        )
-    )
-    assert 2 == len(mgr.devices)
+async def test_add_device(
+    device_handler: DeviceHandler,
+    structure_handler: StructureHandler,
+    device_manager: DeviceManager,
+) -> None:
+    structure_handler.add_structure()
+    device_handler.add_device(device_type="sdm.devices.types.device-type1")
+    device_handler.add_device(device_type="sdm.devices.types.device-type2")
 
-
-def test_duplicate_device(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
-    mgr = DeviceManager()
-    mgr.add_device(
-        fake_device(
-            {
-                "name": "my/device/name1",
-                "type": "sdm.devices.types.SomeDeviceType",
-            }
-        )
-    )
-    assert 1 == len(mgr.devices)
-    mgr.add_device(
-        fake_device(
-            {
-                "name": "my/device/name1",
-                "type": "sdm.devices.types.SomeDeviceType",
-            }
-        )
-    )
-    assert 1 == len(mgr.devices)
+    await device_manager.async_refresh()
+    assert len(device_manager.devices) == 2
 
 
 async def test_update_traits(
     fake_device: Callable[[Dict[str, Any]], Device],
     fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    device_handler: DeviceHandler,
+    device_manager: DeviceManager,
 ) -> None:
-    mgr = DeviceManager()
-    mgr.add_device(
-        fake_device(
-            {
-                "name": "my/device/name1",
-                "type": "sdm.devices.types.SomeDeviceType",
-                "traits": {
-                    "sdm.devices.traits.Connectivity": {
-                        "status": "OFFLINE",
-                    },
-                },
-            }
-        )
+    device_id = device_handler.add_device(
+        device_type="sdm.devices.types.device-type1",
+        traits={
+            "sdm.devices.traits.Connectivity": {
+                "status": "OFFLINE",
+            },
+        },
     )
-    assert 1 == len(mgr.devices)
-    device = mgr.devices["my/device/name1"]
+    await device_manager.async_refresh()
+
+    assert len(device_manager.devices) == 1
+    device = device_manager.devices[device_id]
     assert "sdm.devices.traits.Connectivity" in device.traits
     trait = device.traits["sdm.devices.traits.Connectivity"]
     assert "OFFLINE" == trait.status
-    await mgr.async_handle_event(
+    await device_manager.async_handle_event(
         fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
                 "resourceUpdate": {
-                    "name": "my/device/name1",
+                    "name": device_id,
                     "traits": {
                         "sdm.devices.traits.Connectivity": {
                             "status": "ONLINE",
@@ -120,7 +97,7 @@ async def test_update_traits(
             }
         )
     )
-    device = mgr.devices["my/device/name1"]
+    device = device_manager.devices[device_id]
     assert "sdm.devices.traits.Connectivity" in device.traits
     trait = device.traits["sdm.devices.traits.Connectivity"]
     assert "ONLINE" == trait.status
@@ -129,95 +106,89 @@ async def test_update_traits(
 async def test_device_created_in_structure(
     fake_device: Callable[[Dict[str, Any]], Device],
     fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    device_handler: DeviceHandler,
+    structure_handler: StructureHandler,
+    device_manager: DeviceManager,
 ) -> None:
-    mgr = DeviceManager()
-    mgr.add_device(
-        fake_device(
-            {
-                "name": "enterprises/project-id/devices/device-id",
-                "type": "sdm.devices.types.SomeDeviceType",
-                "parentRelations": [],
-            }
-        )
+    device_id = device_handler.add_device(
+        device_type="sdm.devices.types.SomeDeviceType",
+        parent_relations=[],
     )
-    assert 1 == len(mgr.devices)
-    device = mgr.devices["enterprises/project-id/devices/device-id"]
-    assert 0 == len(device.parent_relations)
+    await device_manager.async_refresh()
+    assert len(device_manager.devices) == 1
+    device = device_manager.devices[device_id]
+    assert len(device.parent_relations) == 0
 
-    mgr.add_structure(
-        Structure.MakeStructure(
-            {
-                "name": "enterprises/project-id/structures/structure-id",
-                "traits": {
-                    "sdm.structures.traits.Info": {
-                        "customName": "Structure Name",
-                    },
-                },
-            }
-        )
+    structure_id = structure_handler.add_structure(
+        traits={
+            "sdm.structures.traits.Info": {
+                "customName": "Structure Name",
+            },
+        }
     )
-    assert 1 == len(mgr.structures)
-    structure = mgr.structures["enterprises/project-id/structures/structure-id"]
+    await device_manager.async_refresh()
+
+    assert len(device_manager.structures) == 1
+    structure = device_manager.structures[structure_id]
     assert "sdm.structures.traits.Info" in structure.traits
     trait = structure.traits["sdm.structures.traits.Info"]
     assert "Structure Name" == trait.custom_name
 
-    await mgr.async_handle_event(
+    await device_manager.async_handle_event(
         fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
                 "relationUpdate": {
                     "type": "CREATED",
-                    "subject": "enterprises/project-id/structures/structure-id",
-                    "object": "enterprises/project-id/devices/device-id",
+                    "subject": structure_id,
+                    "object": device_id,
                 },
                 "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
             }
         )
     )
-    device = mgr.devices["enterprises/project-id/devices/device-id"]
-    assert {
-        "enterprises/project-id/structures/structure-id": "Structure Name",
-    } == device.parent_relations
+    device = device_manager.devices[device_id]
+    assert device.parent_relations == {
+        structure_id: "Structure Name",
+    }
 
-    await mgr.async_handle_event(
+    await device_manager.async_handle_event(
         fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
                 "relationUpdate": {
                     "type": "DELETED",
-                    "subject": "enterprises/project-id/structures/structure-id",
-                    "object": "enterprises/project-id/devices/device-id",
+                    "subject": structure_id,
+                    "object": device_id,
                 },
                 "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
             }
         )
     )
-    device = mgr.devices["enterprises/project-id/devices/device-id"]
-    assert 0 == len(device.parent_relations)
+    device = device_manager.devices[device_id]
+    assert len(device.parent_relations) == 0
 
 
 async def test_device_event_callback(
     fake_device: Callable[[Dict[str, Any]], Device],
     fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    device_handler: DeviceHandler,
+    device_manager: DeviceManager,
 ) -> None:
-    device = fake_device(
-        {
-            "name": "my/device/name1",
-            "type": "sdm.devices.types.SomeDeviceType",
-            "traits": {
-                "sdm.devices.traits.Connectivity": {
-                    "status": "OFFLINE",
-                },
-            },
-        }
+    device_id = device_handler.add_device(
+        device_type="sdm.devices.types.SomeDeviceType",
+        traits={
+            "sdm.devices.traits.Connectivity": {
+                "status": "OFFLINE",
+            }
+        },
+        parent_relations=[],
     )
-    mgr = DeviceManager()
-    mgr.add_device(device)
-    assert 1 == len(mgr.devices)
-    device = mgr.devices["my/device/name1"]
+    await device_manager.async_refresh()
+    assert len(device_manager.devices) == 1
+    device = device_manager.devices[device_id]
     assert "sdm.devices.traits.Connectivity" in device.traits
     trait = device.traits["sdm.devices.traits.Connectivity"]
     assert "OFFLINE" == trait.status
@@ -226,13 +197,13 @@ async def test_device_event_callback(
     unregister = device.add_event_callback(callback.async_handle_event)
     assert not callback.invoked
 
-    await mgr.async_handle_event(
+    await device_manager.async_handle_event(
         fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
                 "resourceUpdate": {
-                    "name": "my/device/name1",
+                    "name": device_id,
                     "traits": {
                         "sdm.devices.traits.Connectivity": {
                             "status": "ONLINE",
@@ -243,7 +214,7 @@ async def test_device_event_callback(
             }
         )
     )
-    device = mgr.devices["my/device/name1"]
+    device = device_manager.devices[device_id]
     assert "sdm.devices.traits.Connectivity" in device.traits
     trait = device.traits["sdm.devices.traits.Connectivity"]
     assert "ONLINE" == trait.status
@@ -251,7 +222,7 @@ async def test_device_event_callback(
 
     # Test event not for this device
     callback.invoked = False  # type: ignore[unreachable]
-    await mgr.async_handle_event(
+    await device_manager.async_handle_event(
         fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
@@ -273,13 +244,13 @@ async def test_device_event_callback(
     # Unregister the callback.  The event is still processed, but the callback
     # is not invoked
     unregister()
-    await mgr.async_handle_event(
+    await device_manager.async_handle_event(
         fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
                 "resourceUpdate": {
-                    "name": "my/device/name1",
+                    "name": device_id,
                     "traits": {
                         "sdm.devices.traits.Connectivity": {
                             "status": "OFFLINE",
@@ -290,7 +261,7 @@ async def test_device_event_callback(
             }
         )
     )
-    device = mgr.devices["my/device/name1"]
+    device = device_manager.devices[device_id]
     assert "sdm.devices.traits.Connectivity" in device.traits
     trait = device.traits["sdm.devices.traits.Connectivity"]
     assert "OFFLINE" == trait.status
@@ -300,22 +271,20 @@ async def test_device_event_callback(
 async def test_device_update_listener(
     fake_device: Callable[[Dict[str, Any]], Device],
     fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    device_handler: DeviceHandler,
+    device_manager: DeviceManager,
 ) -> None:
-    device = fake_device(
-        {
-            "name": "my/device/name1",
-            "type": "sdm.devices.types.SomeDeviceType",
-            "traits": {
-                "sdm.devices.traits.Connectivity": {
-                    "status": "OFFLINE",
-                },
+    device_id = device_handler.add_device(
+        device_type="sdm.devices.types.SomeDeviceType",
+        traits={
+            "sdm.devices.traits.Connectivity": {
+                "status": "OFFLINE",
             },
-        }
+        },
     )
-    mgr = DeviceManager()
-    mgr.add_device(device)
-    assert 1 == len(mgr.devices)
-    device = mgr.devices["my/device/name1"]
+    await device_manager.async_refresh()
+    assert len(device_manager.devices) == 1
+    device = device_manager.devices[device_id]
     assert "sdm.devices.traits.Connectivity" in device.traits
     trait = device.traits["sdm.devices.traits.Connectivity"]
     assert "OFFLINE" == trait.status
@@ -331,13 +300,13 @@ async def test_device_update_listener(
     unregister = device.add_update_listener(callback.async_handle_event)
     assert not callback.invoked
 
-    await mgr.async_handle_event(
+    await device_manager.async_handle_event(
         fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
                 "resourceUpdate": {
-                    "name": "my/device/name1",
+                    "name": device_id,
                     "traits": {
                         "sdm.devices.traits.Connectivity": {
                             "status": "ONLINE",
@@ -348,7 +317,7 @@ async def test_device_update_listener(
             }
         )
     )
-    device = mgr.devices["my/device/name1"]
+    device = device_manager.devices[device_id]
     assert "sdm.devices.traits.Connectivity" in device.traits
     trait = device.traits["sdm.devices.traits.Connectivity"]
     assert "ONLINE" == trait.status
@@ -356,7 +325,7 @@ async def test_device_update_listener(
 
     # Test event not for this device
     callback.invoked = False  # type: ignore[unreachable]
-    await mgr.async_handle_event(
+    await device_manager.async_handle_event(
         fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
@@ -378,13 +347,13 @@ async def test_device_update_listener(
     # Unregister the callback.  The event is still processed, but the callback
     # is not invoked
     unregister()
-    await mgr.async_handle_event(
+    await device_manager.async_handle_event(
         fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
                 "resourceUpdate": {
-                    "name": "my/device/name1",
+                    "name": device_id,
                     "traits": {
                         "sdm.devices.traits.Connectivity": {
                             "status": "OFFLINE",
@@ -395,7 +364,7 @@ async def test_device_update_listener(
             }
         )
     )
-    device = mgr.devices["my/device/name1"]
+    device = device_manager.devices[device_id]
     assert "sdm.devices.traits.Connectivity" in device.traits
     trait = device.traits["sdm.devices.traits.Connectivity"]
     assert "OFFLINE" == trait.status
@@ -403,35 +372,32 @@ async def test_device_update_listener(
 
 
 async def test_update_trait_with_field_alias(
-    fake_device: Callable[[Dict[str, Any]], Device],
     fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    device_handler: DeviceHandler,
+    device_manager: DeviceManager,
 ) -> None:
     """Test updating a trait that has fields with field aliases."""
-    device = fake_device(
-        {
-            "name": "my/device/name1",
-            "type": "sdm.devices.types.SomeDeviceType",
-            "traits": {
-                "sdm.devices.traits.ThermostatHvac": {
-                    "status": "HEATING",
-                },
-                "sdm.devices.traits.ThermostatMode": {
-                    "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
-                    "mode": "HEAT",
-                },
-                "sdm.devices.traits.Temperature": {
-                    "ambientTemperatureCelsius": 20.1,
-                },
-                "sdm.devices.traits.ThermostatTemperatureSetpoint": {
-                    "heatCelsius": 23.0,
-                },
+    device_id = device_handler.add_device(
+        device_type="sdm.devices.types.SomeDeviceType",
+        traits={
+            "sdm.devices.traits.ThermostatHvac": {
+                "status": "HEATING",
             },
-        }
+            "sdm.devices.traits.ThermostatMode": {
+                "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
+                "mode": "HEAT",
+            },
+            "sdm.devices.traits.Temperature": {
+                "ambientTemperatureCelsius": 20.1,
+            },
+            "sdm.devices.traits.ThermostatTemperatureSetpoint": {
+                "heatCelsius": 23.0,
+            },
+        },
     )
-    mgr = DeviceManager()
-    mgr.add_device(device)
-    assert 1 == len(mgr.devices)
-    device = mgr.devices["my/device/name1"]
+    await device_manager.async_refresh()
+    assert len(device_manager.devices) == 1
+    device = device_manager.devices[device_id]
     assert device.thermostat_hvac
     assert device.thermostat_hvac.status == "HEATING"
     assert device.thermostat_mode
@@ -452,13 +418,13 @@ async def test_update_trait_with_field_alias(
     unregister = device.add_update_listener(callback.async_handle_event)
     assert not callback.invoked
 
-    await mgr.async_handle_event(
+    await device_manager.async_handle_event(
         fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
                 "resourceUpdate": {
-                    "name": "my/device/name1",
+                    "name": device_id,
                     "traits": {
                         "sdm.devices.traits.ThermostatMode": {
                             "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
@@ -474,7 +440,7 @@ async def test_update_trait_with_field_alias(
             }
         )
     )
-    device = mgr.devices["my/device/name1"]
+    device = device_manager.devices[device_id]
     assert device.thermostat_hvac
     assert device.thermostat_hvac.status == "HEATING"
     assert device.thermostat_mode
@@ -488,27 +454,23 @@ async def test_update_trait_with_field_alias(
 
 
 async def test_update_trait_ordering(
-    fake_device: Callable[[Dict[str, Any]], Device],
-    event_message_with_time: Callable[[str, str], EventMessage],
+    event_message_with_time: Callable[[str, str, str], EventMessage],
+    device_handler: DeviceHandler,
+    device_manager: DeviceManager,
 ) -> None:
-    mgr = DeviceManager()
-    mgr.add_device(
-        fake_device(
-            {
-                "name": "my/device/name1",
-                "type": "sdm.devices.types.SomeDeviceType",
-                "traits": {
-                    "sdm.devices.traits.Connectivity": {
-                        "status": "OFFLINE",
-                    },
-                },
-            }
-        )
+    device_id = device_handler.add_device(
+        device_type="sdm.devices.types.SomeDeviceType",
+        traits={
+            "sdm.devices.traits.Connectivity": {
+                "status": "OFFLINE",
+            },
+        },
     )
+    await device_manager.async_refresh()
 
     def get_connectivity() -> ConnectivityTrait:
-        assert 1 == len(mgr.devices)
-        device = mgr.devices["my/device/name1"]
+        assert len(device_manager.devices) == 1
+        device = device_manager.devices[device_id]
         assert "sdm.devices.traits.Connectivity" in device.traits
         trait = device.traits["sdm.devices.traits.Connectivity"]
         assert isinstance(trait, ConnectivityTrait)
@@ -516,41 +478,46 @@ async def test_update_trait_ordering(
 
     now = datetime.datetime.now(datetime.timezone.utc)
     assert get_connectivity().status == "OFFLINE"
-    await mgr.async_handle_event(event_message_with_time(now.isoformat(), "ONLINE"))
+    await device_manager.async_handle_event(
+        event_message_with_time(device_id, now.isoformat(), "ONLINE")
+    )
     assert get_connectivity().status == "ONLINE"
     now += datetime.timedelta(seconds=1)
-    await mgr.async_handle_event(event_message_with_time(now.isoformat(), "OFFLINE"))
+    await device_manager.async_handle_event(
+        event_message_with_time(device_id, now.isoformat(), "OFFLINE")
+    )
     assert get_connectivity().status == "OFFLINE"
     # Event in past is ignored
     now -= datetime.timedelta(minutes=1)
-    await mgr.async_handle_event(event_message_with_time(now.isoformat(), "ONLINE"))
+    await device_manager.async_handle_event(
+        event_message_with_time(device_id, now.isoformat(), "ONLINE")
+    )
     assert get_connectivity().status == "OFFLINE"
     # Event in future is applied
     now += datetime.timedelta(hours=1)
-    await mgr.async_handle_event(event_message_with_time(now.isoformat(), "ONLINE"))
+    await device_manager.async_handle_event(
+        event_message_with_time(device_id, now.isoformat(), "ONLINE")
+    )
     assert get_connectivity().status == "ONLINE"
 
 
 async def test_update_trait_with_new_field(
-    fake_device: Callable[[Dict[str, Any]], Device],
     fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    device_handler: DeviceHandler,
+    device_manager: DeviceManager,
 ) -> None:
     """Test ignoring an update for a previously unseen trait."""
-    device = fake_device(
-        {
-            "name": "my/device/name1",
-            "type": "sdm.devices.types.SomeDeviceType",
-            "traits": {
-                "sdm.devices.traits.ThermostatHvac": {
-                    "status": "HEATING",
-                },
+    device_id = device_handler.add_device(
+        device_type="sdm.devices.types.SomeDeviceType",
+        traits={
+            "sdm.devices.traits.ThermostatHvac": {
+                "status": "HEATING",
             },
-        }
+        },
     )
-    mgr = DeviceManager()
-    mgr.add_device(device)
-    assert 1 == len(mgr.devices)
-    device = mgr.devices["my/device/name1"]
+    await device_manager.async_refresh()
+    assert len(device_manager.devices) == 1
+    device = device_manager.devices[device_id]
     assert device.thermostat_hvac
     assert device.thermostat_hvac.status == "HEATING"
     assert not device.temperature
@@ -566,13 +533,13 @@ async def test_update_trait_with_new_field(
     unregister = device.add_update_listener(callback.async_handle_event)
     assert not callback.invoked
 
-    await mgr.async_handle_event(
+    await device_manager.async_handle_event(
         fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
                 "resourceUpdate": {
-                    "name": "my/device/name1",
+                    "name": device_id,
                     "traits": {
                         "sdm.devices.traits.Temperature": {
                             "ambientTemperatureCelsius": 20.1,
@@ -583,7 +550,7 @@ async def test_update_trait_with_new_field(
             }
         )
     )
-    device = mgr.devices["my/device/name1"]
+    device = device_manager.devices[device_id]
     assert device.thermostat_hvac
     assert device.thermostat_hvac.status == "HEATING"
     assert not device.temperature
@@ -603,36 +570,33 @@ async def test_update_trait_with_new_field(
 async def test_device_added_after_callback(
     test_trait: str,
     test_event_trait: str,
-    fake_device: Callable[[Dict[str, Any]], Device],
     fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    device_handler: DeviceHandler,
+    device_manager: DeviceManager,
 ) -> None:
     """Test event callback is registered before the device is added."""
 
     callback = EventCallback()
-    mgr = DeviceManager()
-    mgr.set_update_callback(callback.async_handle_event)
+    device_manager.set_update_callback(callback.async_handle_event)
     assert not callback.invoked
 
-    device = fake_device(
-        {
-            "name": "my/device/name1",
-            "type": "sdm.devices.types.SomeDeviceType",
-            "traits": {
-                test_trait: {},
-                "sdm.devices.traits.CameraEventImage": {},
-            },
-        }
+    device_id = device_handler.add_device(
+        device_type="sdm.devices.types.SomeDeviceType",
+        traits={
+            test_trait: {},
+            "sdm.devices.traits.CameraEventImage": {},
+        },
     )
-    mgr.add_device(device)
-    assert 1 == len(mgr.devices)
+    await device_manager.async_refresh()
+    assert len(device_manager.devices) == 1
 
-    await mgr.async_handle_event(
+    await device_manager.async_handle_event(
         fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
                 "resourceUpdate": {
-                    "name": "my/device/name1",
+                    "name": device_id,
                     "events": {
                         test_event_trait: {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -659,35 +623,32 @@ async def test_device_added_after_callback(
 async def test_publish_without_media(
     test_trait: str,
     test_event_trait: str,
-    fake_device: Callable[[Dict[str, Any]], Device],
     fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    device_handler: DeviceHandler,
+    device_manager: DeviceManager,
 ) -> None:
     """Test publishing an event without any associated event media."""
 
     callback = EventCallback()
-    mgr = DeviceManager()
-    mgr.set_update_callback(callback.async_handle_event)
+    device_manager.set_update_callback(callback.async_handle_event)
     assert not callback.invoked
 
-    device = fake_device(
-        {
-            "name": "my/device/name1",
-            "type": "sdm.devices.types.SomeDeviceType",
-            "traits": {
-                test_trait: {},
-            },
-        }
+    device_id = device_handler.add_device(
+        device_type="sdm.devices.types.SomeDeviceType",
+        traits={
+            test_trait: {},
+        },
     )
-    mgr.add_device(device)
-    assert 1 == len(mgr.devices)
+    await device_manager.async_refresh()
+    assert len(device_manager.devices) == 1
 
-    await mgr.async_handle_event(
+    await device_manager.async_handle_event(
         fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
                 "resourceUpdate": {
-                    "name": "my/device/name1",
+                    "name": device_id,
                     "events": {
                         test_event_trait: {
                             "eventSessionId": "CjY5Y3VKaTZwR3o4Y19YbTVfMF...",
@@ -703,40 +664,36 @@ async def test_publish_without_media(
 
 
 async def test_update_with_new_trait(
-    fake_device: Callable[[Dict[str, Any]], Device],
     fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    device_handler: DeviceHandler,
+    device_manager: DeviceManager,
 ) -> None:
-    mgr = DeviceManager()
-    mgr.add_device(
-        fake_device(
-            {
-                "name": "my/device/name1",
-                "type": "sdm.devices.types.SomeDeviceType",
-                "traits": {
-                    "sdm.devices.traits.ThermostatHvac": {"status": "OFF"},
-                    "sdm.devices.traits.ThermostatMode": {
-                        "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
-                        "mode": "OFF",
-                    },
-                },
-            }
-        )
+    device_id = device_handler.add_device(
+        device_type="sdm.devices.types.SomeDeviceType",
+        traits={
+            "sdm.devices.traits.ThermostatHvac": {"status": "OFF"},
+            "sdm.devices.traits.ThermostatMode": {
+                "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
+                "mode": "OFF",
+            },
+        },
     )
-    assert 1 == len(mgr.devices)
-    device = mgr.devices["my/device/name1"]
+    await device_manager.async_refresh()
+    assert len(device_manager.devices) == 1
+    device = device_manager.devices[device_id]
     assert device.thermostat_hvac
     assert device.thermostat_hvac.status == "OFF"
     assert device.thermostat_mode
     assert device.thermostat_mode.mode == "OFF"
 
     # Heat is enabled
-    await mgr.async_handle_event(
+    await device_manager.async_handle_event(
         fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
                 "resourceUpdate": {
-                    "name": "my/device/name1",
+                    "name": device_id,
                     "traits": {
                         "sdm.devices.traits.ThermostatMode": {
                             "availableModes": ["HEAT", "COOL", "HEATCOOL", "OFF"],
@@ -748,20 +705,20 @@ async def test_update_with_new_trait(
             }
         )
     )
-    device = mgr.devices["my/device/name1"]
+    device = device_manager.devices[device_id]
     assert device.thermostat_hvac
     assert device.thermostat_hvac.status == "OFF"
     assert device.thermostat_mode
     assert device.thermostat_mode.mode == "HEAT"
 
     # Heating has started.
-    await mgr.async_handle_event(
+    await device_manager.async_handle_event(
         fake_event_message(
             {
                 "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
                 "timestamp": "2019-01-01T00:00:01Z",
                 "resourceUpdate": {
-                    "name": "my/device/name1",
+                    "name": device_id,
                     "traits": {
                         "sdm.devices.traits.ThermostatHvac": {
                             "status": "HEATING",
@@ -772,7 +729,7 @@ async def test_update_with_new_trait(
             }
         )
     )
-    device = mgr.devices["my/device/name1"]
+    device = device_manager.devices[device_id]
     assert device.thermostat_hvac
     assert device.thermostat_hvac.status == "HEATING"
     assert device.thermostat_mode
