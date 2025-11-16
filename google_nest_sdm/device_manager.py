@@ -69,7 +69,13 @@ class DeviceManager:
             return
 
         if event_message.relation_update:
+            _LOGGER.debug("Handling relation update: %s", event_message.relation_update)
             self._handle_device_relation(event_message.relation_update)
+            # Also discover any new devices/structures
+            try:
+                await self.async_refresh()
+            except ApiException:
+                _LOGGER.debug("Failed to refresh devices")
             if self._update_callback:
                 await self._update_callback(event_message)
             return
@@ -119,9 +125,11 @@ class DeviceManager:
         }
         for structure in new_structures.values():
             if structure.name not in self._structures:
+                _LOGGER.debug("Adding structure %s", structure.name)
                 self._structures[structure.name] = structure
         removed_structure_ids = old_structure_ids - set(new_structures.keys())
         for structure_id in removed_structure_ids:
+            _LOGGER.debug("Removing structure %s", structure_id)
             del self._structures[structure_id]
 
         # Refresh devices
@@ -129,9 +137,15 @@ class DeviceManager:
         old_device_ids = set(self._devices.keys())
         new_devices = {device.name: device for device in devices if device.name}
         for device in new_devices.values():
-            self._add_device(device)
+            if existing_device := self._devices.get(device.name):
+                existing_device.merge_from_update(device)
+            else:
+                _LOGGER.debug("Adding device %s", device.name)
+                self._add_device(device)
+
         removed_device_ids = old_device_ids - set(new_devices.keys())
         for device_id in removed_device_ids:
+            _LOGGER.debug("Removing device %s", device_id)
             del self._devices[device_id]
 
         if self._change_callback and (
