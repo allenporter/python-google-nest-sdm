@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 import asyncio
 import enum
 import logging
@@ -17,7 +18,6 @@ from .event import EventMessage
 from .event_media import CachePolicy
 from .exceptions import (
     ConfigurationException,
-    ApiException,
 )
 from .google_nest_api import GoogleNestAPI
 from .streaming_manager import StreamingManager, Message
@@ -34,6 +34,9 @@ _LOGGER = logging.getLogger(__name__)
 EXPECTED_SUBSCRIBER_REGEXP = re.compile("projects/.*/subscriptions/.*")
 
 MESSAGE_ACK_TIMEOUT_SECONDS = 30.0
+
+# Detect changes to devices every 12 hours
+BACKGROUND_REFRESH_SECONDS = datetime.timedelta(hours=12).total_seconds()
 
 # Note: Users of non-prod instances will have to manually configure a topic
 TOPIC_FORMAT = "projects/sdm-prod/topics/enterprise-{project_id}"
@@ -111,6 +114,7 @@ class GoogleNestSubscriber:
         self._project_id = project_id
         self._api = GoogleNestAPI(auth, project_id)
         self._device_manager_task: asyncio.Task[DeviceManager] | None = None
+        self._refresh_task: asyncio.Task[None] | None = None
         self._callback: Callable[[EventMessage], Awaitable[None]] | None = None
         self._cache_policy = CachePolicy()
 
@@ -152,7 +156,18 @@ class GoogleNestSubscriber:
             callback=self._async_message_callback_with_timeout,
         )
         await stream.start()
-        return stream.stop
+
+        device_manager = await self.async_get_device_manager()
+        self._refresh_task = asyncio.create_task(
+            self._async_run_refresh(device_manager)
+        )
+
+        def stop_subscription() -> None:
+            if self._refresh_task:
+                self._refresh_task.cancel()
+            stream.stop()
+
+        return stop_subscription
 
     @property
     def cache_policy(self) -> CachePolicy:
@@ -200,42 +215,19 @@ class GoogleNestSubscriber:
             and not self._device_manager_task.exception()
         ):
             device_manager = self._device_manager_task.result()
-            if _is_invalid_thermostat_trait_update(event):
-                _LOGGER.debug(
-                    "Ignoring event with invalid update traits; Refreshing devices: %s",
-                    event.resource_update_traits,
-                )
-                await _hack_refresh_devices(device_manager)
-            else:
-                await device_manager.async_handle_event(event)
+            await device_manager.async_handle_event(event)
 
         process_latency_ms = int((time.time() - recv) * 1000)
         DIAGNOSTICS.elapsed("message_processed", process_latency_ms)
 
-
-def _is_invalid_thermostat_trait_update(event: EventMessage) -> bool:
-    """Return true if this is an invalid thermostat trait update."""
-    if (
-        event.resource_update_traits is not None
-        and (
-            thermostat_mode := event.resource_update_traits.get(
-                "sdm.devices.traits.ThermostatMode"
-            )
-        )
-        and (available_modes := thermostat_mode.get("availableModes")) is not None
-        and available_modes == ["OFF"]
-    ):
-        return True
-    return False
-
-
-async def _hack_refresh_devices(device_manager: DeviceManager) -> None:
-    """Update the device manager with refreshed devices from the API."""
-    DIAGNOSTICS.increment("invalid-thermostat-update")
-    try:
-        await device_manager.async_refresh()
-    except ApiException:
-        DIAGNOSTICS.increment("invalid-thermostat-update-refresh-failure")
-        _LOGGER.debug("Failed to refresh devices after invalid message")
-    else:
-        DIAGNOSTICS.increment("invalid-thermostat-update-refresh-success")
+    async def _async_run_refresh(self, device_manager: DeviceManager) -> None:
+        """Run a background refresh of devices."""
+        while True:
+            try:
+                await asyncio.sleep(BACKGROUND_REFRESH_SECONDS)
+                _LOGGER.debug("Refreshing devices")
+                await device_manager.async_refresh()
+            except asyncio.CancelledError:
+                return
+            except Exception:  # pylint: disable=broad-except-clause
+                _LOGGER.exception("Unexpected error during device refresh")
