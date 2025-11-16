@@ -245,6 +245,10 @@ class DeviceHandler:
             self.device_commands[device_id] = []
         self.device_commands[device_id].extend(responses)
 
+    def clear_devices(self) -> None:
+        """Clear all devices."""
+        self.devices = {}
+
     def get_response(self, request: aiohttp.web.Request) -> dict[str, Any] | None:
         """Return devices API response."""
         if request.path_qs == f"/enterprises/{self.project_id}/devices":
@@ -294,6 +298,10 @@ class StructureHandler:
             "traits": traits,
         }
         return structure_id
+
+    def clear_structures(self) -> None:
+        """Clear all structures."""
+        self.structures = {}
 
     def get_response(self, request: aiohttp.web.Request) -> dict[str, Any] | None:
         """Return structure API response."""

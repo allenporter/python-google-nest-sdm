@@ -734,3 +734,107 @@ async def test_update_with_new_trait(
     assert device.thermostat_hvac.status == "HEATING"
     assert device.thermostat_mode
     assert device.thermostat_mode.mode == "HEAT"
+
+
+class ChangeCallback:
+    """Test callback handler."""
+
+    def __init__(self) -> None:
+        """Initialize MyCallback."""
+        self.invoked = False
+
+    async def async_handle_change(self) -> None:
+        """Handle a change."""
+        self.invoked = True
+
+
+async def test_change_callback_device_added(
+    device_handler: DeviceHandler,
+    device_manager: DeviceManager,
+) -> None:
+    """Test invoking the callback when a device is added."""
+    await device_manager.async_refresh()
+    assert len(device_manager.devices) == 0
+
+    callback = ChangeCallback()
+    device_manager.set_change_callback(callback.async_handle_change)
+    assert not callback.invoked
+
+    device_handler.add_device()
+    await device_manager.async_refresh()
+    assert len(device_manager.devices) == 1
+    assert callback.invoked
+
+
+async def test_change_callback_device_removed(
+    device_handler: DeviceHandler,
+    device_manager: DeviceManager,
+) -> None:
+    """Test invoking the callback when a device is removed."""
+    device_handler.add_device()
+    await device_manager.async_refresh()
+    assert len(device_manager.devices) == 1
+
+    callback = ChangeCallback()
+    device_manager.set_change_callback(callback.async_handle_change)
+    assert not callback.invoked
+
+    device_handler.clear_devices()
+    await device_manager.async_refresh()
+    assert len(device_manager.devices) == 0
+    assert callback.invoked
+
+
+async def test_change_callback_structure_added(
+    structure_handler: StructureHandler,
+    device_manager: DeviceManager,
+) -> None:
+    """Test invoking the callback when a structure is added."""
+    await device_manager.async_refresh()
+    assert len(device_manager.structures) == 0
+
+    callback = ChangeCallback()
+    device_manager.set_change_callback(callback.async_handle_change)
+    assert not callback.invoked
+
+    structure_handler.add_structure()
+    await device_manager.async_refresh()
+    assert len(device_manager.structures) == 1
+    assert callback.invoked
+
+
+async def test_change_callback_structure_removed(
+    structure_handler: StructureHandler,
+    device_manager: DeviceManager,
+) -> None:
+    """Test invoking the callback when a structure is removed."""
+    structure_handler.add_structure()
+    await device_manager.async_refresh()
+    assert len(device_manager.structures) == 1
+
+    callback = ChangeCallback()
+    device_manager.set_change_callback(callback.async_handle_change)
+    assert not callback.invoked
+
+    structure_handler.clear_structures()
+    await device_manager.async_refresh()
+    assert len(device_manager.structures) == 0
+    assert callback.invoked
+
+
+async def test_change_callback_no_change(
+    device_handler: DeviceHandler,
+    device_manager: DeviceManager,
+) -> None:
+    """Test not invoking the callback when nothing changes."""
+    device_handler.add_device()
+    await device_manager.async_refresh()
+    assert len(device_manager.devices) == 1
+
+    callback = ChangeCallback()
+    device_manager.set_change_callback(callback.async_handle_change)
+    assert not callback.invoked
+
+    await device_manager.async_refresh()
+    assert len(device_manager.devices) == 1
+    assert not callback.invoked
