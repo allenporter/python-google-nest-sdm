@@ -4,7 +4,7 @@ requires = ["setuptools>=77.0"]
 
 [project]
 name = "google_nest_sdm"
-version = "8.0.0"
+version = "9.0.0"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 description = "Library for the Google Nest SDM API"
