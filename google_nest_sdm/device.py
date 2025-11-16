@@ -292,11 +292,16 @@ class Device(TraitTypes):
         traits = event_message.resource_update_traits
         if not traits:
             return
-        _LOGGER.debug("Trait update %s", traits)
         # Parse the traits using a separate object, then overwrite
         # each present field with an updated copy of the original trait with
         # the new fields merged in.
+        _LOGGER.debug("Trait update %s", traits)
         parsed_traits = TraitTypes.parse_trait_object({TRAITS: traits})
+        self._async_update_traits(parsed_traits, event_message.timestamp)
+
+    def _async_update_traits(
+        self, parsed_traits: TraitTypes, timestamp: datetime.datetime
+    ) -> None:
         for trait_field in fields(parsed_traits):
             if (
                 (alias := trait_field.metadata.get("alias")) is None
@@ -308,9 +313,9 @@ class Device(TraitTypes):
             if (
                 self._trait_event_ts
                 and (ts := self._trait_event_ts.get(trait_field.name))
-                and ts > event_message.timestamp
+                and ts > timestamp
             ):
-                _LOGGER.debug("Discarding stale update (%s)", event_message.timestamp)
+                _LOGGER.debug("Discarding stale update (%s)", timestamp)
                 continue
 
             # Only merge updates into existing models, updating the existing
@@ -320,7 +325,14 @@ class Device(TraitTypes):
             for k, v in asdict(new).items():
                 if v is not None:
                     setattr(existing, k, v)
-            self._trait_event_ts[trait_field.name] = event_message.timestamp
+            self._trait_event_ts[trait_field.name] = timestamp
+
+    def merge_from_update(self, new_device: Device) -> None:
+        """Merge fields from an updated device object.
+
+        This is used when refreshing the device list from the API.
+        """
+        self._async_update_traits(new_device, datetime.datetime.utcnow())
 
     @property
     def event_media_manager(self) -> EventMediaManager:
