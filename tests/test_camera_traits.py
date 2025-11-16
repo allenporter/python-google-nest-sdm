@@ -12,11 +12,25 @@ from google_nest_sdm.device import Device
 
 from .conftest import (
     DeviceHandler,
-    NewHandler,
-    NewImageHandler,
     Recorder,
     assert_diagnostics,
 )
+
+IMAGE_EVENT_TOKEN = "g.0.eventToken"
+IMAGE_BYTES = b"<image-bytes>"
+
+@pytest.fixture(name="image_handler")
+async def image_handler_fixture(app: aiohttp.web.Application) -> None: 
+    """Fixture to add image handler to app."""
+
+    async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        assert request.headers["Authorization"] == f"Basic {IMAGE_EVENT_TOKEN}"
+        return aiohttp.web.Response(body=IMAGE_BYTES)
+
+    app.router.add_get(
+        "/image-url",
+        handler,
+    )
 
 
 def test_camera_image_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
@@ -208,9 +222,8 @@ async def test_camera_live_stream_rtsp(
             },
         }
     )
-
-    post_handler = NewHandler(
-        recorder,
+    device_handler.add_device_command(
+        device_id,
         [
             {
                 "results": {
@@ -239,7 +252,6 @@ async def test_camera_live_stream_rtsp(
             {},
         ],
     )
-    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
@@ -339,9 +351,8 @@ async def test_camera_live_stream_web_rtc(
             },
         }
     )
-
-    post_handler = NewHandler(
-        recorder,
+    device_handler.add_device_command(
+        device_id,
         [
             {
                 "results": {
@@ -365,7 +376,6 @@ async def test_camera_live_stream_web_rtc(
             {},
         ],
     )
-    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
@@ -427,25 +437,24 @@ async def test_camera_live_stream_web_rtc(
 async def test_camera_event_image(
     app: aiohttp.web.Application,
     recorder: Recorder,
+    image_handler: None,
     device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
     device_id = device_handler.add_device(
         traits={"sdm.devices.traits.CameraEventImage": {}}
     )
-
-    post_handler = NewHandler(
-        recorder,
+    device_handler.add_device_command(
+        device_id,
         [
             {
                 "results": {
                     "url": "https://domain/sdm_event/dGNUlTU2CjY5Y3VKaTZwR3o4Y",
-                    "token": "g.0.eventToken",
+                    "token": IMAGE_EVENT_TOKEN,
                 },
             }
         ],
     )
-    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
@@ -459,35 +468,31 @@ async def test_camera_event_image(
         "params": {"eventId": "some-eventId"},
     }
     assert image.url == "https://domain/sdm_event/dGNUlTU2CjY5Y3VKaTZwR3o4Y"
-    assert image.token == "g.0.eventToken"
+    assert image.token == IMAGE_EVENT_TOKEN
     assert image.event_image_type == EventImageType.IMAGE
 
 
 async def test_camera_event_image_bytes(
     app: aiohttp.web.Application,
     recorder: Recorder,
+    image_handler: None,
     device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
 ) -> None:
     device_id = device_handler.add_device(
         traits={"sdm.devices.traits.CameraEventImage": {}}
     )
-
-    post_handler = NewHandler(
-        recorder,
+    device_handler.add_device_command(
+        device_id,
         [
             {
                 "results": {
                     "url": "image-url",
-                    "token": "g.0.eventToken",
+                    "token": IMAGE_EVENT_TOKEN,
                 },
             }
         ],
     )
-    image_handler = NewImageHandler([b"image-bytes"], token="g.0.eventToken")
-
-    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
-    app.router.add_get("/image-url", image_handler)
 
     api = await api_client()
     devices = await api.async_get_devices()
@@ -497,4 +502,4 @@ async def test_camera_event_image_bytes(
     trait = device.traits["sdm.devices.traits.CameraEventImage"]
     event_image = await trait.generate_image("some-eventId")
     image_bytes = await event_image.contents()
-    assert image_bytes == b"image-bytes"
+    assert image_bytes == IMAGE_BYTES
