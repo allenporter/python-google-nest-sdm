@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from http import HTTPStatus
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import (
     Any,
     Awaitable,
@@ -84,11 +83,21 @@ def mock_api_client(
     project_id: str,
     auth_client: Callable[[], Awaitable[AbstractAuth]],
 ) -> Callable[[], Awaitable[google_nest_api.GoogleNestAPI]]:
+    """Fixture to provide an API client to avoid freezing the http router."""
+
     async def make_api() -> google_nest_api.GoogleNestAPI:
         auth = await auth_client()
         return google_nest_api.GoogleNestAPI(auth, project_id)
 
     return make_api
+
+
+@pytest.fixture(name="api")
+async def api_fixture(
+    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+) -> google_nest_api.GoogleNestAPI:
+    """Fixture to provide an API client."""
+    return await api_client()
 
 
 class FakeAuth(AbstractAuth):
@@ -161,63 +170,55 @@ class Recorder:
     request: Optional[Dict[str, Any]] = None
 
 
+# Function type that returns a response for a given path
+ResponseForPathFunc = Callable[[aiohttp.web.Request], dict[str, Any] | None]
+
+
 class JsonHandler(ABC):
     """Request handler that replays mocks."""
 
-    def __init__(self, recorder: Recorder) -> None:
+    def __init__(
+        self, recorder: Recorder, response_for_path: ResponseForPathFunc
+    ) -> None:
         """Initialize Handler."""
         self.token: str = FAKE_TOKEN
         self.recorder = recorder
-
-    @abstractmethod
-    def get_response(self) -> dict[str, Any]:
-        """Implemented by subclasses to return a response."""
+        self.response_for_path = response_for_path
 
     async def handler(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
         _LOGGER.debug("Request: %s", request)
         assert request.headers["Authorization"] == "Bearer %s" % self.token
         s = await request.text()
         self.recorder.request = await request.json() if s else {}
-        return aiohttp.web.json_response(self.get_response())
+        data = self.response_for_path(request)
+        if data is None:
+            raise aiohttp.web.HTTPNotFound()
+        return aiohttp.web.json_response(data)
 
 
-class ReplyHandler(JsonHandler):
-    def __init__(
-        self, recorder: Recorder, responses: list[dict[str, Any]] | None = None
-    ) -> None:
-        """Initialize ReplyHandler."""
-        super().__init__(recorder)
-        self.responses = responses or []
-
-    def get_response(self) -> dict[str, Any]:
-        """Return an API response."""
-        return self.responses.pop(0)
-
-
-def reply_handler(
-    app: aiohttp.web.Application,
-    path: str,
-    recorder: Recorder,
-    responses: list[dict[str, Any]],
-) -> ReplyHandler:
-    """Create a new reply handler."""
-    handler = ReplyHandler(recorder, responses)
-    app.router.add_get(path, handler.handler)
-    return handler
-
-
-class DeviceHandler(JsonHandler):
+class DeviceHandler:
     """Handle requests to fetch devices."""
 
     def __init__(
         self, app: aiohttp.web.Application, project_id: str, recorder: Recorder
     ) -> None:
         """Initialize DeviceHandler."""
-        super().__init__(recorder)
+        self.json_handler = JsonHandler(recorder, self.get_response)
         self.app = app
         self.project_id = project_id
-        self.devices: list[dict[str, Any]] = []
-        app.router.add_get(f"/enterprises/{project_id}/devices", self.handler)
+        self.devices: dict[str, dict[str, Any]] = {}
+        self.device_commands: dict[str, list[dict[str, Any]]] = {}
+        app.router.add_get(
+            f"/enterprises/{project_id}/devices", self.json_handler.handler
+        )
+        app.router.add_get(
+            f"/enterprises/{project_id}/devices/{{device_id:.+}}",
+            self.json_handler.handler,
+        )
+        app.router.add_post(
+            f"/enterprises/{project_id}/devices/{{device_id:.+}}:executeCommand",
+            self.json_handler.handler,
+        )
 
     def add_device(
         self,
@@ -228,78 +229,81 @@ class DeviceHandler(JsonHandler):
         """Add a fake device reply."""
         uid = uuid.uuid4().hex
         device_id = f"enterprises/{self.project_id}/devices/device-id-{uid}"
-        device = {
+        self.devices[device_id] = {
             "name": device_id,
             "type": device_type,
             "traits": traits,
             "parentRelations": parentRelations,
         }
-        # Setup device lookup reply
-        reply_handler(self.app, f"/{device_id}", self.recorder, [device])
-        # Setup device list reply
-        self.devices.append(device)
         return device_id
 
-    def get_response(self) -> dict[str, Any]:
+    def add_device_command(
+        self, device_id: str, responses: list[dict[str, Any]]
+    ) -> None:
+        """Add a fake device command reply."""
+        if device_id not in self.device_commands:
+            self.device_commands[device_id] = []
+        self.device_commands[device_id].extend(responses)
+
+    def get_response(self, request: aiohttp.web.Request) -> dict[str, Any] | None:
         """Return devices API response."""
-        return {"devices": self.devices}
+        if request.path_qs == f"/enterprises/{self.project_id}/devices":
+            assert request.method == "GET"
+            return {"devices": list(self.devices.values())}
+
+        device_id = request.match_info["device_id"]
+        assert device_id
+        if device_data := self.devices.get(request.path_qs[1:]):
+            assert request.method == "GET"
+            return device_data
+        if request.path_qs.startswith(
+            f"/enterprises/{self.project_id}/devices/"
+        ) and request.path_qs.endswith(":executeCommand"):
+            device_id = request.path_qs[1:].split(":")[0]
+            assert request.method == "POST"
+            if device_id in self.device_commands and self.device_commands[device_id]:
+                return self.device_commands[device_id].pop(0)
+        return None
 
 
-class StructureHandler(JsonHandler):
+class StructureHandler:
     """Handle requests to fetch structures."""
 
     def __init__(
         self, app: aiohttp.web.Application, project_id: str, recorder: Recorder
     ) -> None:
         """Initialize StructureHandler."""
-        super().__init__(recorder)
+        self.json_handler = JsonHandler(recorder, self.get_response)
         self.app = app
         self.project_id = project_id
-        self.structures: list[dict[str, Any]] = []
-        app.router.add_get(f"/enterprises/{project_id}/structures", self.handler)
+        self.structures: dict[str, dict[str, Any]] = {}
+        app.router.add_get(
+            f"/enterprises/{project_id}/structures", self.json_handler.handler
+        )
+        app.router.add_get(
+            f"/enterprises/{project_id}/structures/{{structure_id:.+}}",
+            self.json_handler.handler,
+        )
 
     def add_structure(self, traits: dict[str, Any] = {}) -> str:
         """Add a structure to the response."""
         uid = uuid.uuid4().hex
         structure_id = f"enterprises/{self.project_id}/structures/structure-id-{uid}"
-        structure = {
+        self.structures[structure_id] = {
             "name": structure_id,
             "traits": traits,
         }
-        # Setup structure lookup reply
-        reply_handler(self.app, f"/{structure_id}", self.recorder, [structure])
-        # Setup structure list reply
-        self.structures.append(structure)
         return structure_id
 
-    def get_response(self) -> dict[str, Any]:
+    def get_response(self, request: aiohttp.web.Request) -> dict[str, Any] | None:
         """Return structure API response."""
-        return {"structures": self.structures}
-
-
-def NewHandler(
-    r: Recorder,
-    responses: list[dict[str, Any]],
-    token: str = FAKE_TOKEN,
-    status: HTTPStatus = HTTPStatus.OK,
-) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
-    async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
-        assert request.headers["Authorization"] == "Bearer %s" % token
-        s = await request.text()
-        r.request = await request.json() if s else {}
-        return aiohttp.web.json_response(responses.pop(0), status=status)
-
-    return handler
-
-
-def NewImageHandler(
-    response: list[bytes], token: str = FAKE_TOKEN
-) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
-    async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
-        assert request.headers["Authorization"] == "Basic %s" % token
-        return aiohttp.web.Response(body=response.pop(0))
-
-    return handler
+        if request.path_qs == f"/enterprises/{self.project_id}/structures":
+            assert request.method == "GET"
+            return {"structures": list(self.structures.values())}
+        if structure_data := self.structures.get(request.path_qs[1:]):
+            assert request.method == "GET"
+            return structure_data
+        return None
 
 
 @pytest.fixture

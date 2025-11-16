@@ -1,6 +1,6 @@
 """Tests for thermostat traits."""
 
-from typing import Any, Awaitable, Callable, Dict
+from typing import Any, Callable, Dict
 
 import aiohttp
 import pytest
@@ -8,7 +8,7 @@ import pytest
 from google_nest_sdm import google_nest_api
 from google_nest_sdm.device import Device
 
-from .conftest import DeviceHandler, NewHandler, Recorder
+from .conftest import DeviceHandler, Recorder
 
 
 def test_thermostat_eco_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
@@ -184,7 +184,7 @@ async def test_fan_set_timer(
     app: aiohttp.web.Application,
     recorder: Recorder,
     device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    api: google_nest_api.GoogleNestAPI,
 ) -> None:
     device_id = device_handler.add_device(
         traits={
@@ -193,10 +193,8 @@ async def test_fan_set_timer(
             },
         }
     )
-    post_handler = NewHandler(recorder, [{}])
-    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
+    device_handler.add_device_command(device_id, [{}])
 
-    api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
@@ -217,7 +215,7 @@ async def test_thermostat_eco_set_mode(
     app: aiohttp.web.Application,
     recorder: Recorder,
     device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    api: google_nest_api.GoogleNestAPI,
 ) -> None:
     device_id = device_handler.add_device(
         traits={
@@ -229,10 +227,8 @@ async def test_thermostat_eco_set_mode(
             },
         }
     )
-    post_handler = NewHandler(recorder, [{}])
-    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
+    device_handler.add_device_command(device_id, [{}])
 
-    api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
@@ -250,7 +246,7 @@ async def test_thermostat_mode_set_mode(
     app: aiohttp.web.Application,
     recorder: Recorder,
     device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    api: google_nest_api.GoogleNestAPI,
 ) -> None:
     device_id = device_handler.add_device(
         traits={
@@ -260,10 +256,8 @@ async def test_thermostat_mode_set_mode(
             },
         }
     )
-    post_handler = NewHandler(recorder, [{}])
-    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
+    device_handler.add_device_command(device_id, [{}])
 
-    api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
@@ -281,7 +275,7 @@ async def test_thermostat_temperature_set_point(
     app: aiohttp.web.Application,
     recorder: Recorder,
     device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    api: google_nest_api.GoogleNestAPI,
 ) -> None:
     device_id = device_handler.add_device(
         traits={
@@ -291,10 +285,8 @@ async def test_thermostat_temperature_set_point(
             },
         }
     )
-    post_handler = NewHandler(recorder, [{}, {}, {}])
-    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
+    device_handler.add_device_command(device_id, [{}, {}, {}])
 
-    api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]

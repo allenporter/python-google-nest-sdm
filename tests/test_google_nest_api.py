@@ -20,20 +20,16 @@ from .conftest import (
     FAKE_TOKEN,
     PROJECT_ID,
     DeviceHandler,
-    NewHandler,
     Recorder,
     StructureHandler,
-    reply_handler,
 )
 
 
 async def test_get_device(
     device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    api: google_nest_api.GoogleNestAPI,
 ) -> None:
     device_id = device_handler.add_device(device_type="sdm.devices.types.device-type")
-
-    api = await api_client()
 
     device = await api.async_get_device(device_id.split("/")[-1])
     assert device
@@ -43,12 +39,10 @@ async def test_get_device(
 
 async def test_get_devices(
     device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    api: google_nest_api.GoogleNestAPI,
 ) -> None:
     device_id1 = device_handler.add_device(device_type="sdm.devices.types.device-type1")
     device_id2 = device_handler.add_device(device_type="sdm.devices.types.device-type2")
-
-    api = await api_client()
 
     devices = await api.async_get_devices()
     assert len(devices) == 2
@@ -62,7 +56,7 @@ async def test_fan_set_timer(
     app: aiohttp.web.Application,
     recorder: Recorder,
     device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    api: google_nest_api.GoogleNestAPI,
 ) -> None:
     device_id = device_handler.add_device(
         traits={
@@ -71,10 +65,8 @@ async def test_fan_set_timer(
             },
         }
     )
-    post_handler = NewHandler(recorder, [{}])
-    app.router.add_post(f"/{device_id}:executeCommand", post_handler)
+    device_handler.add_device_command(device_id, [{}])
 
-    api = await api_client()
     devices = await api.async_get_devices()
     assert len(devices) == 1
     device = devices[0]
@@ -94,7 +86,7 @@ async def test_fan_set_timer(
 async def test_get_structure(
     app: aiohttp.web.Application,
     structure_handler: StructureHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    api: google_nest_api.GoogleNestAPI,
 ) -> None:
     structure_id = structure_handler.add_structure(
         traits={
@@ -104,7 +96,6 @@ async def test_get_structure(
         }
     )
 
-    api = await api_client()
     structure = await api.async_get_structure(structure_id.split("/")[-1])
     assert structure
     assert structure.name == structure_id
@@ -114,7 +105,7 @@ async def test_get_structure(
 async def test_get_structures(
     app: aiohttp.web.Application,
     structure_handler: StructureHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    api: google_nest_api.GoogleNestAPI,
 ) -> None:
     structure_id1 = structure_handler.add_structure(
         traits={
@@ -131,7 +122,6 @@ async def test_get_structures(
         }
     )
 
-    api = await api_client()
     structures = await api.async_get_structures()
     assert len(structures) == 2
     assert structures[0].name == structure_id1
@@ -142,10 +132,9 @@ async def test_get_structures(
 
 async def test_client_error(
     app: aiohttp.web.Application,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    api: google_nest_api.GoogleNestAPI,
 ) -> None:
     # No server endpoint registered
-    api = await api_client()
     with (
         patch(
             "google_nest_sdm.google_nest_api.AbstractAuth._request",
@@ -158,10 +147,9 @@ async def test_client_error(
 
 async def test_api_get_error(
     app: aiohttp.web.Application,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    api: google_nest_api.GoogleNestAPI,
 ) -> None:
     # No server endpoint registered
-    api = await api_client()
     with pytest.raises(ApiException):
         await api.async_get_structures()
 
@@ -206,7 +194,7 @@ async def test_auth_refresh(
     device_handler: DeviceHandler,
     refreshing_auth_client: Callable[[], Awaitable[AbstractAuth]],
 ) -> None:
-    device_handler.token = "updated-token"
+    device_handler.json_handler.token = "updated-token"
     device_id = device_handler.add_device(traits={})
 
     async def auth_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
@@ -243,9 +231,8 @@ async def test_no_devices(
     app: aiohttp.web.Application,
     recorder: Recorder,
     device_handler: DeviceHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    api: google_nest_api.GoogleNestAPI,
 ) -> None:
-    api = await api_client()
     devices = await api.async_get_devices()
     assert devices == []
 
@@ -254,10 +241,9 @@ async def test_get_devices_missing_devices(
     app: aiohttp.web.Application,
     project_id: str,
     recorder: Recorder,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    device_handler: DeviceHandler,
+    api: google_nest_api.GoogleNestAPI,
 ) -> None:
-    reply_handler(app, f"/enterprises/{project_id}/devices", recorder, [{}])
-    api = await api_client()
     devices = await api.async_get_devices()
     assert devices == []
 
@@ -265,22 +251,17 @@ async def test_get_devices_missing_devices(
 async def test_get_device_missing_devices(
     app: aiohttp.web.Application,
     recorder: Recorder,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    api: google_nest_api.GoogleNestAPI,
 ) -> None:
-    app.router.add_get(
-        "/enterprises/project-id1/devices/abc", NewHandler(recorder, [{}])
-    )
-    api = await api_client()
-    device = await api.async_get_device("abc")
-    assert device is None
+    with pytest.raises(NotFoundException):
+        await api.async_get_device("abc")
 
 
 async def test_no_structures(
     app: aiohttp.web.Application,
     structure_handler: StructureHandler,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    api: google_nest_api.GoogleNestAPI,
 ) -> None:
-    api = await api_client()
     structures = await api.async_get_structures()
     assert structures == []
 
@@ -289,10 +270,9 @@ async def test_get_structures_missing_structures(
     app: aiohttp.web.Application,
     project_id: str,
     recorder: Recorder,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    structure_handler: StructureHandler,
+    api: google_nest_api.GoogleNestAPI,
 ) -> None:
-    reply_handler(app, "/enterprises/{project_id}/structures", recorder, [{}])
-    api = await api_client()
     structures = await api.async_get_structures()
     assert structures == []
 
@@ -300,13 +280,12 @@ async def test_get_structures_missing_structures(
 async def test_get_structure_missing_structures(
     app: aiohttp.web.Application,
     recorder: Recorder,
-    api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
+    structure_handler: StructureHandler,
+    api: google_nest_api.GoogleNestAPI,
 ) -> None:
-    app.router.add_get(
-        "/enterprises/project-id1/structures/abc", NewHandler(recorder, [{}])
-    )
-    api = await api_client()
-    structure = await api.async_get_structure("abc")
+    structure_id = structure_handler.add_structure(traits={})
+    structure_handler.structures[structure_id] = {"traits": {}}  # Remove name
+    structure = await api.async_get_structure(structure_id.split("/")[-1])
     assert structure is None
 
 

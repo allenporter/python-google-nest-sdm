@@ -55,16 +55,22 @@ def subscriber_client(
     return make_subscriber
 
 
+@pytest.fixture(name="subscriber")
+async def subscriber_fixture(
+    subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
+) -> GoogleNestSubscriber:
+    return await subscriber_client()
+
+
 async def test_subscribe_no_events(
     device_handler: DeviceHandler,
     structure_handler: StructureHandler,
-    subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
+    subscriber: GoogleNestSubscriber,
 ) -> None:
     device_id1 = device_handler.add_device(device_type="sdm.devices.types.device-type1")
     device_id2 = device_handler.add_device(device_type="sdm.devices.types.device-type2")
     structure_handler.add_structure()
 
-    subscriber = await subscriber_client()
     device_manager = await subscriber.async_get_device_manager()
     devices = device_manager.devices
     assert device_id1 in devices
@@ -77,7 +83,7 @@ async def test_subscribe_update_trait(
     app: aiohttp.web.Application,
     device_handler: DeviceHandler,
     structure_handler: StructureHandler,
-    subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
+    subscriber: GoogleNestSubscriber,
     streaming_manager: Mock,
 ) -> None:
     device_id = device_handler.add_device(
@@ -89,7 +95,6 @@ async def test_subscribe_update_trait(
     )
     structure_handler.add_structure()
 
-    subscriber = await subscriber_client()
     subscriber.cache_policy.event_cache_size = 5
     unsub = await subscriber.start_async()
     device_manager = await subscriber.async_get_device_manager()
@@ -149,13 +154,12 @@ async def test_subscribe_device_manager_init(
     app: aiohttp.web.Application,
     device_handler: DeviceHandler,
     structure_handler: StructureHandler,
-    subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
+    subscriber: GoogleNestSubscriber,
 ) -> None:
     device_id1 = device_handler.add_device(device_type="sdm.devices.types.device-type1")
     device_id2 = device_handler.add_device(device_type="sdm.devices.types.device-type2")
     structure_handler.add_structure()
 
-    subscriber = await subscriber_client()
     start_async = subscriber.start_async()
     device_manager = await subscriber.async_get_device_manager()
     unsub = await start_async
@@ -188,7 +192,7 @@ async def test_subscribe_thread_update(
     app: aiohttp.web.Application,
     device_handler: DeviceHandler,
     structure_handler: StructureHandler,
-    subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
+    subscriber: GoogleNestSubscriber,
     streaming_manager: Mock,
 ) -> None:
     device_id = device_handler.add_device(
@@ -199,7 +203,6 @@ async def test_subscribe_thread_update(
     )
     structure_handler.add_structure()
 
-    subscriber = await subscriber_client()
     subscriber.cache_policy.event_cache_size = 5
     unsub = await subscriber.start_async()
     device_manager = await subscriber.async_get_device_manager()
@@ -296,7 +299,7 @@ async def test_subscribe_thread_update_new_events(
     app: aiohttp.web.Application,
     device_handler: DeviceHandler,
     structure_handler: StructureHandler,
-    subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
+    subscriber: GoogleNestSubscriber,
     streaming_manager: Mock,
 ) -> None:
     device_id = device_handler.add_device(
@@ -308,7 +311,6 @@ async def test_subscribe_thread_update_new_events(
     )
     structure_handler.add_structure()
 
-    subscriber = await subscriber_client()
     subscriber.cache_policy.event_cache_size = 5
 
     unsub = await subscriber.start_async()
@@ -409,7 +411,7 @@ async def test_message_ack_timeout(
     device_handler: DeviceHandler,
     structure_handler: StructureHandler,
     streaming_manager: Mock,
-    subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
+    subscriber: GoogleNestSubscriber,
     fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> None:
     device_id = device_handler.add_device(
@@ -421,7 +423,6 @@ async def test_message_ack_timeout(
     )
     structure_id = structure_handler.add_structure()
 
-    subscriber = await subscriber_client()
     subscriber.cache_policy.event_cache_size = 5
     unsub = await subscriber.start_async()
     device_manager = await subscriber.async_get_device_manager()
@@ -455,7 +456,7 @@ async def test_refresh_hack_on_invalid_thermostat_traits(
     app: aiohttp.web.Application,
     device_handler: DeviceHandler,
     structure_handler: StructureHandler,
-    subscriber_client: Callable[[], Awaitable[GoogleNestSubscriber]],
+    subscriber: GoogleNestSubscriber,
     streaming_manager: Mock,
 ) -> None:
     """Test that invalid thermostat traits are ignored and triggers a refresh."""
@@ -482,7 +483,6 @@ async def test_refresh_hack_on_invalid_thermostat_traits(
     )
     structure_handler.add_structure()
 
-    subscriber = await subscriber_client()
     subscriber.cache_policy.event_cache_size = 5
     unsub = await subscriber.start_async()
     device_manager = await subscriber.async_get_device_manager()
@@ -513,7 +513,9 @@ async def test_refresh_hack_on_invalid_thermostat_traits(
 
     # Update the state on the server to something arbitrary. Later we will verify
     # that a request was made to get the latest server state.
-    trait = device_handler.devices[0]["traits"]["sdm.devices.traits.ThermostatEco"]
+    trait = device_handler.devices[device_id]["traits"][
+        "sdm.devices.traits.ThermostatEco"
+    ]
     trait["heatCelsius"] = 19.0
 
     # Simulate a case where the nest publisher sends an invalid message. This

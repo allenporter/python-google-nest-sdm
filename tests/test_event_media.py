@@ -75,16 +75,21 @@ def mock_device_id(
 class MediaRouter:
     """Fixture for serving event media."""
 
-    def __init__(self, app: aiohttp.web.Application, recorder: Recorder) -> None:
+    def __init__(
+        self,
+        app: aiohttp.web.Application,
+        recorder: Recorder,
+        device_handler: DeviceHandler,
+    ) -> None:
         self.app = app
         self.recorder = recorder
+        self.device_handler = device_handler
         self.api_responses: dict[str, list[aiohttp.web.Response]] = {}
         self.image_responses: dict[str, aiohttp.web.Response] = {}
         self.clip_responses: dict[str, aiohttp.web.Response] = {}
         self.token_cnt = -1
         self.app.add_routes(
             [
-                aiohttp.web.post(r"/{device_id:.*}:executeCommand", self.api_handler),
                 aiohttp.web.get(r"/image-url/{device_id:.*}", self.image_token_handler),
                 aiohttp.web.get(
                     r"/clip-url/{device_id:.*}/token/{token:.*}", self.clip_handler
@@ -99,15 +104,16 @@ class MediaRouter:
         # Prepare API to generate image url + token
         if device_id not in self.api_responses:
             self.api_responses[device_id] = []
-        self.api_responses[device_id].append(
-            aiohttp.web.json_response(
+        self.device_handler.add_device_command(
+            device_id,
+            [
                 {
                     "results": {
                         "url": f"image-url/{device_id}",
                         "token": token,
                     },
                 }
-            )
+            ],
         )
         # Prepare image serving
         self.image_responses[token] = aiohttp.web.Response(
@@ -155,9 +161,11 @@ class MediaRouter:
 
 
 @pytest.fixture(name="media_router", autouse=True)
-def mock_media_router(app: aiohttp.web.Application, recorder: Recorder) -> MediaRouter:
+def mock_media_router(
+    app: aiohttp.web.Application, recorder: Recorder, device_handler: DeviceHandler
+) -> MediaRouter:
     """Fixture for preparing API and content serving calls."""
-    return MediaRouter(app, recorder)
+    return MediaRouter(app, recorder, device_handler)
 
 
 @pytest.fixture

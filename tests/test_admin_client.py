@@ -1,6 +1,6 @@
 """Tests for the admin client library."""
 
-from typing import Awaitable, Callable
+from typing import Awaitable, Callable, Any
 from http import HTTPStatus
 
 import aiohttp
@@ -13,7 +13,7 @@ from google_nest_sdm.exceptions import (
     ConfigurationException,
 )
 
-from .conftest import Recorder, NewHandler
+from .conftest import Recorder, FAKE_TOKEN
 
 GOOGLE_CLOUD_CONSOLE_PROJECT_ID = "google-cloud-console-project-id"
 DEVICE_ACCESS_PROJECT_ID = "device-access-project-id"
@@ -28,6 +28,21 @@ def mock_admin_client(
         return AdminClient(mock_auth, GOOGLE_CLOUD_CONSOLE_PROJECT_ID)
 
     return _make_admin_client
+
+
+def new_handler(
+    r: Recorder,
+    responses: list[dict[str, Any]],
+    token: str = FAKE_TOKEN,
+    status: HTTPStatus = HTTPStatus.OK,
+) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
+    async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        assert request.headers["Authorization"] == "Bearer %s" % token
+        s = await request.text()
+        r.request = await request.json() if s else {}
+        return aiohttp.web.json_response(responses.pop(0), status=status)
+
+    return handler
 
 
 async def test_invalid_topic_format(
@@ -48,7 +63,7 @@ async def test_create_topic(
 ) -> None:
     """Test creating a topic."""
 
-    handler = NewHandler(
+    handler = new_handler(
         recorder,
         [{}],
     )
@@ -71,7 +86,7 @@ async def test_delete_topic(
 ) -> None:
     """Test deleting a topic."""
 
-    handler = NewHandler(
+    handler = new_handler(
         recorder,
         [{}],
     )
@@ -94,7 +109,7 @@ async def test_list_topics(
 ) -> None:
     """Test listing topics."""
 
-    handler = NewHandler(
+    handler = new_handler(
         recorder,
         [
             {
@@ -124,7 +139,7 @@ async def test_list_topics_empty_response(
 ) -> None:
     """Test listing topics."""
 
-    handler = NewHandler(
+    handler = new_handler(
         recorder,
         [{}],
     )
@@ -144,7 +159,7 @@ async def test_list_topics_invalid_prefix(
 ) -> None:
     """Test listing topics with an invalid prefix."""
 
-    handler = NewHandler(
+    handler = new_handler(
         recorder,
         [
             {
@@ -169,7 +184,7 @@ async def test_get_topic(
 ) -> None:
     """Test getting a topic."""
 
-    handler = NewHandler(
+    handler = new_handler(
         recorder,
         [{"name": f"projects/{GOOGLE_CLOUD_CONSOLE_PROJECT_ID}/topics/topic-name"}],
     )
@@ -194,7 +209,7 @@ async def test_create_subscription(
 ) -> None:
     """Test creating a subscription."""
 
-    handler = NewHandler(
+    handler = new_handler(
         recorder,
         [{}],
     )
@@ -221,7 +236,7 @@ async def test_create_subscription_failure(
 ) -> None:
     """Test creating a subscription."""
 
-    handler = NewHandler(
+    handler = new_handler(
         recorder,
         [{}],
         status=HTTPStatus.INTERNAL_SERVER_ERROR,
@@ -248,7 +263,7 @@ async def test_delete_subscription(
 ) -> None:
     """Test deleting a subscription."""
 
-    handler = NewHandler(
+    handler = new_handler(
         recorder,
         [{}],
     )
@@ -272,7 +287,7 @@ async def test_list_subscriptions(
 ) -> None:
     """Test listing subscriptions."""
 
-    handler = NewHandler(
+    handler = new_handler(
         recorder,
         [
             {
@@ -313,7 +328,7 @@ async def test_list_subscriptions_empty_response(
 ) -> None:
     """Test listing subscriptions."""
 
-    handler = NewHandler(
+    handler = new_handler(
         recorder,
         [{}],
     )
@@ -357,7 +372,7 @@ async def test_list_eligible_topics(
     """Test listing eligible topics."""
 
     # SDM created pubsub topic exists (but is not visible, which is expected) exists
-    sdm_handler = NewHandler(
+    sdm_handler = new_handler(
         recorder,
         [
             {
@@ -374,7 +389,7 @@ async def test_list_eligible_topics(
         f"/projects/sdm-prod/topics/enterprise-{DEVICE_ACCESS_PROJECT_ID}", sdm_handler
     )
     # Cloud topic also exists
-    cloud_handler = NewHandler(
+    cloud_handler = new_handler(
         recorder,
         [
             {
@@ -406,7 +421,7 @@ async def test_list_eligible_topics_no_sdm_topic(
     """Test listing eligible topics when no SDM topic exists."""
 
     # SDM created pubsub topic does not exist
-    sdm_handler = NewHandler(
+    sdm_handler = new_handler(
         recorder,
         [
             {
@@ -424,7 +439,7 @@ async def test_list_eligible_topics_no_sdm_topic(
     )
 
     # Cloud topic exists
-    cloud_handler = NewHandler(
+    cloud_handler = new_handler(
         recorder,
         [
             {
@@ -464,7 +479,7 @@ async def test_list_cloud_console_api_error(
     """Test listing eligible topics when an error occurs listing the cloud console topics."""
 
     # SDM created pubsub topic exists (but is not visible, which is expected) exists
-    sdm_handler = NewHandler(
+    sdm_handler = new_handler(
         recorder,
         [
             {
@@ -481,7 +496,7 @@ async def test_list_cloud_console_api_error(
         f"/projects/sdm-prod/topics/enterprise-{DEVICE_ACCESS_PROJECT_ID}", sdm_handler
     )
     # Cloud topic also exists
-    cloud_handler = NewHandler(
+    cloud_handler = new_handler(
         recorder,
         [{}],
         status=cloud_status,
@@ -500,7 +515,7 @@ async def test_list_eligible_subscriptions(
 ) -> None:
     """Test listing eligible subscriptions."""
 
-    cloud_handler = NewHandler(
+    cloud_handler = new_handler(
         recorder,
         [
             {
@@ -538,7 +553,7 @@ async def test_set_topic_iam_policy(
 ) -> None:
     """Test setting an IAM policy on a topic."""
 
-    handler = NewHandler(
+    handler = new_handler(
         recorder,
         [{}],
     )
