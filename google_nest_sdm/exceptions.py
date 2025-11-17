@@ -9,8 +9,16 @@ class SubscriberException(GoogleNestException):
     """Raised during problems subscribing to events and updates."""
 
 
+class SubscriberTimeoutException(SubscriberException):
+    """Raised when a subscriber operation times out."""
+
+
 class ApiException(GoogleNestException):
     """Raised during problems talking to the API."""
+
+
+class ApiTimeoutException(ApiException):
+    """Raised when an API operation times out."""
 
 
 class AuthException(ApiException):

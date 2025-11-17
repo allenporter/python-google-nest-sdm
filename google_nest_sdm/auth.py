@@ -28,6 +28,7 @@ from mashumaro.mixins.json import DataClassJSONMixin
 
 from .exceptions import (
     ApiException,
+    ApiTimeoutException,
     AuthException,
     ApiForbiddenException,
     NotFoundException,
@@ -128,7 +129,9 @@ class AbstractAuth(ABC):
             try:
                 access_token = await self.async_get_access_token()
             except TimeoutError as err:
-                raise ApiException(f"Timeout requesting API token: {err}") from err
+                raise ApiTimeoutException(
+                    f"Timeout requesting API token: {err}"
+                ) from err
             except ClientError as err:
                 raise AuthException(f"Access token failure: {err}") from err
             headers[AUTHORIZATION_HEADER] = f"Bearer {access_token}"
@@ -139,7 +142,9 @@ class AbstractAuth(ABC):
             _LOGGER.debug("request[post json]=%s", kwargs["json"])
         try:
             return await self._request(method, url, headers=headers, **kwargs)
-        except (ClientError, TimeoutError) as err:
+        except TimeoutError as err:
+            raise ApiTimeoutException(f"Timeout connecting to API: {err}") from err
+        except ClientError as err:
             raise ApiException(f"Error connecting to API: {err}") from err
 
     async def _request(

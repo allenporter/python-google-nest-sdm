@@ -20,6 +20,7 @@ from .exceptions import (
     AuthException,
     ConfigurationException,
     SubscriberException,
+    SubscriberTimeoutException,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -186,7 +187,7 @@ class SubscriberClient:
         except asyncio.TimeoutError as err:
             _LOGGER.debug("Timeout in streaming_pull %s", err)
             DIAGNOSTICS.increment("streaming_pull.timeout")
-            raise SubscriberException("Timeout in streaming_pull") from err
+            raise SubscriberTimeoutException("Timeout in streaming_pull") from err
         _LOGGER.debug("Streaming pull started")
         return aiter_exception_handler(stream)
 
@@ -206,4 +207,4 @@ class SubscriberClient:
         except asyncio.TimeoutError as err:
             _LOGGER.debug("Timeout in acknowledge: %s", err)
             DIAGNOSTICS.increment("acknowledge.timeout")
-            raise SubscriberException("Timeout in acknowledge") from err
+            raise SubscriberTimeoutException("Timeout in acknowledge") from err
