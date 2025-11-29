@@ -146,6 +146,19 @@ class EventImageTypeSerializationStrategy(SerializationStrategy):
         return EventImageType.from_string(value)
 
 
+class UtcDateTimeSerializationStrategy(SerializationStrategy):
+    """Parser to ensure all datetimes have timezones."""
+
+    def serialize(self, value: datetime.datetime) -> str:
+        return value.isoformat()
+
+    def deserialize(self, value: str) -> datetime.datetime:
+        dt = datetime.datetime.fromisoformat(value)
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=datetime.timezone.utc)
+        return dt
+
+
 @dataclass
 class ImageEventBase(DataClassDictMixin, ABC):
     """Base class for all image related event types."""
@@ -211,6 +224,7 @@ class ImageEventBase(DataClassDictMixin, ABC):
     class Config(BaseConfig):
         serialization_strategy = {
             EventImageContentType: EventImageTypeSerializationStrategy(),
+            datetime.datetime: UtcDateTimeSerializationStrategy(),
         }
         code_generation_options = [
             "TO_DICT_ADD_BY_ALIAS_FLAG",
@@ -460,6 +474,7 @@ class EventMessage(DataClassDictMixin):
     class Config(BaseConfig):
         serialization_strategy = {
             dict[str, ImageEventBase]: UpdateEventsSerializationStrategy(),
+            datetime.datetime: UtcDateTimeSerializationStrategy(),
         }
         code_generation_options = [
             "TO_DICT_ADD_BY_ALIAS_FLAG",

@@ -453,10 +453,19 @@ async def test_update_trait_with_field_alias(
     unregister()
 
 
+@pytest.mark.parametrize(
+    "now",
+    [
+        # We handle various timezone aware vs floating datetimes
+        datetime.datetime.now(datetime.UTC),
+        datetime.datetime.now(tz=None),
+    ],
+)
 async def test_update_trait_ordering(
     event_message_with_time: Callable[[str, str, str], EventMessage],
     device_handler: DeviceHandler,
     device_manager: DeviceManager,
+    now: datetime.datetime,
 ) -> None:
     device_id = device_handler.add_device(
         device_type="sdm.devices.types.SomeDeviceType",
@@ -476,19 +485,20 @@ async def test_update_trait_ordering(
         assert isinstance(trait, ConnectivityTrait)
         return trait
 
-    now = datetime.datetime.now(datetime.timezone.utc)
     assert get_connectivity().status == "OFFLINE"
     await device_manager.async_handle_event(
         event_message_with_time(device_id, now.isoformat(), "ONLINE")
     )
     assert get_connectivity().status == "ONLINE"
     now += datetime.timedelta(seconds=1)
+    now = now.replace(tzinfo=datetime.UTC)  # Handle timezones aware/unaware
     await device_manager.async_handle_event(
         event_message_with_time(device_id, now.isoformat(), "OFFLINE")
     )
     assert get_connectivity().status == "OFFLINE"
     # Event in past is ignored
     now -= datetime.timedelta(minutes=1)
+    now = now.replace(tzinfo=None)
     await device_manager.async_handle_event(
         event_message_with_time(device_id, now.isoformat(), "ONLINE")
     )
