@@ -302,6 +302,8 @@ class Device(TraitTypes):
     def _async_update_traits(
         self, parsed_traits: TraitTypes, timestamp: datetime.datetime
     ) -> None:
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=datetime.timezone.utc)
         for trait_field in fields(parsed_traits):
             if (
                 (alias := trait_field.metadata.get("alias")) is None
@@ -310,11 +312,7 @@ class Device(TraitTypes):
             ):
                 continue
             # Discard updates to traits that are newer than the update
-            if (
-                self._trait_event_ts
-                and (ts := self._trait_event_ts.get(trait_field.name))
-                and ts > timestamp
-            ):
+            if (ts := self._trait_timestamp(trait_field.name)) and ts > timestamp:
                 _LOGGER.debug("Discarding stale update (%s)", timestamp)
                 continue
 
@@ -333,6 +331,16 @@ class Device(TraitTypes):
         This is used when refreshing the device list from the API.
         """
         self._async_update_traits(new_device, datetime.datetime.utcnow())
+
+
+    def _trait_timestamp(self, trait_field_name: str) -> datetime.datetime | None:
+        """Get the last update timestamp for a given trait field."""
+        if (ts := self._trait_event_ts.get(trait_field_name)) is None:
+            return None
+        if ts.tzinfo is None:
+            return ts.replace(tzinfo=datetime.timezone.utc)
+        return ts
+
 
     @property
     def event_media_manager(self) -> EventMediaManager:
