@@ -23,7 +23,7 @@ dependencies = [
 ]
 
 [project.urls]
-Source = "https://github.com/allenporter/google_nest_sdm"
+Source = "https://github.com/allenporter/python-google-nest-sdm"
 
 [tool.setuptools.packages.find]
 include = ["google_nest_sdm*"]
