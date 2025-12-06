@@ -302,6 +302,8 @@ class Device(TraitTypes):
     def _async_update_traits(
         self, parsed_traits: TraitTypes, timestamp: datetime.datetime
     ) -> None:
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=datetime.UTC)
         for trait_field in fields(parsed_traits):
             if (
                 (alias := trait_field.metadata.get("alias")) is None
@@ -332,7 +334,11 @@ class Device(TraitTypes):
 
     def _trait_timestamp(self, trait_field_name: str) -> datetime.datetime | None:
         """Get the last update timestamp for a given trait field."""
-        return self._trait_event_ts.get(trait_field_name)
+        if (ts := self._trait_event_ts.get(trait_field_name)) is None:
+            return None
+        if ts.tzinfo is None:
+            return ts.replace(tzinfo=datetime.UTC)
+        return ts
 
     @property
     def event_media_manager(self) -> EventMediaManager:
