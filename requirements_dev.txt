@@ -9,7 +9,7 @@ pytest==8.4.2
 ruff==0.15.2
 
 
-aiohttp==3.13.3
+aiohttp==3.13.5
 google-api-core==2.30.0
 google-auth==2.48.0
 google-cloud-pubsub==2.35.0
