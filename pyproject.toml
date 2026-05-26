@@ -57,3 +57,6 @@ warn_unreachable = true
 
 ignore_missing_imports = true
 warn_no_return = true
+
+[tool.ty.src]
+exclude = ["tests", "examples"]

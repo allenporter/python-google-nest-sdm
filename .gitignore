@@ -150,4 +150,7 @@ dmypy.json
 .pyre/
 
 docs/
+# ty
+.ty_cache/
+
 .DS_Store
