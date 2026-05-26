@@ -13,7 +13,7 @@ aiohttp==3.13.5
 google-api-core==2.30.3
 google-auth==2.53.0
 google-cloud-pubsub==2.38.0
-googleapis-common-protos==1.72.0
+googleapis-common-protos==1.75.0
 grpcio==1.78.1
 grpcio-status==1.78.1
 protobuf==6.33.6
