@@ -347,7 +347,7 @@ def _BuildEvent(
         return None
     cls = EVENT_MAP[event_type]
     try:
-        return cls.from_dict(event_data)  # type: ignore
+        return cls.from_dict(event_data)
     except Exception as err:
         traceback.print_exc()
         _LOGGER.debug("Failed to parse event: %s (event_data=%s)", err, event_data)
