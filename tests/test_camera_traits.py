@@ -19,8 +19,9 @@ from .conftest import (
 IMAGE_EVENT_TOKEN = "g.0.eventToken"
 IMAGE_BYTES = b"<image-bytes>"
 
+
 @pytest.fixture(name="image_handler")
-async def image_handler_fixture(app: aiohttp.web.Application) -> None: 
+async def image_handler_fixture(app: aiohttp.web.Application) -> None:
     """Fixture to add image handler to app."""
 
     async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:

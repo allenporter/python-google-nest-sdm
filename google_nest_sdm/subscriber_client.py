@@ -12,7 +12,8 @@ from google.api_core.exceptions import GoogleAPIError, NotFound, Unauthenticated
 from google.auth.exceptions import RefreshError, GoogleAuthError, TransportError
 from google.auth.transport.requests import Request
 from google import pubsub_v1
-from google.oauth2.credentials import Credentials
+from google.auth.credentials import Credentials
+from google.oauth2.credentials import Credentials as OAuthCredentials
 
 from .auth import AbstractAuth
 from .diagnostics import SUBSCRIBER_DIAGNOSTICS as DIAGNOSTICS
@@ -33,7 +34,7 @@ STREAM_ACK_TIMEOUT_SECONDS = 180
 STREAM_ACK_FREQUENCY_SECONDS = 90
 
 
-def refresh_creds(creds: Credentials) -> Credentials:
+def refresh_creds(creds: OAuthCredentials) -> OAuthCredentials:
     """Refresh credentials.
 
     This is not part of the subscriber API, exposed only to facilitate testing.
@@ -166,7 +167,7 @@ class SubscriberClient:
                 DIAGNOSTICS.increment("create_subscription.creds_error")
                 raise AuthException(f"Access token failure: {err}") from err
             _LOGGER.debug("Credentials refreshed, new expiry %s", creds.expiry)
-            self._creds = creds  # type: ignore[assignment]
+            self._creds = creds
             self._client = pubsub_v1.SubscriberAsyncClient(credentials=self._creds)
         return self._client
 
