@@ -11,7 +11,7 @@ ruff==0.15.17
 
 aiohttp==3.14.1
 google-api-core==2.31.0
-google-auth==2.54.0
+google-auth==2.55.0
 google-cloud-pubsub==2.39.0
 googleapis-common-protos==1.75.0
 grpcio==1.81.1
