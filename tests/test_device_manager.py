@@ -1,14 +1,13 @@
 import datetime
-from collections.abc import Callable
-from typing import Any
+from typing import Any, Callable, Dict
 
 import pytest
 
+from google_nest_sdm.google_nest_api import GoogleNestAPI
 from google_nest_sdm.device import Device
 from google_nest_sdm.device_manager import DeviceManager
 from google_nest_sdm.device_traits import ConnectivityTrait
 from google_nest_sdm.event import EventMessage
-from google_nest_sdm.google_nest_api import GoogleNestAPI
 
 from .conftest import DeviceHandler, EventCallback, StructureHandler
 
@@ -25,7 +24,7 @@ async def device_manager_fixture(
 
 @pytest.fixture
 def event_message_with_time(
-    fake_event_message: Callable[[dict[str, Any]], EventMessage],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> Callable[[str, str, str], EventMessage]:
     def make_event(device_id: str, timestamp: str, status: str) -> EventMessage:
         return fake_event_message(
@@ -61,8 +60,8 @@ async def test_add_device(
 
 
 async def test_update_traits(
-    fake_device: Callable[[dict[str, Any]], Device],
-    fake_event_message: Callable[[dict[str, Any]], EventMessage],
+    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
     device_handler: DeviceHandler,
     device_manager: DeviceManager,
 ) -> None:
@@ -105,8 +104,8 @@ async def test_update_traits(
 
 
 async def test_device_created_in_structure(
-    fake_device: Callable[[dict[str, Any]], Device],
-    fake_event_message: Callable[[dict[str, Any]], EventMessage],
+    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
     device_handler: DeviceHandler,
     structure_handler: StructureHandler,
     device_manager: DeviceManager,
@@ -173,8 +172,8 @@ async def test_device_created_in_structure(
 
 
 async def test_device_event_callback(
-    fake_device: Callable[[dict[str, Any]], Device],
-    fake_event_message: Callable[[dict[str, Any]], EventMessage],
+    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
     device_handler: DeviceHandler,
     device_manager: DeviceManager,
 ) -> None:
@@ -270,8 +269,8 @@ async def test_device_event_callback(
 
 
 async def test_device_update_listener(
-    fake_device: Callable[[dict[str, Any]], Device],
-    fake_event_message: Callable[[dict[str, Any]], EventMessage],
+    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
     device_handler: DeviceHandler,
     device_manager: DeviceManager,
 ) -> None:
@@ -373,7 +372,7 @@ async def test_device_update_listener(
 
 
 async def test_update_trait_with_field_alias(
-    fake_event_message: Callable[[dict[str, Any]], EventMessage],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
     device_handler: DeviceHandler,
     device_manager: DeviceManager,
 ) -> None:
@@ -459,7 +458,7 @@ async def test_update_trait_with_field_alias(
     [
         # We handle various timezone aware vs floating datetimes
         datetime.datetime.now(datetime.UTC),
-        datetime.datetime.now(tz=None),  # noqa: DTZ005
+        datetime.datetime.now(tz=None),
     ],
 )
 async def test_update_trait_ordering(
@@ -513,7 +512,7 @@ async def test_update_trait_ordering(
 
 
 async def test_update_trait_with_new_field(
-    fake_event_message: Callable[[dict[str, Any]], EventMessage],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
     device_handler: DeviceHandler,
     device_manager: DeviceManager,
 ) -> None:
@@ -581,7 +580,7 @@ async def test_update_trait_with_new_field(
 async def test_device_added_after_callback(
     test_trait: str,
     test_event_trait: str,
-    fake_event_message: Callable[[dict[str, Any]], EventMessage],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
     device_handler: DeviceHandler,
     device_manager: DeviceManager,
 ) -> None:
@@ -634,7 +633,7 @@ async def test_device_added_after_callback(
 async def test_publish_without_media(
     test_trait: str,
     test_event_trait: str,
-    fake_event_message: Callable[[dict[str, Any]], EventMessage],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
     device_handler: DeviceHandler,
     device_manager: DeviceManager,
 ) -> None:
@@ -675,7 +674,7 @@ async def test_publish_without_media(
 
 
 async def test_update_with_new_trait(
-    fake_event_message: Callable[[dict[str, Any]], EventMessage],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
     device_handler: DeviceHandler,
     device_manager: DeviceManager,
 ) -> None:

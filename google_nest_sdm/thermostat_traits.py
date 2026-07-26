@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import ClassVar, Final
+from typing import Final, ClassVar
 
 import aiohttp
-from mashumaro import DataClassDictMixin, field_options
+from mashumaro import field_options, DataClassDictMixin
 
 from .traits import CommandDataClass, TraitType
 

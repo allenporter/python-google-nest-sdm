@@ -229,7 +229,7 @@ class DeviceWatcherCallback:
         print(f"event_id: {event_message.event_id}")
         print("Current device state:")
         PrintDevice(self._device, self._output_type)
-        print()
+        print("")
 
 
 async def RunTool(args: argparse.Namespace, user_creds: Credentials) -> None:
@@ -259,7 +259,7 @@ async def RunTool(args: argparse.Namespace, user_creds: Credentials) -> None:
             return
 
         if args.command == "subscribe":
-            logging.info("Subscription: %s", args.subscription_id)  # noqa: LOG015
+            logging.info("Subscription: %s", args.subscription_id)
             subscriber = GoogleNestSubscriber(
                 auth, args.project_id, args.subscription_id
             )
@@ -319,8 +319,8 @@ async def RunTool(args: argparse.Namespace, user_creds: Credentials) -> None:
             trait = device.traits[CameraLiveStreamTrait.NAME]
             offer_sdp = None
             if args.offer_file:
-                with open(args.offer_file, "r") as f:  # noqa: ASYNC230
-                    offer_sdp = f.read()
+                f = open(args.offer_file, "r")
+                offer_sdp = f.read()
             stream = await trait.generate_web_rtc_stream(offer_sdp)
             print(f"Answer SDP: {stream.answer_sdp}")
             print(f"Media Session Id: {stream.media_session_id}")

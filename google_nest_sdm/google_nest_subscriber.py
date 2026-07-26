@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import asyncio
 import datetime
+import asyncio
 import enum
 import logging
 import re
 import time
-from collections.abc import Awaitable, Callable
+from typing import Awaitable, Callable
+
 
 from .auth import AbstractAuth
 from .device_manager import DeviceManager
@@ -19,11 +20,11 @@ from .exceptions import (
     ConfigurationException,
 )
 from .google_nest_api import GoogleNestAPI
-from .streaming_manager import Message, StreamingManager
+from .streaming_manager import StreamingManager, Message
 
 __all__ = [
-    "ApiEnv",
     "GoogleNestSubscriber",
+    "ApiEnv",
 ]
 
 
@@ -80,7 +81,7 @@ def get_api_env(env: str | None) -> ApiEnv:
         return ApiEnv.PROD
     if env == "preprod":
         return ApiEnv.PREPROD
-    raise ValueError(f"Invalid ApiEnv: {env}")
+    raise ValueError("Invalid ApiEnv: %s" % env)
 
 
 def _validate_subscription_name(subscription_name: str) -> None:

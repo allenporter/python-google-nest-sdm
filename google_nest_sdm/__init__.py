@@ -32,17 +32,17 @@ Example usage:
 """
 
 __all__ = [
-    "auth",
-    "camera_traits",
-    "device",
-    "device_manager",
-    "device_traits",
-    "diagnostics",
-    "doorbell_traits",
-    "event",
-    "event_media",
-    "exceptions",
     "google_nest_subscriber",
-    "structure",
+    "device_manager",
+    "device",
+    "camera_traits",
+    "device_traits",
+    "doorbell_traits",
     "thermostat_traits",
+    "structure",
+    "auth",
+    "event_media",
+    "event",
+    "exceptions",
+    "diagnostics",
 ]

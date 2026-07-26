@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Awaitable, Callable, Generator
-from typing import Any
+from typing import Any, Awaitable, Callable, Dict
+from collections.abc import Generator
 from unittest.mock import Mock, patch
 
 import aiohttp
@@ -30,7 +30,7 @@ SUBSCRIPTION_NAME = "projects/some-project-id/subscriptions/subscriber-id1"
 
 
 @pytest.fixture(name="streaming_manager", autouse=True)
-def mock_streaming_manager() -> Generator[Mock]:
+def mock_streaming_manager() -> Generator[Mock, None, None]:
     """Patch StreamingManager and capture the callback."""
     with patch(
         "google_nest_sdm.google_nest_subscriber.StreamingManager", spec=StreamingManager
@@ -412,7 +412,7 @@ async def test_message_ack_timeout(
     structure_handler: StructureHandler,
     streaming_manager: Mock,
     subscriber: GoogleNestSubscriber,
-    fake_event_message: Callable[[dict[str, Any]], EventMessage],
+    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
 ) -> None:
     device_id = device_handler.add_device(
         traits={
@@ -443,13 +443,11 @@ async def test_message_ack_timeout(
         },
         "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
     }
-    with (
-        patch(
-            "google_nest_sdm.google_nest_subscriber.MESSAGE_ACK_TIMEOUT_SECONDS", 0.01
-        ),
-        pytest.raises(TimeoutError, match="Message ack timeout"),
+    with patch(
+        "google_nest_sdm.google_nest_subscriber.MESSAGE_ACK_TIMEOUT_SECONDS", 0.01
     ):
-        await streaming_manager.callback(Message.from_data(event))
+        with pytest.raises(TimeoutError, match="Message ack timeout"):
+            await streaming_manager.callback(Message.from_data(event))
 
     unsub()
 
@@ -495,14 +493,14 @@ async def test_refresh_hack_on_invalid_thermostat_traits(
     # Verify initial device state
     trait = device.traits.get("sdm.devices.traits.ThermostatEco")
     assert trait
-    assert set(trait.available_modes) == {"MANUAL_ECO", "OFF"}
+    assert set(trait.available_modes) == set(["MANUAL_ECO", "OFF"])
     assert trait.mode == "MANUAL_ECO"
     assert trait.heat_celsius == 20.0
     assert trait.cool_celsius == 22.0
 
     trait = device.traits.get("sdm.devices.traits.ThermostatMode")
     assert trait
-    assert set(trait.available_modes) == {"HEAT", "COOL", "HEATCOOL", "OFF"}
+    assert set(trait.available_modes) == set(["HEAT", "COOL", "HEATCOOL", "OFF"])
     assert trait.mode == "HEAT"
 
     trait = device.traits.get("sdm.devices.traits.ThermostatHvac")
@@ -554,14 +552,14 @@ async def test_refresh_hack_on_invalid_thermostat_traits(
     # Verify the invalid message is dropped and the server update is reflected
     trait = device.traits.get("sdm.devices.traits.ThermostatEco")
     assert trait
-    assert set(trait.available_modes) == {"MANUAL_ECO", "OFF"}
+    assert set(trait.available_modes) == set(["MANUAL_ECO", "OFF"])
     assert trait.mode == "MANUAL_ECO"
     assert trait.heat_celsius == 19.0  # State update reflected
     assert trait.cool_celsius == 22.0
 
     trait = device.traits.get("sdm.devices.traits.ThermostatMode")
     assert trait
-    assert set(trait.available_modes) == {"HEAT", "COOL", "HEATCOOL", "OFF"}
+    assert set(trait.available_modes) == set(["HEAT", "COOL", "HEATCOOL", "OFF"])
     assert trait.mode == "HEAT"
 
     trait = device.traits.get("sdm.devices.traits.ThermostatHvac")

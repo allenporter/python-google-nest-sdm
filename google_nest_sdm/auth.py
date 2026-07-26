@@ -13,12 +13,12 @@ or refresh to deal with expiration, etc).
 
 from __future__ import annotations
 
-import builtins
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from http import HTTPStatus
+from asyncio import TimeoutError
 from typing import Any
+from http import HTTPStatus
 
 import aiohttp
 from aiohttp.client_exceptions import ClientError
@@ -28,9 +28,9 @@ from mashumaro.mixins.json import DataClassJSONMixin
 
 from .exceptions import (
     ApiException,
-    ApiForbiddenException,
     ApiTimeoutException,
     AuthException,
+    ApiForbiddenException,
     NotFoundException,
 )
 
@@ -128,21 +128,21 @@ class AbstractAuth(ABC):
         if AUTHORIZATION_HEADER not in headers:
             try:
                 access_token = await self.async_get_access_token()
-            except builtins.TimeoutError as err:
+            except TimeoutError as err:
                 raise ApiTimeoutException(
                     f"Timeout requesting API token: {err}"
                 ) from err
             except ClientError as err:
                 raise AuthException(f"Access token failure: {err}") from err
             headers[AUTHORIZATION_HEADER] = f"Bearer {access_token}"
-        if not url.startswith(("http://", "https://")):
+        if not (url.startswith("http://") or url.startswith("https://")):
             url = f"{self._host}/{url}"
         _LOGGER.debug("request[%s]=%s", method, url)
         if method == "post" and "json" in kwargs:
             _LOGGER.debug("request[post json]=%s", kwargs["json"])
         try:
             return await self._request(method, url, headers=headers, **kwargs)
-        except builtins.TimeoutError as err:
+        except TimeoutError as err:
             raise ApiTimeoutException(f"Timeout connecting to API: {err}") from err
         except ClientError as err:
             raise ApiException(f"Error connecting to API: {err}") from err
@@ -165,7 +165,7 @@ class AbstractAuth(ABC):
         except ClientError as err:
             raise ApiException("Server returned malformed response") from err
         if not isinstance(result, dict):
-            raise ApiException(f"Server return malformed response: {result}")
+            raise ApiException("Server return malformed response: %s" % result)
         _LOGGER.debug("response=%s", result)
         return result
 
@@ -182,7 +182,7 @@ class AbstractAuth(ABC):
         except ClientError as err:
             raise ApiException("Server returned malformed response") from err
         if not isinstance(result, dict):
-            raise ApiException(f"Server returned malformed response: {result}")
+            raise ApiException("Server returned malformed response: %s" % result)
         _LOGGER.debug("response=%s", result)
         return result
 

@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import Callable, TypeVar, Any
 
 CALLABLE_T = TypeVar("CALLABLE_T", bound=Callable)  # pylint: disable=invalid-name
 

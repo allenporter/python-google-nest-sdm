@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 import base64
 import binascii
+from dataclasses import dataclass, field
 import datetime
+from enum import StrEnum
 import hashlib
 import json
 import logging
 import traceback
-from abc import ABC, abstractmethod
-from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
-from enum import StrEnum
-from typing import Any, ClassVar
+from typing import Any, Iterable, Mapping, ClassVar
 
 from mashumaro import DataClassDictMixin, field_options
 from mashumaro.config import (
@@ -26,13 +25,13 @@ from .exceptions import DecodeException
 from .registry import Registry
 
 __all__ = [
-    "CameraClipPreviewEvent",
+    "EventMessage",
     "CameraMotionEvent",
     "CameraPersonEvent",
     "CameraSoundEvent",
     "DoorbellChimeEvent",
+    "CameraClipPreviewEvent",
     "EventImageType",
-    "EventMessage",
     "EventProcessingError",
 ]
 
@@ -156,7 +155,7 @@ class UtcDateTimeSerializationStrategy(SerializationStrategy):
     def deserialize(self, value: str) -> datetime.datetime:
         dt = datetime.datetime.fromisoformat(value)
         if dt.tzinfo is None:
-            return dt.replace(tzinfo=datetime.UTC)
+            return dt.replace(tzinfo=datetime.timezone.utc)
         return dt
 
 
@@ -198,7 +197,7 @@ class ImageEventBase(DataClassDictMixin, ABC):
     @property
     def is_expired(self) -> bool:
         """Return true if the event expiration has passed."""
-        now = datetime.datetime.now(tz=datetime.UTC)
+        now = datetime.datetime.now(tz=datetime.timezone.utc)
         return self.expires_at < now
 
     def as_dict(self) -> dict[str, Any]:
@@ -223,11 +222,11 @@ class ImageEventBase(DataClassDictMixin, ABC):
         return event
 
     class Config(BaseConfig):
-        serialization_strategy = {  # noqa: RUF012
+        serialization_strategy = {
             EventImageContentType: EventImageTypeSerializationStrategy(),
             datetime.datetime: UtcDateTimeSerializationStrategy(),
         }
-        code_generation_options = [  # noqa: RUF012
+        code_generation_options = [
             "TO_DICT_ADD_BY_ALIAS_FLAG",
             "TO_DICT_ADD_OMIT_NONE_FLAG",
         ]
@@ -352,7 +351,7 @@ def _BuildEvent(
     except Exception as err:
         traceback.print_exc()
         _LOGGER.debug("Failed to parse event: %s (event_data=%s)", err, event_data)
-        raise
+        raise err
 
 
 def session_event_image_type(events: Iterable[ImageEventBase]) -> EventImageContentType:
@@ -398,7 +397,9 @@ class EventMessage(DataClassDictMixin):
     _auth: AbstractAuth = field(init=False, metadata={"serialize": "omit"})
 
     @classmethod
-    def create_event(cls, raw_data: dict[str, Any], auth: AbstractAuth) -> EventMessage:
+    def create_event(
+        cls, raw_data: dict[str, Any], auth: AbstractAuth
+    ) -> "EventMessage":
         """Initialize an EventMessage."""
         event_data = {**raw_data}
         _LOGGER.debug("EventMessage raw_data=%s", event_data)
@@ -429,9 +430,9 @@ class EventMessage(DataClassDictMixin):
             d[event_name] = event
             event_sessions[event.event_session_id] = d
         # Build associations between all events
-        for event_dict in event_sessions.values():
+        for event_session_id, event_dict in event_sessions.items():
             event_image_type = session_event_image_type(events.values())
-            for event in event_dict.values():
+            for event_type, event in event_dict.items():
                 event.event_image_type = event_image_type
         return event_sessions
 
@@ -471,11 +472,11 @@ class EventMessage(DataClassDictMixin):
         return f"EventMessage{self.to_dict()}"
 
     class Config(BaseConfig):
-        serialization_strategy = {  # noqa: RUF012
+        serialization_strategy = {
             dict[str, ImageEventBase]: UpdateEventsSerializationStrategy(),
             datetime.datetime: UtcDateTimeSerializationStrategy(),
         }
-        code_generation_options = [  # noqa: RUF012
+        code_generation_options = [
             "TO_DICT_ADD_BY_ALIAS_FLAG",
             "TO_DICT_ADD_OMIT_NONE_FLAG",
         ]

@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import asyncio
-import datetime
 import logging
-from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
-from typing import Any, TypeGuard
-from unittest.mock import AsyncMock, Mock, patch
+from typing import Any, Awaitable, Callable, Dict, TypeVar, TypeGuard
+from unittest.mock import Mock, patch, AsyncMock
+from collections.abc import AsyncGenerator, Generator
+import datetime
 
 import pytest
-from google.api_core.exceptions import ClientError, GoogleAPIError, Unauthenticated
+from google.api_core.exceptions import ClientError, Unauthenticated, GoogleAPIError
 from google.cloud import pubsub_v1
 
 from google_nest_sdm import diagnostics
@@ -18,8 +18,8 @@ from google_nest_sdm.exceptions import (
     SubscriberException,
 )
 from google_nest_sdm.streaming_manager import (
-    Message,
     StreamingManager,
+    Message,
     encode_pubsub_message,
 )
 
@@ -30,8 +30,10 @@ _LOGGER = logging.getLogger(__name__)
 PROJECT_ID = "project-id1"
 SUBSCRIPTION_NAME = "projects/some-project-id/subscriptions/subscriber-id1"
 
+_T = TypeVar("_T")
 
-def object_is[T](obj: Any, value: T) -> TypeGuard[T]:
+
+def object_is(obj: Any, value: _T) -> TypeGuard[_T]:
     """Assertion hack to workaround https://github.com/python/mypy/issues/11969"""
     return obj is value
 
@@ -46,7 +48,7 @@ class MessageQueue:
         self.next_ack_id = 0
 
     async def async_push_events(
-        self, events: list[dict[str, Any]], sleep: bool = True
+        self, events: list[Dict[str, Any]], sleep: bool = True
     ) -> None:
         """Push an event into the queue."""
         for event in events:
@@ -65,7 +67,7 @@ class MessageQueue:
 
     async def __aiter__(
         self,
-    ) -> AsyncGenerator[pubsub_v1.types.StreamingPullResponse]:
+    ) -> AsyncGenerator[pubsub_v1.types.StreamingPullResponse, None]:
         """Get a message from the queue."""
         while True:
             _LOGGER.debug("Waiting for message")
@@ -117,7 +119,7 @@ def mock_callback_exception() -> Exception | None:
 def mock_subscriber_async_client(
     message_queue: MessageQueue,
     pull_exception: Exception | list[Exception] | None,
-) -> Generator[Mock]:
+) -> Generator[Mock, None, None]:
     """Fixture to mock the subscriber."""
 
     with patch(
@@ -153,7 +155,7 @@ def mock_streaming_manager_factory(
     auth_client: Callable[[], Awaitable[AbstractAuth]],
     messages_received: list[Message],
     callback_exception: Exception | None,
-) -> Generator[Callable[[], Awaitable[StreamingManager]]]:
+) -> Generator[Callable[[], Awaitable[StreamingManager]], None, None]:
     async def create() -> StreamingManager:
         auth = await auth_client()
 

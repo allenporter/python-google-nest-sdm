@@ -1,11 +1,11 @@
 """Library for traits about devices."""
 
 import datetime
+from typing import Any, Dict, ClassVar
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
 
 import aiohttp
-from mashumaro import DataClassDictMixin, field_options
+from mashumaro import field_options, DataClassDictMixin
 
 from .traits import CommandDataClass, TraitType
 
@@ -47,7 +47,7 @@ class FanTrait(DataClassDictMixin, CommandDataClass):
         self, timer_mode: str, duration: int | None = None
     ) -> aiohttp.ClientResponse:
         """Change the fan timer."""
-        data: dict[str, Any] = {
+        data: Dict[str, Any] = {
             "command": "sdm.devices.commands.Fan.SetTimer",
             "params": {
                 "timerMode": timer_mode,

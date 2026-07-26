@@ -1,7 +1,6 @@
 """Tests for thermostat traits."""
 
-from collections.abc import Callable
-from typing import Any
+from typing import Any, Callable, Dict
 
 import aiohttp
 import pytest
@@ -12,7 +11,7 @@ from google_nest_sdm.device import Device
 from .conftest import DeviceHandler, Recorder
 
 
-def test_thermostat_eco_traits(fake_device: Callable[[dict[str, Any]], Device]) -> None:
+def test_thermostat_eco_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -35,7 +34,7 @@ def test_thermostat_eco_traits(fake_device: Callable[[dict[str, Any]], Device]) 
 
 
 def test_thermostat_hvac_traits(
-    fake_device: Callable[[dict[str, Any]], Device],
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     device = fake_device(
         {
@@ -53,7 +52,7 @@ def test_thermostat_hvac_traits(
 
 
 def test_thermostat_mode_traits(
-    fake_device: Callable[[dict[str, Any]], Device],
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     device = fake_device(
         {
@@ -73,7 +72,7 @@ def test_thermostat_mode_traits(
 
 
 def test_thermostat_temperature_setpoint_traits(
-    fake_device: Callable[[dict[str, Any]], Device],
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     device = fake_device(
         {
@@ -102,7 +101,7 @@ def test_thermostat_temperature_setpoint_traits(
     ],
 )
 def test_thermostat_temperature_setpoint_optional_fields(
-    fake_device: Callable[[dict[str, Any]], Device], data: dict[str, Any]
+    fake_device: Callable[[Dict[str, Any]], Device], data: dict[str, Any]
 ) -> None:
     device = fake_device(
         {
@@ -115,7 +114,7 @@ def test_thermostat_temperature_setpoint_optional_fields(
 
 
 def test_thermostat_multiple_traits(
-    fake_device: Callable[[dict[str, Any]], Device],
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     device = fake_device(
         {
@@ -168,7 +167,7 @@ def test_thermostat_multiple_traits(
     ],
 )
 def test_thermostat_eco_optional_fields(
-    fake_device: Callable[[dict[str, Any]], Device], data: dict[str, Any]
+    fake_device: Callable[[Dict[str, Any]], Device], data: dict[str, Any]
 ) -> None:
     device = fake_device(
         {

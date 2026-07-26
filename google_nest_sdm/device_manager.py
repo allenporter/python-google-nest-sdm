@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Awaitable, Callable
+from typing import Awaitable, Callable, Dict
 
 from .device import Device, ParentRelation
-from .diagnostics import DEVICE_MANAGER_DIAGNOSTICS as DIAGNOSTICS
+from .exceptions import ApiException
 from .event import EventMessage, RelationUpdate
 from .event_media import CachePolicy
-from .exceptions import ApiException
 from .google_nest_api import GoogleNestAPI
 from .structure import Structure
+from .diagnostics import DEVICE_MANAGER_DIAGNOSTICS as DIAGNOSTICS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,19 +24,19 @@ class DeviceManager:
     ) -> None:
         """Initialize DeviceManager."""
         self._api = api
-        self._devices: dict[str, Device] = {}
-        self._structures: dict[str, Structure] = {}
+        self._devices: Dict[str, Device] = {}
+        self._structures: Dict[str, Structure] = {}
         self._cache_policy = cache_policy if cache_policy else CachePolicy()
         self._update_callback: Callable[[EventMessage], Awaitable[None]] | None = None
         self._change_callback: Callable[[], Awaitable[None]] | None = None
 
     @property
-    def devices(self) -> dict[str, Device]:
+    def devices(self) -> Dict[str, Device]:
         """Return current state of devices."""
         return self._devices
 
     @property
-    def structures(self) -> dict[str, Structure]:
+    def structures(self) -> Dict[str, Structure]:
         """Return current state of structures."""
         return self._structures
 
@@ -181,7 +181,7 @@ class DeviceManager:
 
 def _is_invalid_thermostat_trait_update(event: EventMessage) -> bool:
     """Return true if this is an invalid thermostat trait update."""
-    return bool(
+    if (
         event.resource_update_traits is not None
         and (
             thermostat_mode := event.resource_update_traits.get(
@@ -190,4 +190,6 @@ def _is_invalid_thermostat_trait_update(event: EventMessage) -> bool:
         )
         and (available_modes := thermostat_mode.get("availableModes")) is not None
         and available_modes == ["OFF"]
-    )
+    ):
+        return True
+    return False

@@ -1,8 +1,7 @@
 """Tests for device traits."""
 
 import datetime
-from collections.abc import Callable
-from typing import Any
+from typing import Any, Callable, Dict
 
 import pytest
 
@@ -11,7 +10,7 @@ from google_nest_sdm.device import Device
 from .conftest import assert_diagnostics
 
 
-def test_info_traits(fake_device: Callable[[dict[str, Any]], Device]) -> None:
+def test_info_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -43,7 +42,7 @@ def test_info_traits(fake_device: Callable[[dict[str, Any]], Device]) -> None:
     )
 
 
-def test_connectivity_traits(fake_device: Callable[[dict[str, Any]], Device]) -> None:
+def test_connectivity_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -59,7 +58,7 @@ def test_connectivity_traits(fake_device: Callable[[dict[str, Any]], Device]) ->
     assert "OFFLINE" == trait.status
 
 
-def test_fan_traits(fake_device: Callable[[dict[str, Any]], Device]) -> None:
+def test_fan_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -75,12 +74,12 @@ def test_fan_traits(fake_device: Callable[[dict[str, Any]], Device]) -> None:
     trait = device.traits["sdm.devices.traits.Fan"]
     assert "ON" == trait.timer_mode
     assert (
-        datetime.datetime(2019, 5, 10, 3, 22, 54, tzinfo=datetime.UTC)
+        datetime.datetime(2019, 5, 10, 3, 22, 54, tzinfo=datetime.timezone.utc)
         == trait.timer_timeout
     )
 
 
-def test_fan_traits_empty(fake_device: Callable[[dict[str, Any]], Device]) -> None:
+def test_fan_traits_empty(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -95,7 +94,7 @@ def test_fan_traits_empty(fake_device: Callable[[dict[str, Any]], Device]) -> No
     assert trait.timer_timeout is None
 
 
-def test_humidity_traits(fake_device: Callable[[dict[str, Any]], Device]) -> None:
+def test_humidity_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -111,7 +110,7 @@ def test_humidity_traits(fake_device: Callable[[dict[str, Any]], Device]) -> Non
     assert 25.3 == trait.ambient_humidity_percent
 
 
-def test_humidity_int_traits(fake_device: Callable[[dict[str, Any]], Device]) -> None:
+def test_humidity_int_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -127,7 +126,7 @@ def test_humidity_int_traits(fake_device: Callable[[dict[str, Any]], Device]) ->
     assert 25 == trait.ambient_humidity_percent
 
 
-def test_temperature_traits(fake_device: Callable[[dict[str, Any]], Device]) -> None:
+def test_temperature_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -143,7 +142,7 @@ def test_temperature_traits(fake_device: Callable[[dict[str, Any]], Device]) -> 
     assert 31.1 == trait.ambient_temperature_celsius
 
 
-def test_multiple_traits(fake_device: Callable[[dict[str, Any]], Device]) -> None:
+def test_multiple_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -169,7 +168,7 @@ def test_multiple_traits(fake_device: Callable[[dict[str, Any]], Device]) -> Non
 
 
 def test_info_traits_type_error(
-    fake_device: Callable[[dict[str, Any]], Device],
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     device = fake_device(
         {
@@ -188,7 +187,7 @@ def test_info_traits_type_error(
 
 
 def test_info_traits_missing_optional_field(
-    fake_device: Callable[[dict[str, Any]], Device],
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     device = fake_device(
         {
@@ -205,7 +204,7 @@ def test_info_traits_missing_optional_field(
 
 
 def test_connectivity_traits_missing_required_field(
-    fake_device: Callable[[dict[str, Any]], Device],
+    fake_device: Callable[[Dict[str, Any]], Device],
 ) -> None:
     with pytest.raises(ValueError):
         fake_device(

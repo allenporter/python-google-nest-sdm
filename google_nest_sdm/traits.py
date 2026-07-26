@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Mapping
 from enum import StrEnum
-from typing import Any
+from typing import Any, Mapping
 
 import aiohttp
 from mashumaro.types import SerializableType
