@@ -1,6 +1,6 @@
 {
   "template": "https://github.com/allenporter/cookiecutter-python",
-  "commit": "ba085c7eb7b28adfff80b6a6941c991f0d5c57f1",
+  "commit": "e478dec9629c36afafb6b357dae103cd6c3cf75e",
   "checkout": null,
   "context": {
     "cookiecutter": {
@@ -10,7 +10,8 @@
       "project_name": "google_nest_sdm",
       "description": "Library for the Google Nest SDM API",
       "version": "3.0.4",
-      "_template": "https://github.com/allenporter/cookiecutter-python"
+      "_template": "https://github.com/allenporter/cookiecutter-python",
+      "_commit": "e478dec9629c36afafb6b357dae103cd6c3cf75e"
     }
   },
   "directory": null
