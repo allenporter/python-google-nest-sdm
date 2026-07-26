@@ -25,7 +25,7 @@ class Transcoder:
             raise TranscodeException(f"Input file does not exist: {full_input_file}")
         if os.path.exists(full_output_file):
             raise TranscodeException(f"Output file already exists: {full_output_file}")
-        cmd = " ".join(
+        cmd = " ".join(  # noqa: FLY002
             [
                 self._ffmpeg_binary,
                 "-y",

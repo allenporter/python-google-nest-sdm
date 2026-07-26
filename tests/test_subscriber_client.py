@@ -1,21 +1,21 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from google.auth.exceptions import RefreshError, GoogleAuthError, TransportError
 from google.api_core.exceptions import GoogleAPIError, NotFound, Unauthenticated
+from google.auth.exceptions import GoogleAuthError, RefreshError, TransportError
 
 from google_nest_sdm.exceptions import (
     AuthException,
-    SubscriberException,
     ConfigurationException,
+    SubscriberException,
 )
 from google_nest_sdm.subscriber_client import (
-    refresh_creds,
     SubscriberClient,
     pull_request_generator,
+    refresh_creds,
 )
 
 
@@ -81,7 +81,7 @@ async def test_streaming_pull() -> None:
         mock_streaming_pull = AsyncMock()
         mock_streaming_pull.return_value = None
         mock_client.return_value.streaming_pull = mock_streaming_pull
-        await client.streaming_pull(lambda: [])
+        await client.streaming_pull(list)
 
     # Verify the call was invoked with the correct arguments
     mock_streaming_pull.assert_awaited_once()
@@ -126,7 +126,7 @@ async def test_streaming_pull_failure(
         mock_client.return_value.streaming_pull = mock_streaming_pull
 
         with pytest.raises(expected, match=message):
-            await client.streaming_pull(lambda: [])
+            await client.streaming_pull(list)
 
 
 async def test_request_generator() -> None:

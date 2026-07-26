@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, fields
+from typing import Any, Self
+
 from mashumaro import DataClassDictMixin
 from mashumaro.config import BaseConfig
-from typing import Any, Mapping, Self
-
 
 TRAITS = "traits"
 SDM_PREFIX = "sdm."
@@ -54,7 +55,7 @@ class TraitDataClass(DataClassDictMixin):
         return result
 
     class Config(BaseConfig):
-        code_generation_options = [
+        code_generation_options = [  # noqa: RUF012
             "TO_DICT_ADD_BY_ALIAS_FLAG",
             "TO_DICT_ADD_OMIT_NONE_FLAG",
         ]

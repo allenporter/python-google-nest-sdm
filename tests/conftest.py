@@ -2,18 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from abc import ABC
+from collections.abc import Awaitable, Callable, Generator
 from typing import (
     Any,
-    Awaitable,
-    Callable,
-    Dict,
-    Generator,
-    Optional,
     cast,
 )
-import logging
 
 import aiohttp
 import pytest
@@ -34,7 +30,7 @@ def pytest_configure(config: pytest.Config) -> None:
     """Register marker for tests that log exceptions."""
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s.%(msecs)03d %(levelname)-8s %(name)s:%(filename)s:%(lineno)s %(message)s",  # noqa: E501
+        format="%(asctime)s.%(msecs)03d %(levelname)-8s %(name)s:%(filename)s:%(lineno)s %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     if config.getoption("verbose") > 0:
@@ -42,7 +38,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
 
 @pytest.fixture(name="app")
-def mock_app() -> Generator[aiohttp.web.Application, None, None]:
+def mock_app() -> Generator[aiohttp.web.Application]:
     yield aiohttp.web.Application()
 
 
@@ -66,7 +62,7 @@ def mock_client(
     aiohttp_client: Callable[[TestServer], Awaitable[TestClient]],
 ) -> Callable[[], Awaitable[TestClient]]:
     # Cache the value so that it can be mutated by a test
-    cached_client: Optional[TestClient] = None
+    cached_client: TestClient | None = None
 
     async def _make_client() -> TestClient:
         nonlocal cached_client
@@ -143,31 +139,31 @@ async def refreshing_auth_client(
 @pytest.fixture
 def event_message(
     app: aiohttp.web.Application, auth_client: Callable[[], Awaitable[AbstractAuth]]
-) -> Callable[[Dict[str, Any]], Awaitable[EventMessage]]:
-    async def _make_event(raw_data: Dict[str, Any]) -> EventMessage:
+) -> Callable[[dict[str, Any]], Awaitable[EventMessage]]:
+    async def _make_event(raw_data: dict[str, Any]) -> EventMessage:
         return EventMessage.create_event(raw_data, await auth_client())
 
     return _make_event
 
 
 @pytest.fixture
-def fake_event_message() -> Callable[[Dict[str, Any]], EventMessage]:
-    def _make_event(raw_data: Dict[str, Any]) -> EventMessage:
+def fake_event_message() -> Callable[[dict[str, Any]], EventMessage]:
+    def _make_event(raw_data: dict[str, Any]) -> EventMessage:
         return EventMessage.create_event(raw_data, cast(AbstractAuth, None))
 
     return _make_event
 
 
 @pytest.fixture
-def fake_device() -> Callable[[Dict[str, Any]], Device]:
-    def _make_device(raw_data: Dict[str, Any]) -> Device:
+def fake_device() -> Callable[[dict[str, Any]], Device]:
+    def _make_device(raw_data: dict[str, Any]) -> Device:
         return Device.MakeDevice(raw_data, cast(AbstractAuth, None))
 
     return _make_device
 
 
 class Recorder:
-    request: Optional[Dict[str, Any]] = None
+    request: dict[str, Any] | None = None
 
 
 # Function type that returns a response for a given path
@@ -187,7 +183,7 @@ class JsonHandler(ABC):
 
     async def handler(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
         _LOGGER.debug("Request: %s", request)
-        assert request.headers["Authorization"] == "Bearer %s" % self.token
+        assert request.headers["Authorization"] == f"Bearer {self.token}"
         s = await request.text()
         self.recorder.request = await request.json() if s else {}
         data = self.response_for_path(request)
@@ -223,8 +219,8 @@ class DeviceHandler:
     def add_device(
         self,
         device_type: str = "sdm.devices.types.device-type1",
-        traits: dict[str, Any] = {},
-        parent_relations: list[dict[str, Any]] = [],
+        traits: dict[str, Any] | None = None,
+        parent_relations: list[dict[str, Any]] | None = None,
     ) -> str:
         """Add a fake device reply."""
         uid = uuid.uuid4().hex
@@ -232,8 +228,8 @@ class DeviceHandler:
         self.devices[device_id] = {
             "name": device_id,
             "type": device_type,
-            "traits": traits,
-            "parentRelations": parent_relations,
+            "traits": traits or {},
+            "parentRelations": parent_relations or [],
         }
         return device_id
 
@@ -265,7 +261,7 @@ class DeviceHandler:
         ) and request.path_qs.endswith(":executeCommand"):
             device_id = request.path_qs[1:].split(":")[0]
             assert request.method == "POST"
-            if device_id in self.device_commands and self.device_commands[device_id]:
+            if self.device_commands.get(device_id):
                 return self.device_commands[device_id].pop(0)
         return None
 
@@ -289,13 +285,13 @@ class StructureHandler:
             self.json_handler.handler,
         )
 
-    def add_structure(self, traits: dict[str, Any] = {}) -> str:
+    def add_structure(self, traits: dict[str, Any] | None = None) -> str:
         """Add a structure to the response."""
         uid = uuid.uuid4().hex
         structure_id = f"enterprises/{self.project_id}/structures/structure-id-{uid}"
         self.structures[structure_id] = {
             "name": structure_id,
-            "traits": traits,
+            "traits": traits or {},
         }
         return structure_id
 
@@ -339,7 +335,7 @@ def mock_structure_handler(
 
 
 @pytest.fixture(autouse=True)
-def reset_diagnostics() -> Generator[None, None, None]:
+def reset_diagnostics() -> Generator[None]:
     yield
     diagnostics.reset()
 
@@ -349,7 +345,7 @@ def assert_diagnostics(actual: dict[str, Any], expected: dict[str, Any]) -> None
 
     def scrub_dict(data: dict[str, Any]) -> dict[str, Any]:
         drop_keys = []
-        for k1, v1 in data.items():
+        for k1 in data:
             if k1.endswith("_sum"):
                 drop_keys.append(k1)
         for k in drop_keys:

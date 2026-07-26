@@ -17,13 +17,13 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from collections.abc import Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, cast
+from typing import Any, cast
 
 from mashumaro import DataClassDictMixin
-from mashumaro.types import SerializationStrategy
 from mashumaro.config import BaseConfig
+from mashumaro.types import SerializationStrategy
 
 from .camera_traits import (
     CameraClipPreviewTrait,
@@ -34,26 +34,26 @@ from .diagnostics import EVENT_MEDIA_DIAGNOSTICS as DIAGNOSTICS
 from .diagnostics import Diagnostics
 from .event import (
     CameraClipPreviewEvent,
+    CameraMotionEvent,
+    CameraPersonEvent,
+    CameraSoundEvent,
+    DoorbellChimeEvent,
     EventImageType,
     EventMessage,
     EventToken,
     ImageEventBase,
     session_event_image_type,
-    CameraPersonEvent,
-    CameraMotionEvent,
-    CameraSoundEvent,
-    DoorbellChimeEvent,
 )
 from .exceptions import GoogleNestException, TranscodeException
 from .transcoder import Transcoder
 
 __all__ = [
-    "EventMediaManager",
-    "ImageSession",
-    "ClipPreviewSession",
-    "Media",
-    "EventMediaStore",
     "CachePolicy",
+    "ClipPreviewSession",
+    "EventMediaManager",
+    "EventMediaStore",
+    "ImageSession",
+    "Media",
 ]
 
 _LOGGER = logging.getLogger(__name__)
@@ -239,7 +239,7 @@ class ImageEventSerializationStrategy(SerializationStrategy):
 
     def serialize(self, value: dict[str, ImageEventBase]) -> dict[str, Any]:
         """Serialize ImageEventBase."""
-        return dict((k, v.as_dict()) for k, v in value.items())
+        return {k: v.as_dict() for k, v in value.items()}
 
     def deserialize(self, value: dict[str, Any]) -> dict[str, ImageEventBase]:
         """Deserialize ImageEventBase."""
@@ -300,9 +300,8 @@ class EventMediaModelItem(DataClassDictMixin):
 
     def media_key_for_token(self, token: EventToken) -> str | None:
         """Return media key for the specified event token."""
-        if token.event_id:
-            if token.event_id in self.event_media_keys:
-                return self.event_media_keys[token.event_id]
+        if token.event_id and token.event_id in self.event_media_keys:
+            return self.event_media_keys[token.event_id]
             # Fallback to legacy single event per session
         return self.media_key
 
@@ -324,7 +323,7 @@ class EventMediaModelItem(DataClassDictMixin):
         return [key for key in keys if key is not None]
 
     class Config(BaseConfig):
-        serialization_strategy = {
+        serialization_strategy = {  # noqa: RUF012
             dict[str, ImageEventBase]: ImageEventSerializationStrategy(),
         }
 
@@ -373,7 +372,7 @@ class EventMediaManager:
                     item = EventMediaModelItem.from_dict(item_data)
                 except Exception as err:
                     _LOGGER.debug("Failed to parse event item: %s", str(err))
-                    raise err
+                    raise
                 event_data[item.event_session_id] = item
         return event_data
 
@@ -420,8 +419,8 @@ class EventMediaManager:
                 "Expiring cache %s", self._cache_policy.event_cache_expire_count
             )
             # Bulk pop items
-            for i in range(0, self._cache_policy.event_cache_expire_count):
-                (key, old_item) = event_data.popitem(last=False)
+            for i in range(self._cache_policy.event_cache_expire_count):
+                (_, old_item) = event_data.popitem(last=False)
                 _LOGGER.debug(
                     "Expiring media %s (%s)",
                     old_item.all_media_keys,
@@ -639,9 +638,7 @@ class EventMediaManager:
 
         def _filter(x: EventMediaModelItem) -> bool:
             """Return events already fetched or that could be fetched."""
-            if x.media_key or x.event_media_keys:
-                return True
-            return False
+            return bool(x.media_key or x.event_media_keys)
 
         event_data = await self._async_load()
         return list(filter(_filter, event_data.values()))

@@ -17,9 +17,9 @@ async def test_transcoder_file_not_exist(tmp_path: str) -> None:
 
 async def test_transcoder_output_already_exists(tmp_path: str) -> None:
     t = Transcoder(BINARY, path_prefix=tmp_path)
-    with open(f"{tmp_path}/in_file.mp4", mode="w") as f:
+    with open(f"{tmp_path}/in_file.mp4", mode="w") as f:  # noqa: ASYNC230
         f.write("some-input")
-    with open(f"{tmp_path}/out_file.gif", mode="w") as f:
+    with open(f"{tmp_path}/out_file.gif", mode="w") as f:  # noqa: ASYNC230
         f.write("some-output")
     with pytest.raises(TranscodeException):
         await t.transcode_clip("in_file.mp4", "out_file.gif")
@@ -27,7 +27,7 @@ async def test_transcoder_output_already_exists(tmp_path: str) -> None:
 
 async def test_transcoder(tmp_path: str) -> None:
     t = Transcoder(BINARY, path_prefix=tmp_path)
-    with open(f"{tmp_path}/in_file.mp4", mode="w") as f:
+    with open(f"{tmp_path}/in_file.mp4", mode="w") as f:  # noqa: ASYNC230
         f.write("some-input")
     with patch(
         "google_nest_sdm.transcoder.asyncio.create_subprocess_shell"
@@ -43,7 +43,7 @@ async def test_transcoder(tmp_path: str) -> None:
 
 async def test_transcoder_failure(tmp_path: str) -> None:
     t = Transcoder("/bin/false", path_prefix=tmp_path)
-    with open(f"{tmp_path}/in_file.mp4", mode="w") as f:
+    with open(f"{tmp_path}/in_file.mp4", mode="w") as f:  # noqa: ASYNC230
         f.write("some-input")
     with (
         patch(

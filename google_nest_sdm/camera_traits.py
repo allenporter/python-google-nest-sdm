@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+import datetime
+import logging
+import urllib.parse as urlparse
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-import datetime
 from enum import Enum
-import logging
 from typing import ClassVar
-import urllib.parse as urlparse
 
 from mashumaro import DataClassDictMixin, field_options
 from mashumaro.config import BaseConfig
@@ -27,20 +27,20 @@ from .traits import CommandDataClass, TraitType
 from .webrtc_util import fix_sdp_answer
 
 __all__ = [
+    "CameraClipPreviewTrait",
+    "CameraEventImageTrait",
     "CameraImageTrait",
     "CameraLiveStreamTrait",
-    "CameraEventImageTrait",
     "CameraMotionTrait",
     "CameraPersonTrait",
     "CameraSoundTrait",
-    "CameraClipPreviewTrait",
+    "EventImage",
     "Resolution",
+    "RtspStream",
     "Stream",
     "StreamUrls",
-    "RtspStream",
-    "WebRtcStream",
     "StreamingProtocol",
-    "EventImage",
+    "WebRtcStream",
 ]
 
 _LOGGER = logging.getLogger(__name__)
@@ -285,7 +285,7 @@ class CameraLiveStreamTrait(DataClassDictMixin, CommandDataClass):
         return obj
 
     class Config(BaseConfig):
-        serialization_strategy = {
+        serialization_strategy = {  # noqa: RUF012
             list[StreamingProtocol]: StreamingProtocolSerializationStrategy(),
         }
         serialize_by_alias = True

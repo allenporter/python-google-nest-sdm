@@ -1,7 +1,8 @@
 """Tests for the admin client library."""
 
-from typing import Awaitable, Callable, Any
+from collections.abc import Awaitable, Callable
 from http import HTTPStatus
+from typing import Any
 
 import aiohttp
 import pytest
@@ -13,7 +14,7 @@ from google_nest_sdm.exceptions import (
     ConfigurationException,
 )
 
-from .conftest import Recorder, FAKE_TOKEN
+from .conftest import FAKE_TOKEN, Recorder
 
 GOOGLE_CLOUD_CONSOLE_PROJECT_ID = "google-cloud-console-project-id"
 DEVICE_ACCESS_PROJECT_ID = "device-access-project-id"
@@ -37,7 +38,7 @@ def new_handler(
     status: HTTPStatus = HTTPStatus.OK,
 ) -> Callable[[aiohttp.web.Request], Awaitable[aiohttp.web.Response]]:
     async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
-        assert request.headers["Authorization"] == "Bearer %s" % token
+        assert request.headers["Authorization"] == f"Bearer {token}"
         s = await request.text()
         r.request = await request.json() if s else {}
         return aiohttp.web.json_response(responses.pop(0), status=status)

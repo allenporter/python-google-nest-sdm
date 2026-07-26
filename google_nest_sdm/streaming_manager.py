@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-import logging
 import json
-from typing import Awaitable, Callable, AsyncIterable, Any, TYPE_CHECKING
+import logging
+from collections.abc import AsyncIterable, Awaitable, Callable
+from typing import TYPE_CHECKING, Any
 
 from google import pubsub_v1
 
@@ -96,12 +97,12 @@ class StreamingManager:
         self._subscriber_client = None
 
     async def _run_task(self) -> None:
-        """"""
+        """Run subscription task."""
         try:
             await self._run()
         except asyncio.CancelledError:
             _LOGGER.debug("Subscription loop cancelled")
-        except Exception as err:
+        except Exception as err:  # noqa: BLE001
             _LOGGER.info("Uncaught error in subscription loop: %s", err)
             DIAGNOSTICS.increment("uncaught_exception")
         self._healthy = False
@@ -169,7 +170,7 @@ class StreamingManager:
             DIAGNOSTICS.increment("process_message_timeout")
             _LOGGER.info("Unexpected timeout while processing message: %s", err)
             return False
-        except Exception as err:
+        except Exception as err:  # noqa: BLE001
             DIAGNOSTICS.increment("process_message_exception")
             _LOGGER.info("Uncaught error while processing message: %s", err)
             return False

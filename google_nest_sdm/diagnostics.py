@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import time
 from collections import Counter
-from collections.abc import Mapping
+from collections.abc import Generator, Mapping
 from contextlib import contextmanager
-from typing import Any, Generator, TypeVar, cast
+from typing import Any, TypeVar, cast
 
 __all__ = [
     "get_diagnostics",
@@ -47,7 +47,7 @@ class Diagnostics:
         return self._subkeys[key]
 
     @contextmanager
-    def timer(self, key_prefix: str) -> Generator[None, None, None]:
+    def timer(self, key_prefix: str) -> Generator[None]:
         """A context manager that records the timing of operations as a diagnostic."""
         start = time.perf_counter()
         try:
@@ -110,7 +110,7 @@ REDACTED = "**REDACTED**"
 T = TypeVar("T")
 
 
-def redact_data(data: T) -> T | dict | list:
+def redact_data[T](data: T) -> T | dict | list:
     """Redact sensitive data in a dict."""
     if not isinstance(data, (Mapping, list)):
         return data

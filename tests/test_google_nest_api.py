@@ -1,8 +1,8 @@
 import json
-from typing import Awaitable, Callable
-from unittest.mock import patch
 import re
+from collections.abc import Awaitable, Callable
 from http import HTTPStatus
+from unittest.mock import patch
 
 import aiohttp
 import pytest
@@ -11,9 +11,9 @@ from google_nest_sdm import google_nest_api
 from google_nest_sdm.auth import AbstractAuth
 from google_nest_sdm.exceptions import (
     ApiException,
+    ApiForbiddenException,
     AuthException,
     NotFoundException,
-    ApiForbiddenException,
 )
 
 from .conftest import (
@@ -170,7 +170,7 @@ async def test_api_post_error(
     )
 
     async def fail_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
-        assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
+        assert request.headers["Authorization"] == f"Bearer {FAKE_TOKEN}"
         return aiohttp.web.Response(status=502)
 
     app.router.add_post(f"/{device_id}:executeCommand", fail_handler)
@@ -379,7 +379,7 @@ async def test_api_post_error_with_json_response(
     }
 
     async def fail_handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
-        assert request.headers["Authorization"] == "Bearer %s" % FAKE_TOKEN
+        assert request.headers["Authorization"] == f"Bearer {FAKE_TOKEN}"
         return aiohttp.web.Response(
             status=status,
             body=json.dumps(json_response),

@@ -4,21 +4,22 @@ from __future__ import annotations
 
 import datetime
 import logging
-from typing import Any, Awaitable, Callable
-from dataclasses import dataclass, field, fields, asdict
+from collections.abc import Awaitable, Callable
+from dataclasses import asdict, dataclass, field, fields
+from typing import Any
 
-from mashumaro import field_options, DataClassDictMixin
+from mashumaro import DataClassDictMixin, field_options
 from mashumaro.config import BaseConfig
 from mashumaro.types import SerializationStrategy
 
 from . import camera_traits, device_traits, doorbell_traits, thermostat_traits
 from .auth import AbstractAuth
-from .doorbell_traits import DoorbellChimeTrait
 from .diagnostics import Diagnostics, redact_data
+from .doorbell_traits import DoorbellChimeTrait
 from .event import EventMessage, EventProcessingError
 from .event_media import EventMediaManager
+from .model import SDM_PREFIX, TRAITS, TraitDataClass
 from .traits import Command
-from .model import TraitDataClass, SDM_PREFIX, TRAITS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -366,6 +367,6 @@ class Device(TraitTypes):
         }
 
     class Config(TraitTypes.Config):
-        serialization_strategy = {
+        serialization_strategy = {  # noqa: RUF012
             list[ParentRelation]: ParentRelationsSerializationStrategy(),
         }
