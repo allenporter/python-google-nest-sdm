@@ -1,6 +1,6 @@
 """Tests for the request client library."""
 
-from typing import Awaitable, Callable
+from collections.abc import Awaitable, Callable
 
 import aiohttp
 import pytest

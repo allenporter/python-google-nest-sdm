@@ -1,8 +1,8 @@
 import json
-from typing import Awaitable, Callable
-from unittest.mock import patch
 import re
+from collections.abc import Awaitable, Callable
 from http import HTTPStatus
+from unittest.mock import patch
 
 import aiohttp
 import pytest
@@ -11,9 +11,9 @@ from google_nest_sdm import google_nest_api
 from google_nest_sdm.auth import AbstractAuth
 from google_nest_sdm.exceptions import (
     ApiException,
+    ApiForbiddenException,
     AuthException,
     NotFoundException,
-    ApiForbiddenException,
 )
 
 from .conftest import (

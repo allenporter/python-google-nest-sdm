@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Awaitable, Callable, AsyncIterable, Any, TypeVar
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, AsyncIterable, Awaitable, Callable
+from typing import Any, TypeVar
 
 from aiohttp.client_exceptions import ClientError
-from google.api_core.exceptions import GoogleAPIError, NotFound, Unauthenticated
-from google.auth.exceptions import RefreshError, GoogleAuthError, TransportError
-from google.auth.transport.requests import Request
 from google import pubsub_v1
+from google.api_core.exceptions import GoogleAPIError, NotFound, Unauthenticated
 from google.auth.credentials import Credentials
+from google.auth.exceptions import GoogleAuthError, RefreshError, TransportError
+from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials as OAuthCredentials
 
 from .auth import AbstractAuth
@@ -54,7 +54,7 @@ def refresh_creds(creds: OAuthCredentials) -> OAuthCredentials:
     return creds
 
 
-def exception_handler[_T: Any](
+def exception_handler[T: Any](
     func_name: str,
 ) -> Callable[..., Callable[..., Awaitable[_T]]]:
     """Wrap a function with exception handling."""
@@ -185,7 +185,7 @@ class SubscriberClient:
                 stream: AsyncIterable[
                     pubsub_v1.types.StreamingPullResponse
                 ] = await client.streaming_pull(requests=req_gen)
-        except asyncio.TimeoutError as err:
+        except TimeoutError as err:
             _LOGGER.debug("Timeout in streaming_pull %s", err)
             DIAGNOSTICS.increment("streaming_pull.timeout")
             raise SubscriberTimeoutException("Timeout in streaming_pull") from err
@@ -205,7 +205,7 @@ class SubscriberClient:
                     subscription=self._subscription_name,
                     ack_ids=ack_ids,
                 )
-        except asyncio.TimeoutError as err:
+        except TimeoutError as err:
             _LOGGER.debug("Timeout in acknowledge: %s", err)
             DIAGNOSTICS.increment("acknowledge.timeout")
             raise SubscriberTimeoutException("Timeout in acknowledge") from err

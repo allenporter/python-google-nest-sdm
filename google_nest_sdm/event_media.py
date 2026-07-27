@@ -17,13 +17,13 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from collections.abc import Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, cast
+from typing import Any, cast
 
 from mashumaro import DataClassDictMixin
-from mashumaro.types import SerializationStrategy
 from mashumaro.config import BaseConfig
+from mashumaro.types import SerializationStrategy
 
 from .camera_traits import (
     CameraClipPreviewTrait,
@@ -34,15 +34,15 @@ from .diagnostics import EVENT_MEDIA_DIAGNOSTICS as DIAGNOSTICS
 from .diagnostics import Diagnostics
 from .event import (
     CameraClipPreviewEvent,
+    CameraMotionEvent,
+    CameraPersonEvent,
+    CameraSoundEvent,
+    DoorbellChimeEvent,
     EventImageType,
     EventMessage,
     EventToken,
     ImageEventBase,
     session_event_image_type,
-    CameraPersonEvent,
-    CameraMotionEvent,
-    CameraSoundEvent,
-    DoorbellChimeEvent,
 )
 from .exceptions import GoogleNestException, TranscodeException
 from .transcoder import Transcoder
@@ -420,7 +420,7 @@ class EventMediaManager:
                 "Expiring cache %s", self._cache_policy.event_cache_expire_count
             )
             # Bulk pop items
-            for i in range(0, self._cache_policy.event_cache_expire_count):
+            for i in range(self._cache_policy.event_cache_expire_count):
                 (key, old_item) = event_data.popitem(last=False)
                 _LOGGER.debug(
                     "Expiring media %s (%s)",

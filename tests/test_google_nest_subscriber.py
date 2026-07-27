@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Awaitable, Callable, Dict
-from collections.abc import Generator
+from collections.abc import Awaitable, Callable, Generator
+from typing import Any
 from unittest.mock import Mock, patch
 
 import aiohttp
@@ -30,7 +30,7 @@ SUBSCRIPTION_NAME = "projects/some-project-id/subscriptions/subscriber-id1"
 
 
 @pytest.fixture(name="streaming_manager", autouse=True)
-def mock_streaming_manager() -> Generator[Mock, None, None]:
+def mock_streaming_manager() -> Generator[Mock]:
     """Patch StreamingManager and capture the callback."""
     with patch(
         "google_nest_sdm.google_nest_subscriber.StreamingManager", spec=StreamingManager
@@ -412,7 +412,7 @@ async def test_message_ack_timeout(
     structure_handler: StructureHandler,
     streaming_manager: Mock,
     subscriber: GoogleNestSubscriber,
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    fake_event_message: Callable[[dict[str, Any]], EventMessage],
 ) -> None:
     device_id = device_handler.add_device(
         traits={
@@ -443,11 +443,13 @@ async def test_message_ack_timeout(
         },
         "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
     }
-    with patch(
-        "google_nest_sdm.google_nest_subscriber.MESSAGE_ACK_TIMEOUT_SECONDS", 0.01
+    with (
+        patch(
+            "google_nest_sdm.google_nest_subscriber.MESSAGE_ACK_TIMEOUT_SECONDS", 0.01
+        ),
+        pytest.raises(TimeoutError, match="Message ack timeout"),
     ):
-        with pytest.raises(TimeoutError, match="Message ack timeout"):
-            await streaming_manager.callback(Message.from_data(event))
+        await streaming_manager.callback(Message.from_data(event))
 
     unsub()
 

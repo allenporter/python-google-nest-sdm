@@ -1,6 +1,7 @@
 """Tests for device properties."""
 
-from typing import Any, Callable, Dict
+from collections.abc import Callable
+from typing import Any
 
 import pytest
 
@@ -9,7 +10,7 @@ from google_nest_sdm.device import Device
 from .conftest import assert_diagnostics
 
 
-def test_device_id(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
+def test_device_id(fake_device: Callable[[dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -20,7 +21,7 @@ def test_device_id(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     assert "sdm.devices.types.SomeDeviceType" == device.type
 
 
-def test_no_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
+def test_no_traits(fake_device: Callable[[dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -30,7 +31,7 @@ def test_no_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     assert "sdm.devices.traits.Info" not in device.traits
 
 
-def test_empty_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
+def test_empty_traits(fake_device: Callable[[dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -41,7 +42,7 @@ def test_empty_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
     assert "sdm.devices.traits.Info" not in device.traits
 
 
-def test_no_name(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
+def test_no_name(fake_device: Callable[[dict[str, Any]], Device]) -> None:
     with pytest.raises(ValueError, match="'name' is required"):
         fake_device(
             {
@@ -50,7 +51,7 @@ def test_no_name(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
         )
 
 
-def test_no_parent_relations(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
+def test_no_parent_relations(fake_device: Callable[[dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -61,7 +62,7 @@ def test_no_parent_relations(fake_device: Callable[[Dict[str, Any]], Device]) ->
 
 
 def test_empty_parent_relations(
-    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_device: Callable[[dict[str, Any]], Device],
 ) -> None:
     device = fake_device(
         {
@@ -74,7 +75,7 @@ def test_empty_parent_relations(
 
 
 def test_invalid_parent_relations(
-    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_device: Callable[[dict[str, Any]], Device],
 ) -> None:
     """Invalid parentRelations should be ignored."""
     device = fake_device(
@@ -87,7 +88,7 @@ def test_invalid_parent_relations(
     assert {} == device.parent_relations
 
 
-def test_parent_relation(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
+def test_parent_relation(fake_device: Callable[[dict[str, Any]], Device]) -> None:
     device = fake_device(
         {
             "name": "my/device/name",
@@ -119,7 +120,7 @@ def test_parent_relation(fake_device: Callable[[Dict[str, Any]], Device]) -> Non
 
 
 def test_multiple_parent_relations(
-    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_device: Callable[[dict[str, Any]], Device],
 ) -> None:
     device = fake_device(
         {

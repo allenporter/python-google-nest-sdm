@@ -1,7 +1,8 @@
 """Test for camera traits."""
 
 import datetime
-from typing import Any, Awaitable, Callable, Dict
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 import aiohttp
 import pytest
@@ -34,7 +35,7 @@ async def image_handler_fixture(app: aiohttp.web.Application) -> None:
     )
 
 
-def test_camera_image_traits(fake_device: Callable[[Dict[str, Any]], Device]) -> None:
+def test_camera_image_traits(fake_device: Callable[[dict[str, Any]], Device]) -> None:
     raw = {
         "name": "my/device/name",
         "traits": {
@@ -63,7 +64,7 @@ def test_camera_image_traits(fake_device: Callable[[Dict[str, Any]], Device]) ->
     ],
 )
 def test_otional_fields(
-    fake_device: Callable[[Dict[str, Any]], Device], data: dict[str, Any]
+    fake_device: Callable[[dict[str, Any]], Device], data: dict[str, Any]
 ) -> None:
     raw = {
         "name": "my/device/name",
@@ -77,7 +78,7 @@ def test_otional_fields(
 
 
 def test_camera_live_stream_traits(
-    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_device: Callable[[dict[str, Any]], Device],
 ) -> None:
     raw = {
         "name": "my/device/name",
@@ -104,7 +105,7 @@ def test_camera_live_stream_traits(
 
 
 def test_camera_live_stream_webrtc_protocol(
-    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_device: Callable[[dict[str, Any]], Device],
 ) -> None:
     raw = {
         "name": "my/device/name",
@@ -121,7 +122,7 @@ def test_camera_live_stream_webrtc_protocol(
 
 
 def test_camera_live_stream_multiple_protocols(
-    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_device: Callable[[dict[str, Any]], Device],
 ) -> None:
     raw = {
         "name": "my/device/name",
@@ -141,7 +142,7 @@ def test_camera_live_stream_multiple_protocols(
 
 
 def test_camera_live_stream_unknown_protocols(
-    fake_device: Callable[[Dict[str, Any]], Device],
+    fake_device: Callable[[dict[str, Any]], Device],
 ) -> None:
     raw = {
         "name": "my/device/name",
@@ -169,7 +170,7 @@ def test_camera_live_stream_unknown_protocols(
     ],
 )
 def test_camera_live_stream_optional_fields(
-    fake_device: Callable[[Dict[str, Any]], Device], data: dict[str, Any]
+    fake_device: Callable[[dict[str, Any]], Device], data: dict[str, Any]
 ) -> None:
     raw = {
         "name": "my/device/name",
@@ -193,7 +194,7 @@ def test_camera_live_stream_optional_fields(
     ],
 )
 def test_image_event_traits(
-    trait: str, fake_device: Callable[[Dict[str, Any]], Device]
+    trait: str, fake_device: Callable[[dict[str, Any]], Device]
 ) -> None:
     raw = {
         "name": "my/device/name",
@@ -267,7 +268,7 @@ async def test_camera_live_stream_rtsp(
     }
     assert stream.stream_token == "g.0.token"
     assert stream.expires_at == datetime.datetime(
-        2018, 1, 4, 18, 30, tzinfo=datetime.timezone.utc
+        2018, 1, 4, 18, 30, tzinfo=datetime.UTC
     )
     assert stream.rtsp_stream_url == "rtsps://someurl.com/CjY5Y3VKaTfMF?auth=g.0.token"
 
@@ -280,7 +281,7 @@ async def test_camera_live_stream_rtsp(
     }
     assert stream.stream_token == "g.1.newStreamingToken"
     assert stream.expires_at == datetime.datetime(
-        2019, 1, 4, 18, 30, tzinfo=datetime.timezone.utc
+        2019, 1, 4, 18, 30, tzinfo=datetime.UTC
     )
     assert (
         stream.rtsp_stream_url
@@ -296,7 +297,7 @@ async def test_camera_live_stream_rtsp(
     }
     assert stream.stream_token == "g.2.newStreamingToken"
     assert stream.expires_at == datetime.datetime(
-        2020, 1, 4, 18, 30, tzinfo=datetime.timezone.utc
+        2020, 1, 4, 18, 30, tzinfo=datetime.UTC
     )
     assert (
         stream.rtsp_stream_url
@@ -394,7 +395,7 @@ async def test_camera_live_stream_web_rtc(
     }
     assert stream.answer_sdp == "some-answer"
     assert stream.expires_at == datetime.datetime(
-        2018, 1, 4, 18, 30, tzinfo=datetime.timezone.utc
+        2018, 1, 4, 18, 30, tzinfo=datetime.UTC
     )
     assert stream.media_session_id == "JxdTxkkatHk4kVnXlKzQICbfVR..."
 
@@ -408,8 +409,7 @@ async def test_camera_live_stream_web_rtc(
     assert expected_request == recorder.request
     assert "some-answer" == stream.answer_sdp
     assert (
-        datetime.datetime(2019, 1, 4, 18, 30, tzinfo=datetime.timezone.utc)
-        == stream.expires_at
+        datetime.datetime(2019, 1, 4, 18, 30, tzinfo=datetime.UTC) == stream.expires_at
     )
     assert "JxdTxkkatHk4kVnXlKzQICbfVR..." == stream.media_session_id
 
@@ -422,7 +422,7 @@ async def test_camera_live_stream_web_rtc(
     }
     assert stream.answer_sdp == "some-answer"
     assert stream.expires_at == datetime.datetime(
-        2020, 1, 4, 18, 30, tzinfo=datetime.timezone.utc
+        2020, 1, 4, 18, 30, tzinfo=datetime.UTC
     )
     assert "JxdTxkkatHk4kVnXlKzQICbfVR..." == stream.media_session_id
 

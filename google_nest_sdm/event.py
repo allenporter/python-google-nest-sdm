@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 import base64
 import binascii
-from dataclasses import dataclass, field
 import datetime
-from enum import StrEnum
 import hashlib
 import json
 import logging
 import traceback
-from typing import Any, Iterable, Mapping, ClassVar
+from abc import ABC, abstractmethod
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass, field
+from enum import StrEnum
+from typing import Any, ClassVar
 
 from mashumaro import DataClassDictMixin, field_options
 from mashumaro.config import (
@@ -155,7 +156,7 @@ class UtcDateTimeSerializationStrategy(SerializationStrategy):
     def deserialize(self, value: str) -> datetime.datetime:
         dt = datetime.datetime.fromisoformat(value)
         if dt.tzinfo is None:
-            return dt.replace(tzinfo=datetime.timezone.utc)
+            return dt.replace(tzinfo=datetime.UTC)
         return dt
 
 
@@ -197,7 +198,7 @@ class ImageEventBase(DataClassDictMixin, ABC):
     @property
     def is_expired(self) -> bool:
         """Return true if the event expiration has passed."""
-        now = datetime.datetime.now(tz=datetime.timezone.utc)
+        now = datetime.datetime.now(tz=datetime.UTC)
         return self.expires_at < now
 
     def as_dict(self) -> dict[str, Any]:
@@ -397,9 +398,7 @@ class EventMessage(DataClassDictMixin):
     _auth: AbstractAuth = field(init=False, metadata={"serialize": "omit"})
 
     @classmethod
-    def create_event(
-        cls, raw_data: dict[str, Any], auth: AbstractAuth
-    ) -> "EventMessage":
+    def create_event(cls, raw_data: dict[str, Any], auth: AbstractAuth) -> EventMessage:
         """Initialize an EventMessage."""
         event_data = {**raw_data}
         _LOGGER.debug("EventMessage raw_data=%s", event_data)

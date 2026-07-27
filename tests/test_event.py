@@ -3,7 +3,8 @@ from __future__ import annotations
 import base64
 import datetime
 import json
-from typing import Any, Callable, Dict, Optional
+from collections.abc import Callable
+from typing import Any
 
 import pytest
 
@@ -18,7 +19,7 @@ from google_nest_sdm.exceptions import DecodeException
 
 
 def test_camera_sound_event(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    fake_event_message: Callable[[dict[str, Any]], EventMessage],
 ) -> None:
     event = fake_event_message(
         {
@@ -37,7 +38,7 @@ def test_camera_sound_event(
         }
     )
     assert "0120ecc7-3b57-4eb4-9941-91609f189fb4" == event.event_id
-    ts = datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.timezone.utc)
+    ts = datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.UTC)
 
     assert ts == event.timestamp
     assert "enterprises/project-id/devices/device-id" == event.resource_update_name
@@ -48,12 +49,12 @@ def test_camera_sound_event(
     assert "FWWVQVUdGNUlTU2V4MGV2aTNXV..." == e.event_id
     assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." == e.event_session_id
     assert ts == e.timestamp
-    expire_ts = datetime.datetime(2019, 1, 1, 0, 0, 31, tzinfo=datetime.timezone.utc)
+    expire_ts = datetime.datetime(2019, 1, 1, 0, 0, 31, tzinfo=datetime.UTC)
     assert expire_ts == e.expires_at
 
 
 def test_camera_person_event(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    fake_event_message: Callable[[dict[str, Any]], EventMessage],
 ) -> None:
     event = fake_event_message(
         {
@@ -73,8 +74,7 @@ def test_camera_person_event(
     )
     assert "0120ecc7-3b57-4eb4-9941-91609f189fb4" == event.event_id
     assert (
-        datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.timezone.utc)
-        == event.timestamp
+        datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.UTC) == event.timestamp
     )
     assert "enterprises/project-id/devices/device-id" == event.resource_update_name
     events = event.resource_update_events
@@ -86,7 +86,7 @@ def test_camera_person_event(
 
 
 def test_camera_motion_event(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    fake_event_message: Callable[[dict[str, Any]], EventMessage],
 ) -> None:
     event = fake_event_message(
         {
@@ -106,8 +106,7 @@ def test_camera_motion_event(
     )
     assert "0120ecc7-3b57-4eb4-9941-91609f189fb4" == event.event_id
     assert (
-        datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.timezone.utc)
-        == event.timestamp
+        datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.UTC) == event.timestamp
     )
     assert "enterprises/project-id/devices/device-id" == event.resource_update_name
     events = event.resource_update_events
@@ -119,7 +118,7 @@ def test_camera_motion_event(
 
 
 def test_doorbell_chime_event(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    fake_event_message: Callable[[dict[str, Any]], EventMessage],
 ) -> None:
     event = fake_event_message(
         {
@@ -139,8 +138,7 @@ def test_doorbell_chime_event(
     )
     assert "0120ecc7-3b57-4eb4-9941-91609f189fb4" == event.event_id
     assert (
-        datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.timezone.utc)
-        == event.timestamp
+        datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.UTC) == event.timestamp
     )
     assert "enterprises/project-id/devices/device-id" == event.resource_update_name
     events = event.resource_update_events
@@ -151,7 +149,7 @@ def test_doorbell_chime_event(
     assert "CjY5Y3VKaTZwR3o4Y19YbTVfMF..." == e.event_session_id
 
 
-def test_relation(fake_event_message: Callable[[Dict[str, Any]], EventMessage]) -> None:
+def test_relation(fake_event_message: Callable[[dict[str, Any]], EventMessage]) -> None:
     event = fake_event_message(
         {
             "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
@@ -166,8 +164,7 @@ def test_relation(fake_event_message: Callable[[Dict[str, Any]], EventMessage]) 
     )
     assert "0120ecc7-3b57-4eb4-9941-91609f189fb4" == event.event_id
     assert (
-        datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.timezone.utc)
-        == event.timestamp
+        datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.UTC) == event.timestamp
     )
     assert event.resource_update_name is None
     assert event.resource_update_events is None
@@ -180,7 +177,7 @@ def test_relation(fake_event_message: Callable[[Dict[str, Any]], EventMessage]) 
 
 
 def test_camera_clip_preview_event(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    fake_event_message: Callable[[dict[str, Any]], EventMessage],
 ) -> None:
     event = fake_event_message(
         {
@@ -199,12 +196,12 @@ def test_camera_clip_preview_event(
         }
     )
     assert "201fcd21-967a-4f82-8082-5073bd09d31f" == event.event_id
-    ts = datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.timezone.utc)
+    ts = datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.UTC)
 
     assert ts == event.timestamp
     assert "enterprises/project-id/devices/device-id" == event.resource_update_name
 
-    events: Optional[Dict[str, ImageEventBase]] = event.resource_update_events
+    events: dict[str, ImageEventBase] | None = event.resource_update_events
     assert events is not None
     assert "sdm.devices.events.CameraClipPreview.ClipPreview" in events
     e = events["sdm.devices.events.CameraClipPreview.ClipPreview"]
@@ -216,12 +213,12 @@ def test_camera_clip_preview_event(
         "2a9a7decb2936664d6e1344915850a31fc3c828c3813765d1c73be1e958f3" == e.event_id
     )
     assert "https://previewUrl/..." == e.preview_url
-    expire_ts = datetime.datetime(2019, 1, 1, 0, 15, 1, tzinfo=datetime.timezone.utc)
+    expire_ts = datetime.datetime(2019, 1, 1, 0, 15, 1, tzinfo=datetime.UTC)
     assert expire_ts == e.expires_at
 
 
 def test_event_serialization(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    fake_event_message: Callable[[dict[str, Any]], EventMessage],
 ) -> None:
     event = fake_event_message(
         {
@@ -240,12 +237,12 @@ def test_event_serialization(
         }
     )
     assert "201fcd21-967a-4f82-8082-5073bd09d31f" == event.event_id
-    ts = datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.timezone.utc)
+    ts = datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.UTC)
 
     assert ts == event.timestamp
     assert "enterprises/project-id/devices/device-id" == event.resource_update_name
 
-    events: Optional[Dict[str, ImageEventBase]] = event.resource_update_events
+    events: dict[str, ImageEventBase] | None = event.resource_update_events
     assert events is not None
     assert "sdm.devices.events.CameraClipPreview.ClipPreview" in events
     e: ImageEventBase | None = events[
@@ -270,12 +267,12 @@ def test_event_serialization(
         "2a9a7decb2936664d6e1344915850a31fc3c828c3813765d1c73be1e958f3" == e.event_id
     )
     assert "https://previewUrl/..." == e.preview_url
-    expire_ts = datetime.datetime(2019, 1, 1, 0, 15, 1, tzinfo=datetime.timezone.utc)
+    expire_ts = datetime.datetime(2019, 1, 1, 0, 15, 1, tzinfo=datetime.UTC)
     assert expire_ts == e.expires_at
 
 
 def test_update_from_events(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    fake_event_message: Callable[[dict[str, Any]], EventMessage],
 ) -> None:
     event = fake_event_message(
         {
@@ -306,7 +303,7 @@ def test_update_from_events(
         set({"sdm.devices.events.CameraMotion.Motion", "not-found"})
     )
     assert "0120ecc7-3b57-4eb4-9941-91609f189fb4" == event.event_id
-    ts = datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.timezone.utc)
+    ts = datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.UTC)
 
     assert ts == event.timestamp
     assert "enterprises/project-id/devices/device-id" == event.resource_update_name
@@ -318,7 +315,7 @@ def test_update_from_events(
     assert "EXXVQVUdGNUlTU2V4MGV2aTNXV..." == e.event_id
     assert "DkX5Y3VKaTZwR3o4Y19YbTVfMF..." == e.event_session_id
     assert ts == e.timestamp
-    expire_ts = datetime.datetime(2019, 1, 1, 0, 0, 31, tzinfo=datetime.timezone.utc)
+    expire_ts = datetime.datetime(2019, 1, 1, 0, 0, 31, tzinfo=datetime.UTC)
     assert expire_ts == e.expires_at
     event_token = EventToken.decode(e.event_token)
     assert event_token.event_id == "EXXVQVUdGNUlTU2V4MGV2aTNXV..."
@@ -381,7 +378,7 @@ def test_decode_token_failure_dict() -> None:
 
 
 def test_event_zone(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    fake_event_message: Callable[[dict[str, Any]], EventMessage],
 ) -> None:
     event = fake_event_message(
         {
@@ -402,8 +399,7 @@ def test_event_zone(
     )
     assert "0120ecc7-3b57-4eb4-9941-91609f189fb4" == event.event_id
     assert (
-        datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.timezone.utc)
-        == event.timestamp
+        datetime.datetime(2019, 1, 1, 0, 0, 1, tzinfo=datetime.UTC) == event.timestamp
     )
     assert "enterprises/project-id/devices/device-id" == event.resource_update_name
     events = event.resource_update_events
@@ -416,7 +412,7 @@ def test_event_zone(
 
 
 def test_unknown_event_type(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    fake_event_message: Callable[[dict[str, Any]], EventMessage],
 ) -> None:
     """Test at event published with a type that is not recognized."""
     event = fake_event_message(
@@ -437,14 +433,14 @@ def test_unknown_event_type(
     )
     assert event.event_id == "0120ecc7-3b57-4eb4-9941-91609f189fb4"
     assert event.timestamp == datetime.datetime(
-        2019, 1, 1, 0, 0, 1, tzinfo=datetime.timezone.utc
+        2019, 1, 1, 0, 0, 1, tzinfo=datetime.UTC
     )
     assert event.resource_update_name == "enterprises/project-id/devices/device-id"
     assert event.resource_update_events == {}
 
 
 def test_event_message_repr(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    fake_event_message: Callable[[dict[str, Any]], EventMessage],
 ) -> None:
     """Test at event published with a type that is not recognized."""
     event = fake_event_message(
@@ -472,7 +468,7 @@ def test_event_message_repr(
 
 
 def test_missing_preview_url(
-    fake_event_message: Callable[[Dict[str, Any]], EventMessage],
+    fake_event_message: Callable[[dict[str, Any]], EventMessage],
 ) -> None:
     with pytest.raises(ValueError, match="EventMessage has invalid value"):
         fake_event_message(

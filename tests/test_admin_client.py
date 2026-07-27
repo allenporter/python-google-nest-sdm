@@ -1,7 +1,8 @@
 """Tests for the admin client library."""
 
-from typing import Awaitable, Callable, Any
+from collections.abc import Awaitable, Callable
 from http import HTTPStatus
+from typing import Any
 
 import aiohttp
 import pytest
@@ -13,7 +14,7 @@ from google_nest_sdm.exceptions import (
     ConfigurationException,
 )
 
-from .conftest import Recorder, FAKE_TOKEN
+from .conftest import FAKE_TOKEN, Recorder
 
 GOOGLE_CLOUD_CONSOLE_PROJECT_ID = "google-cloud-console-project-id"
 DEVICE_ACCESS_PROJECT_ID = "device-access-project-id"

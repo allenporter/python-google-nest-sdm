@@ -229,7 +229,7 @@ class DeviceWatcherCallback:
         print(f"event_id: {event_message.event_id}")
         print("Current device state:")
         PrintDevice(self._device, self._output_type)
-        print("")
+        print()
 
 
 async def RunTool(args: argparse.Namespace, user_creds: Credentials) -> None:
