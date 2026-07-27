@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import AsyncGenerator, AsyncIterable, Awaitable, Callable
-from typing import Any, TypeVar
+from typing import Any
 
 from aiohttp.client_exceptions import ClientError
 from google import pubsub_v1
@@ -26,7 +26,6 @@ from .exceptions import (
 
 _LOGGER = logging.getLogger(__name__)
 
-_T = TypeVar("_T")
 
 RPC_TIMEOUT_SECONDS = 30.0
 STREAMING_PULL_TIMEOUT_SECONDS = 55.0
