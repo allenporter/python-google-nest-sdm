@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import logging
-from typing import Awaitable, Callable, Dict
+from collections.abc import Awaitable, Callable
 
 from .device import Device, ParentRelation
-from .exceptions import ApiException
+from .diagnostics import DEVICE_MANAGER_DIAGNOSTICS as DIAGNOSTICS
 from .event import EventMessage, RelationUpdate
 from .event_media import CachePolicy
+from .exceptions import ApiException
 from .google_nest_api import GoogleNestAPI
 from .structure import Structure
-from .diagnostics import DEVICE_MANAGER_DIAGNOSTICS as DIAGNOSTICS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,19 +24,19 @@ class DeviceManager:
     ) -> None:
         """Initialize DeviceManager."""
         self._api = api
-        self._devices: Dict[str, Device] = {}
-        self._structures: Dict[str, Structure] = {}
+        self._devices: dict[str, Device] = {}
+        self._structures: dict[str, Structure] = {}
         self._cache_policy = cache_policy if cache_policy else CachePolicy()
         self._update_callback: Callable[[EventMessage], Awaitable[None]] | None = None
         self._change_callback: Callable[[], Awaitable[None]] | None = None
 
     @property
-    def devices(self) -> Dict[str, Device]:
+    def devices(self) -> dict[str, Device]:
         """Return current state of devices."""
         return self._devices
 
     @property
-    def structures(self) -> Dict[str, Structure]:
+    def structures(self) -> dict[str, Structure]:
         """Return current state of structures."""
         return self._structures
 

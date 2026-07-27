@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import datetime
 import asyncio
+import datetime
 import enum
 import logging
 import re
 import time
-from typing import Awaitable, Callable
-
+from collections.abc import Awaitable, Callable
 
 from .auth import AbstractAuth
 from .device_manager import DeviceManager
@@ -20,7 +19,7 @@ from .exceptions import (
     ConfigurationException,
 )
 from .google_nest_api import GoogleNestAPI
-from .streaming_manager import StreamingManager, Message
+from .streaming_manager import Message, StreamingManager
 
 __all__ = [
     "GoogleNestSubscriber",

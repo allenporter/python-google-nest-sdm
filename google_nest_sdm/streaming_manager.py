@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-import logging
 import json
-from typing import Awaitable, Callable, AsyncIterable, Any, TYPE_CHECKING
+import logging
+from collections.abc import AsyncIterable, Awaitable, Callable
+from typing import TYPE_CHECKING, Any
 
 from google import pubsub_v1
 

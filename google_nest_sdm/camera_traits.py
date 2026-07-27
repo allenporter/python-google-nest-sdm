@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+import datetime
+import logging
+import urllib.parse as urlparse
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-import datetime
 from enum import Enum
-import logging
 from typing import ClassVar
-import urllib.parse as urlparse
 
 from mashumaro import DataClassDictMixin, field_options
 from mashumaro.config import BaseConfig

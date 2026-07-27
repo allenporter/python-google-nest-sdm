@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, fields
+from typing import Any, Self
+
 from mashumaro import DataClassDictMixin
 from mashumaro.config import BaseConfig
-from typing import Any, Mapping, Self
-
 
 TRAITS = "traits"
 SDM_PREFIX = "sdm."

@@ -1,26 +1,26 @@
 """Tests for event_media.py"""
 
 import datetime
-from typing import Any, Awaitable, Callable, Dict
-from unittest.mock import patch
 import logging
+from collections.abc import Awaitable, Callable
+from typing import Any
+from unittest.mock import patch
 
-import pytest
 import aiohttp
+import pytest
 
 from google_nest_sdm import diagnostics, google_nest_api
+from google_nest_sdm.camera_traits import (
+    CameraClipPreviewTrait,
+    CameraEventImageTrait,
+    CameraMotionTrait,
+    CameraPersonTrait,
+)
 from google_nest_sdm.device import Device
+from google_nest_sdm.doorbell_traits import DoorbellChimeTrait
 from google_nest_sdm.event import EventMessage, EventToken
 from google_nest_sdm.event_media import InMemoryEventMediaStore
 from google_nest_sdm.transcoder import Transcoder
-from google_nest_sdm.camera_traits import (
-    CameraMotionTrait,
-    CameraPersonTrait,
-    CameraClipPreviewTrait,
-    CameraEventImageTrait,
-)
-from google_nest_sdm.doorbell_traits import DoorbellChimeTrait
-
 
 from .conftest import (
     DeviceHandler,
@@ -28,7 +28,6 @@ from .conftest import (
     Recorder,
     assert_diagnostics,
 )
-
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -216,9 +215,9 @@ async def mock_device(
 async def test_event_manager_event_expiration(
     media_router: MediaRouter,
     device: Device,
-    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+    event_message: Callable[[dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-    ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
+    ts1 = datetime.datetime.now(tz=datetime.UTC)
     media_router.image(device.name)
     await device.async_handle_event(
         await event_message(
@@ -290,15 +289,13 @@ async def test_event_manager_cache_expiration(
     media_router: MediaRouter,
     device: Device,
     # event_media_store: InMemoryEventMediaStore,
-    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+    event_message: Callable[[dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
     num_events = 10
     event_tokens = []
-    for i in range(0, num_events):
+    for i in range(num_events):
         media_router.image(device.name)
-        ts = datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(
-            seconds=i
-        )
+        ts = datetime.datetime.now(tz=datetime.UTC) + datetime.timedelta(seconds=i)
         await device.async_handle_event(
             await event_message(
                 {
@@ -385,7 +382,7 @@ async def test_event_manager_cache_expiration(
 async def test_prefetch_image_failure_in_session(
     media_router: MediaRouter,
     device: Device,
-    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+    event_message: Callable[[dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
     """Exercise case where one image within a session fails."""
     # Send one failure response, then 3 other valid responses. The cache size
@@ -393,7 +390,7 @@ async def test_prefetch_image_failure_in_session(
     media_router.image(device.name)
     media_router.api_responses[device.name].append(aiohttp.web.Response(status=502))
 
-    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    now = datetime.datetime.now(tz=datetime.UTC)
     ts1 = now + datetime.timedelta(seconds=1)
     await device.async_handle_event(
         await event_message(
@@ -453,7 +450,7 @@ async def test_multi_device_events(
     device: Device | None,
     device_handler: DeviceHandler,
     api_client: Callable[[], Awaitable[google_nest_api.GoogleNestAPI]],
-    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+    event_message: Callable[[dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
     device_id1 = device_handler.add_device(
         traits={
@@ -490,7 +487,7 @@ async def test_multi_device_events(
     event_media_manager = devices[1].event_media_manager
     assert len(list(await event_media_manager.async_image_sessions())) == 0
 
-    ts = datetime.datetime.now(tz=datetime.timezone.utc)
+    ts = datetime.datetime.now(tz=datetime.UTC)
     media_router.image(device_id1)
     await devices[0].async_handle_event(
         await event_message(
@@ -548,9 +545,9 @@ async def test_multi_device_events(
 async def test_event_session_image(
     media_router: MediaRouter,
     device: Device,
-    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+    event_message: Callable[[dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-    ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
+    ts1 = datetime.datetime.now(tz=datetime.UTC)
     media_router.image(device.name)
     await device.async_handle_event(
         await event_message(
@@ -628,12 +625,12 @@ async def test_event_session_image(
 async def test_event_session_clip_preview(
     media_router: MediaRouter,
     device: Device,
-    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+    event_message: Callable[[dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
     callback = EventCallback()
     device.event_media_manager.set_update_callback(callback.async_handle_event)
 
-    ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
+    ts1 = datetime.datetime.now(tz=datetime.UTC)
     url = media_router.clip(device.name)
     await device.async_handle_event(
         await event_message(
@@ -765,12 +762,12 @@ async def test_event_session_clip_preview(
 async def test_event_session_without_clip(
     media_router: MediaRouter,
     device: Device,
-    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+    event_message: Callable[[dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
     callback = EventCallback()
     device.event_media_manager.set_update_callback(callback.async_handle_event)
 
-    ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
+    ts1 = datetime.datetime.now(tz=datetime.UTC)
     await device.async_handle_event(
         await event_message(
             {
@@ -855,12 +852,12 @@ async def test_event_session_without_clip(
 async def test_event_session_clip_preview_in_second_message(
     media_router: MediaRouter,
     device: Device,
-    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+    event_message: Callable[[dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
     callback = EventCallback()
     device.event_media_manager.set_update_callback(callback.async_handle_event)
 
-    ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
+    ts1 = datetime.datetime.now(tz=datetime.UTC)
     await device.async_handle_event(
         await event_message(
             {
@@ -975,7 +972,7 @@ async def test_event_session_clip_preview_in_second_message(
 async def test_event_session_clip_preview_issue(
     media_router: MediaRouter,
     device: Device,
-    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+    event_message: Callable[[dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
     """Exercise event session clip preview event ordering behavior.
 
@@ -984,7 +981,7 @@ async def test_event_session_clip_preview_issue(
     callback = EventCallback()
     device.event_media_manager.set_update_callback(callback.async_handle_event)
 
-    ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
+    ts1 = datetime.datetime.now(tz=datetime.UTC)
     await device.async_handle_event(
         await event_message(
             {
@@ -1314,7 +1311,7 @@ async def test_persisted_storage_clip_preview(device: Device) -> None:
 @pytest.mark.parametrize("device_traits", [IMAGE_DOORBELL_TRAITS])
 async def test_event_image_lookup_failure(
     device: Device,
-    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+    event_message: Callable[[dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
     # Disable pre-fetch
     event_media_manager = device.event_media_manager
@@ -1325,7 +1322,7 @@ async def test_event_image_lookup_failure(
     ).encode()
     assert not await event_media_manager.get_media_from_token(token)
 
-    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    now = datetime.datetime.now(tz=datetime.UTC)
     await device.async_handle_event(
         await event_message(
             {
@@ -1351,7 +1348,7 @@ async def test_event_image_lookup_failure(
 @pytest.mark.parametrize("device_traits", [CLIP_DOORBELL_TRAITS])
 async def test_clip_preview_lookup_failure(
     device: Device,
-    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+    event_message: Callable[[dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
     event_media_manager = device.event_media_manager
     # No media fetch so media is not visible
@@ -1360,7 +1357,7 @@ async def test_clip_preview_lookup_failure(
     token = EventToken("CjY5Y3VKaTZwR3o4Y19YbTVfMF...", "ignored-event-id").encode()
     assert not await event_media_manager.get_media_from_token(token)
 
-    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    now = datetime.datetime.now(tz=datetime.UTC)
     await device.async_handle_event(
         await event_message(
             {
@@ -1395,10 +1392,10 @@ async def test_clip_preview_lookup_failure(
 async def test_clip_preview_transcode(
     media_router: MediaRouter,
     device: Device,
-    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+    event_message: Callable[[dict[str, Any]], Awaitable[EventMessage]],
     transcoder: Transcoder,
 ) -> None:
-    ts1 = datetime.datetime.now(tz=datetime.timezone.utc)
+    ts1 = datetime.datetime.now(tz=datetime.UTC)
     clip_url = media_router.clip(device.name)
     await device.async_handle_event(
         await event_message(
@@ -1545,17 +1542,15 @@ async def test_clip_preview_transcode(
 async def test_event_manager_event_expiration_with_transcode(
     media_router: MediaRouter,
     device: Device,
-    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+    event_message: Callable[[dict[str, Any]], Awaitable[EventMessage]],
     transcoder: Transcoder,
 ) -> None:
     event_media_manager = device.event_media_manager
 
     num_events = 7
     event_tokens = []
-    for i in range(0, num_events):
-        ts = datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(
-            seconds=i
-        )
+    for i in range(num_events):
+        ts = datetime.datetime.now(tz=datetime.UTC) + datetime.timedelta(seconds=i)
         clip = media_router.clip(device.name)
         await device.async_handle_event(
             await event_message(
@@ -1629,9 +1624,9 @@ async def test_event_manager_event_expiration_with_transcode(
 async def test_unsupported_event_trait(
     media_router: MediaRouter,
     device: Device,
-    event_message: Callable[[Dict[str, Any]], Awaitable[EventMessage]],
+    event_message: Callable[[dict[str, Any]], Awaitable[EventMessage]],
 ) -> None:
-    ts = datetime.datetime.now(tz=datetime.timezone.utc)
+    ts = datetime.datetime.now(tz=datetime.UTC)
     clip_url = media_router.clip(device.name)
     await device.async_handle_event(
         await event_message(
