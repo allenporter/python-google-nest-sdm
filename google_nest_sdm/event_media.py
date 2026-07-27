@@ -421,7 +421,7 @@ class EventMediaManager:
             )
             # Bulk pop items
             for i in range(self._cache_policy.event_cache_expire_count):
-                (key, old_item) = event_data.popitem(last=False)
+                (_key, old_item) = event_data.popitem(last=False)
                 _LOGGER.debug(
                     "Expiring media %s (%s)",
                     old_item.all_media_keys,
