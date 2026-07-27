@@ -54,13 +54,13 @@ def refresh_creds(creds: OAuthCredentials) -> OAuthCredentials:
     return creds
 
 
-def exception_handler[T: Any](
+def exception_handler[T](
     func_name: str,
-) -> Callable[..., Callable[..., Awaitable[_T]]]:
+) -> Callable[[Callable[..., Awaitable[T]]], Callable[..., Awaitable[T]]]:
     """Wrap a function with exception handling."""
 
-    def wrapped(func: Callable[..., Awaitable[_T]]) -> Callable[..., Awaitable[_T]]:
-        async def wrapped_func(*args: Any, **kwargs: Any) -> _T:
+    def wrapped(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
+        async def wrapped_func(*args: Any, **kwargs: Any) -> T:
             try:
                 return await func(*args, **kwargs)
             except NotFound as err:
@@ -113,7 +113,7 @@ async def pull_request_generator(
         await asyncio.sleep(STREAM_ACK_FREQUENCY_SECONDS)
 
 
-async def aiter_exception_handler(iterable: AsyncIterable[_T]) -> AsyncIterable[_T]:
+async def aiter_exception_handler[T](iterable: AsyncIterable[T]) -> AsyncIterable[T]:
     """Wrap an async iterable with pub/sub exception handling."""
     _LOGGER.debug("Starting streaming iterator")
 
