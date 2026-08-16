@@ -1,12 +1,10 @@
 """A device from the Smart Device Management API."""
 
-from __future__ import annotations
-
 import datetime
 import logging
 from collections.abc import Awaitable, Callable
-from dataclasses import asdict, dataclass, field, fields
-from typing import Any
+from dataclasses import dataclass, field, fields
+from typing import Any, Self
 
 from mashumaro import DataClassDictMixin, field_options
 from mashumaro.config import BaseConfig
@@ -201,12 +199,9 @@ class Device(TraitTypes):
     _callbacks: list[Callable[[EventMessage], Awaitable[None]]] = field(
         init=False, metadata={"serialize": "omit"}, default_factory=list
     )
-    _trait_event_ts: dict[str, datetime.datetime] = field(
-        init=False, metadata={"serialize": "omit"}, default_factory=dict
-    )
 
     @staticmethod
-    def MakeDevice(raw_data: dict[str, Any], auth: AbstractAuth) -> Device:
+    def MakeDevice(raw_data: dict[str, Any], auth: AbstractAuth) -> "Device":
         """Create a device with the appropriate traits."""
 
         # Hack for incorrect nest API response values
@@ -312,21 +307,12 @@ class Device(TraitTypes):
                 or not (new := getattr(parsed_traits, trait_field.name))
             ):
                 continue
-            # Discard updates to traits that are newer than the update
-            if (ts := self._trait_timestamp(trait_field.name)) and ts > timestamp:
-                _LOGGER.debug("Discarding stale update (%s)", timestamp)
-                continue
 
-            # Only merge updates into existing models, updating the existing
-            # fields present in the update trait
             if not (existing := getattr(self, trait_field.name)):
                 continue
-            for k, v in asdict(new).items():
-                if v is not None:
-                    setattr(existing, k, v)
-            self._trait_event_ts[trait_field.name] = timestamp
+            existing.handle_trait_update(new, timestamp)
 
-    def merge_from_update(self, new_device: Device) -> None:
+    def merge_from_update(self, new_device: Self) -> None:
         """Merge fields from an updated device object.
 
         This is used when refreshing the device list from the API.
@@ -335,11 +321,9 @@ class Device(TraitTypes):
 
     def _trait_timestamp(self, trait_field_name: str) -> datetime.datetime | None:
         """Get the last update timestamp for a given trait field."""
-        if (ts := self._trait_event_ts.get(trait_field_name)) is None:
-            return None
-        if ts.tzinfo is None:
-            return ts.replace(tzinfo=datetime.UTC)
-        return ts
+        if trait := getattr(self, trait_field_name, None):
+            return trait.last_event_ts
+        return None
 
     @property
     def event_media_manager(self) -> EventMediaManager:

@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import ClassVar
 
-from mashumaro import DataClassDictMixin, field_options
+from mashumaro import field_options
 from mashumaro.config import BaseConfig
 from mashumaro.types import SerializationStrategy
 
@@ -23,7 +23,7 @@ from .event import (
     EventImageType,
     EventType,
 )
-from .traits import CommandDataClass, TraitType
+from .traits import BaseTrait, CommandDataClass, TraitType
 from .webrtc_util import fix_sdp_answer
 
 __all__ = [
@@ -74,7 +74,7 @@ class Resolution:
 
 
 @dataclass
-class CameraImageTrait(DataClassDictMixin):
+class CameraImageTrait(BaseTrait):
     """This trait belongs to any device that supports taking images."""
 
     NAME: ClassVar[TraitType] = TraitType.CAMERA_IMAGE
@@ -86,7 +86,7 @@ class CameraImageTrait(DataClassDictMixin):
 
 
 @dataclass
-class Stream(DataClassDictMixin, CommandDataClass, ABC):
+class Stream(CommandDataClass, ABC):
     """Base class for streams."""
 
     expires_at: datetime.datetime = field(metadata=field_options(alias="expiresAt"))
@@ -227,7 +227,7 @@ class StreamingProtocolSerializationStrategy(
 
 
 @dataclass
-class CameraLiveStreamTrait(DataClassDictMixin, CommandDataClass):
+class CameraLiveStreamTrait(CommandDataClass):
     """This trait belongs to any device that supports live streaming."""
 
     NAME: ClassVar[TraitType] = TraitType.CAMERA_LIVE_STREAM
@@ -292,7 +292,7 @@ class CameraLiveStreamTrait(DataClassDictMixin, CommandDataClass):
 
 
 @dataclass
-class EventImage(DataClassDictMixin, CommandDataClass):
+class EventImage(CommandDataClass):
     """Provides access to an image in response to an event.
 
     Use a ?width or ?height query parameters to customize the resolution
@@ -330,7 +330,7 @@ class EventImage(DataClassDictMixin, CommandDataClass):
 
 
 @dataclass
-class CameraEventImageTrait(DataClassDictMixin, CommandDataClass):
+class CameraEventImageTrait(CommandDataClass):
     """This trait belongs to any device that generates images from events."""
 
     NAME: ClassVar[TraitType] = TraitType.CAMERA_EVENT_IMAGE
@@ -351,7 +351,7 @@ class CameraEventImageTrait(DataClassDictMixin, CommandDataClass):
 
 
 @dataclass
-class CameraMotionTrait:
+class CameraMotionTrait(BaseTrait):
     """For any device that supports motion detection events."""
 
     NAME: ClassVar[TraitType] = TraitType.CAMERA_MOTION
@@ -359,7 +359,7 @@ class CameraMotionTrait:
 
 
 @dataclass
-class CameraPersonTrait:
+class CameraPersonTrait(BaseTrait):
     """For any device that supports person detection events."""
 
     NAME: ClassVar[TraitType] = TraitType.CAMERA_PERSON
@@ -367,7 +367,7 @@ class CameraPersonTrait:
 
 
 @dataclass
-class CameraSoundTrait:
+class CameraSoundTrait(BaseTrait):
     """For any device that supports sound detection events."""
 
     NAME: ClassVar[TraitType] = TraitType.CAMERA_SOUND
@@ -375,7 +375,7 @@ class CameraSoundTrait:
 
 
 @dataclass
-class CameraClipPreviewTrait(DataClassDictMixin, CommandDataClass):
+class CameraClipPreviewTrait(CommandDataClass):
     """For any device that supports a clip preview."""
 
     NAME: ClassVar[TraitType] = TraitType.CAMERA_CLIP_PREVIEW

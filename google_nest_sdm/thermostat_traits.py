@@ -1,14 +1,12 @@
 """Traits for thermostats."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 from typing import ClassVar, Final
 
 import aiohttp
-from mashumaro import DataClassDictMixin, field_options
+from mashumaro import field_options
 
-from .traits import CommandDataClass, TraitType
+from .traits import BaseTrait, CommandDataClass, TraitType
 
 __all__ = [
     "ThermostatEcoTrait",
@@ -23,7 +21,7 @@ MODE: Final = "mode"
 
 
 @dataclass
-class ThermostatEcoTrait(DataClassDictMixin, CommandDataClass):
+class ThermostatEcoTrait(CommandDataClass):
     """This trait belongs to any device that has a sensor to measure temperature."""
 
     NAME: ClassVar[TraitType] = TraitType.THERMOSTAT_ECO
@@ -56,7 +54,7 @@ class ThermostatEcoTrait(DataClassDictMixin, CommandDataClass):
 
 
 @dataclass
-class ThermostatHvacTrait:
+class ThermostatHvacTrait(BaseTrait):
     """This trait belongs to devices that can report HVAC details."""
 
     NAME: ClassVar[TraitType] = TraitType.THERMOSTAT_HVAC
@@ -66,7 +64,7 @@ class ThermostatHvacTrait:
 
 
 @dataclass
-class ThermostatModeTrait(DataClassDictMixin, CommandDataClass):
+class ThermostatModeTrait(CommandDataClass):
     """This trait belongs to devices that support different thermostat modes."""
 
     NAME: ClassVar[TraitType] = TraitType.THERMOSTAT_MODE
@@ -87,7 +85,7 @@ class ThermostatModeTrait(DataClassDictMixin, CommandDataClass):
 
 
 @dataclass
-class ThermostatTemperatureSetpointTrait(DataClassDictMixin, CommandDataClass):
+class ThermostatTemperatureSetpointTrait(CommandDataClass):
     """This trait belongs to devices that support setting target temperature."""
 
     NAME: ClassVar[TraitType] = TraitType.THERMOSTAT_TEMPERATURE_SETPOINT
