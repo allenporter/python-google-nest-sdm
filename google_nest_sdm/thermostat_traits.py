@@ -1,7 +1,6 @@
 """Traits for thermostats."""
 
 import asyncio
-import datetime
 import logging
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Final, Self
@@ -9,7 +8,6 @@ from typing import Any, ClassVar, Final, Self
 import aiohttp
 from mashumaro import field_options
 
-from .exceptions import ApiException, FailedPreconditionException
 from .traits import BaseTrait, CommandDataClass, TraitType
 
 __all__ = [
@@ -24,7 +22,6 @@ _LOGGER = logging.getLogger(__name__)
 STATUS: Final = "status"
 AVAILABLE_MODES: Final = "availableModes"
 MODE: Final = "mode"
-OPTIMISTIC_EXPIRY_SECONDS: Final = 30.0
 
 
 @dataclass(frozen=True)
@@ -33,15 +30,6 @@ class PendingSetpoint:
 
     heat_celsius: float | None = None
     cool_celsius: float | None = None
-    timestamp: datetime.datetime = field(
-        default_factory=lambda: datetime.datetime.now(datetime.UTC)
-    )
-
-    @property
-    def is_expired(self) -> bool:
-        """Return True if this setpoint has exceeded the optimistic expiry window."""
-        now = datetime.datetime.now(datetime.UTC)
-        return (now - self.timestamp).total_seconds() > OPTIMISTIC_EXPIRY_SECONDS
 
     def merge(self, other: Self) -> Self:
         """Merge a new setpoint request into this pending setpoint."""
@@ -56,7 +44,6 @@ class PendingSetpoint:
                 if other.cool_celsius is not None
                 else self.cool_celsius
             ),
-            timestamp=other.timestamp,
         )
 
     def as_command(self) -> dict[str, Any]:
@@ -151,118 +138,99 @@ class ThermostatModeTrait(CommandDataClass):
 
 @dataclass
 class ThermostatTemperatureSetpointTrait(CommandDataClass):
-    """This trait belongs to devices that support setting target temperature."""
+    """This trait belongs to devices that support setting target temperature.
+
+    Commands sent through `set_heat()`, `set_cool()`, and `set_range()` enforce
+    progressive rate limiting and command coalescing:
+    - **Rate Limiting**: Commands respect a graduated delay schedule via `RateLimiter`
+      to avoid hitting Nest SDM API rate limits.
+    - **Coalescing**: Concurrent or rapid calls occurring during a throttle delay window
+      merge into a single pending setpoint (e.g. rapid separate heat and cool changes
+      are combined into a single `SetRange` API command).
+    - **Blocking Await**: Callers await the actual rate-limited dispatch. When multiple
+      callers coalesce, they share the same in-flight dispatch; all callers resolve
+      with the `aiohttp.ClientResponse` on success or receive the raised exception on error.
+    """
 
     NAME: ClassVar[TraitType] = TraitType.THERMOSTAT_TEMPERATURE_SETPOINT
 
-    _heat_celsius: float | None = field(
+    heat_celsius: float | None = field(
         metadata=field_options(alias="heatCelsius"), default=None
     )
     """Lowest temperature where thermostat begins heating."""
 
-    _cool_celsius: float | None = field(
+    cool_celsius: float | None = field(
         metadata=field_options(alias="coolCelsius"), default=None
     )
     """Highest cooling temperature where thermostat begins cooling."""
 
     def __post_init__(self) -> None:
         self._cmd = None
-        self._optimistic: PendingSetpoint | None = None
         self._pending_setpoint: PendingSetpoint | None = None
-        self._pending_task: asyncio.Task[None] | None = None
-
-    @property
-    def heat_celsius(self) -> float | None:
-        """Lowest temperature where thermostat begins heating."""
-        if self._optimistic and not self._optimistic.is_expired:
-            return self._optimistic.heat_celsius
-        return self._heat_celsius
-
-    @property
-    def cool_celsius(self) -> float | None:
-        """Highest cooling temperature where thermostat begins cooling."""
-        if self._optimistic and not self._optimistic.is_expired:
-            return self._optimistic.cool_celsius
-        return self._cool_celsius
-
-    def handle_trait_update(
-        self, new_trait: BaseTrait, timestamp: datetime.datetime
-    ) -> bool:
-        """Update this trait from a newly parsed trait update."""
-        if not super().handle_trait_update(new_trait, timestamp):
-            return False
-        self._optimistic = None
-        return True
-
-    def _update_optimistic(self, setpoint: PendingSetpoint) -> None:
-        """Update optimistic values from pending setpoint."""
-        self._optimistic = (
-            self._optimistic.merge(setpoint) if self._optimistic else setpoint
-        )
-
-    async def _async_dispatch_pending(self) -> None:
-        """Wait for tokens and dispatch pending setpoints until queue is empty."""
-        try:
-            while self._pending_setpoint is not None:
-                await self.cmd.rate_limiter.acquire()
-                if self._pending_setpoint is None:
-                    break
-                setpoint = self._pending_setpoint
-                self._pending_setpoint = None
-
-                await self.cmd.execute(setpoint.as_command())
-        except asyncio.CancelledError:
-            _LOGGER.debug("Pending setpoint task was cancelled")
-        except FailedPreconditionException as err:
-            _LOGGER.warning(
-                "Thermostat setpoint rejected by API (invalid mode or precondition): %s",
-                err,
-            )
-            self._optimistic = None
-        except ApiException as err:
-            _LOGGER.warning("API error executing coalesced setpoint command: %s", err)
-            self._optimistic = None
-        except Exception:
-            _LOGGER.exception("Failed to execute coalesced setpoint command")
-            self._optimistic = None
-        finally:
-            self._pending_task = None
+        self._pending_future: asyncio.Future[aiohttp.ClientResponse] | None = None
+        self._lock: asyncio.Lock | None = None
 
     async def _handle_setpoint_request(
         self, setpoint: PendingSetpoint
-    ) -> aiohttp.ClientResponse | None:
-        """Handle incoming setpoint change with token bucket check."""
-        self._update_optimistic(setpoint)
+    ) -> aiohttp.ClientResponse:
+        """Handle incoming setpoint change with coalescing and blocking dispatch.
 
-        if self._pending_setpoint is None and (
-            not self._pending_task or self._pending_task.done()
-        ):
-            if self.cmd.rate_limiter.try_acquire():
-                return await self.cmd.execute(setpoint.as_command())
+        Merges the requested setpoint into any currently queued pending setpoint.
+        If a dispatch is already waiting on the rate limiter (leader), this caller
+        joins as a follower and awaits the shared future. The leader acquires the rate
+        limiter, dispatches the combined command payload to the SDM API, and resolves
+        or propagates exceptions to all waiting callers.
+        """
+        if self._lock is None:
+            self._lock = asyncio.Lock()
 
-        # Rate limited or task already in flight: coalesce and ensure worker is running
-        self._pending_setpoint = (
-            self._pending_setpoint.merge(setpoint)
-            if self._pending_setpoint
-            else setpoint
-        )
+        async with self._lock:
+            self._pending_setpoint = (
+                self._pending_setpoint.merge(setpoint)
+                if self._pending_setpoint
+                else setpoint
+            )
 
-        if not self._pending_task or self._pending_task.done():
-            self._pending_task = asyncio.create_task(self._async_dispatch_pending())
+            if self._pending_future and not self._pending_future.done():
+                future = self._pending_future
+                is_leader = False
+            else:
+                loop = asyncio.get_running_loop()
+                future = loop.create_future()
+                self._pending_future = future
+                is_leader = True
 
-        return None
+        if not is_leader:
+            return await future
 
-    async def set_heat(self, heat: float) -> aiohttp.ClientResponse | None:
+        try:
+            await self.cmd.rate_limiter.acquire()
+            async with self._lock:
+                to_send = self._pending_setpoint
+                self._pending_setpoint = None
+                self._pending_future = None
+
+            assert to_send is not None
+            response = await self.cmd.execute(to_send.as_command())
+            future.set_result(response)
+            return response
+        except BaseException as err:
+            if not future.done():
+                future.set_exception(err)
+            # Consume the exception on the future so asyncio GC doesn't warn
+            # when only the leader was present, while followers still receive it on await.
+            future.exception()
+            raise
+
+    async def set_heat(self, heat: float) -> aiohttp.ClientResponse:
         """Set the heat temperature setpoint."""
         return await self._handle_setpoint_request(PendingSetpoint(heat_celsius=heat))
 
-    async def set_cool(self, cool: float) -> aiohttp.ClientResponse | None:
+    async def set_cool(self, cool: float) -> aiohttp.ClientResponse:
         """Set the cool temperature setpoint."""
         return await self._handle_setpoint_request(PendingSetpoint(cool_celsius=cool))
 
-    async def set_range(
-        self, heat: float, cool: float
-    ) -> aiohttp.ClientResponse | None:
+    async def set_range(self, heat: float, cool: float) -> aiohttp.ClientResponse:
         """Set the heat and cool temperature range setpoints."""
         return await self._handle_setpoint_request(
             PendingSetpoint(heat_celsius=heat, cool_celsius=cool)
