@@ -1,19 +1,17 @@
 """Traits belonging to doorbell devices."""
 
-from __future__ import annotations
-
 import logging
 from dataclasses import dataclass
 from typing import ClassVar
 
 from .event import DoorbellChimeEvent, EventType
-from .traits import TraitType
+from .traits import BaseTrait, TraitType
 
 _LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
-class DoorbellChimeTrait:
+class DoorbellChimeTrait(BaseTrait):
     """For any device that supports a doorbell chime and related press events."""
 
     NAME: ClassVar[TraitType] = TraitType.DOORBELL_CHIME

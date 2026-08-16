@@ -1,17 +1,21 @@
 """Base library for all traits."""
 
-from __future__ import annotations
-
+import datetime
+import logging
 from abc import ABC
 from collections.abc import Mapping
+from dataclasses import dataclass, field, fields
 from enum import StrEnum
-from typing import Any
+from typing import Any, Self
 
 import aiohttp
+from mashumaro import DataClassDictMixin
 from mashumaro.types import SerializableType
 
 from .auth import AbstractAuth
 from .diagnostics import Diagnostics
+
+_LOGGER = logging.getLogger(__name__)
 
 DEVICE_TRAITS = "traits"
 TRAITS = "traits"
@@ -74,7 +78,40 @@ class Command(SerializableType):
             return await resp.read()
 
 
-class CommandDataClass(ABC):
+@dataclass
+class BaseTrait(DataClassDictMixin):
+    """Base class for all SDM traits."""
+
+    _last_event_ts: datetime.datetime | None = field(
+        init=False, default=None, metadata={"serialize": "omit"}
+    )
+
+    def handle_trait_update(
+        self, new_trait: Self, timestamp: datetime.datetime
+    ) -> bool:
+        """Update this trait from a newly parsed trait update."""
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=datetime.UTC)
+        if self._last_event_ts and self._last_event_ts > timestamp:
+            _LOGGER.debug("Discarding stale update (%s)", timestamp)
+            return False
+        for trait_field in fields(self):
+            if (val := getattr(new_trait, trait_field.name)) is not None:
+                setattr(self, trait_field.name, val)
+        self._last_event_ts = timestamp
+        return True
+
+    @property
+    def last_event_ts(self) -> datetime.datetime | None:
+        """Timestamp of last event update."""
+        if self._last_event_ts is None:
+            return None
+        if self._last_event_ts.tzinfo is None:
+            return self._last_event_ts.replace(tzinfo=datetime.UTC)
+        return self._last_event_ts
+
+
+class CommandDataClass(BaseTrait, ABC):
     """Base model that supports commands."""
 
     def __post_init__(self) -> None:

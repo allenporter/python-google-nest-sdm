@@ -5,13 +5,13 @@ from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
 import aiohttp
-from mashumaro import DataClassDictMixin, field_options
+from mashumaro import field_options
 
-from .traits import CommandDataClass, TraitType
+from .traits import BaseTrait, CommandDataClass, TraitType
 
 
 @dataclass
-class ConnectivityTrait(DataClassDictMixin):
+class ConnectivityTrait(BaseTrait):
     """This trait belongs to any device that has connectivity information."""
 
     NAME: ClassVar[TraitType] = TraitType.CONNECTIVITY
@@ -25,7 +25,7 @@ class ConnectivityTrait(DataClassDictMixin):
 
 
 @dataclass
-class FanTrait(DataClassDictMixin, CommandDataClass):
+class FanTrait(CommandDataClass):
     """This trait belongs to any device that can control the fan."""
 
     NAME: ClassVar[TraitType] = TraitType.FAN
@@ -59,7 +59,7 @@ class FanTrait(DataClassDictMixin, CommandDataClass):
 
 
 @dataclass
-class InfoTrait(DataClassDictMixin):
+class InfoTrait(BaseTrait):
     """This trait belongs to any device for device-related information."""
 
     NAME: ClassVar[TraitType] = TraitType.INFO
@@ -71,7 +71,7 @@ class InfoTrait(DataClassDictMixin):
 
 
 @dataclass
-class HumidityTrait(DataClassDictMixin):
+class HumidityTrait(BaseTrait):
     """This trait belongs to any device that has a sensor to measure humidity."""
 
     NAME: ClassVar[TraitType] = TraitType.HUMIDITY
@@ -83,7 +83,7 @@ class HumidityTrait(DataClassDictMixin):
 
 
 @dataclass
-class TemperatureTrait(DataClassDictMixin):
+class TemperatureTrait(BaseTrait):
     """This trait belongs to any device that has a sensor to measure temperature."""
 
     NAME: ClassVar[TraitType] = TraitType.TEMPERATURE
