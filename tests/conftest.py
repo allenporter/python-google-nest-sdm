@@ -189,7 +189,10 @@ class JsonHandler(ABC):
         data = self.response_for_path(request)
         if data is None:
             raise aiohttp.web.HTTPNotFound()
-        return aiohttp.web.json_response(data)
+        status = 200
+        if isinstance(data, dict) and "error" in data:
+            status = data["error"].get("code", 400)
+        return aiohttp.web.json_response(data, status=status)
 
 
 class DeviceHandler:

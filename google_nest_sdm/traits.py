@@ -6,7 +6,7 @@ from abc import ABC
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from enum import StrEnum
-from typing import Any, Self
+from typing import Any
 
 import aiohttp
 from mashumaro import DataClassDictMixin
@@ -14,6 +14,7 @@ from mashumaro.types import SerializableType
 
 from .auth import AbstractAuth
 from .diagnostics import Diagnostics
+from .rate_limiter import RateLimiter
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,11 +47,23 @@ class TraitType(StrEnum):
 class Command(SerializableType):
     """Base class for executing commands."""
 
-    def __init__(self, device_id: str, auth: AbstractAuth, diagnostics: Diagnostics):
+    def __init__(
+        self,
+        device_id: str,
+        auth: AbstractAuth,
+        diagnostics: Diagnostics,
+        rate_limiter: RateLimiter | None = None,
+    ):
         """Initialize Command."""
         self._device_id = device_id
         self._auth = auth
         self._diagnostics = diagnostics
+        self._rate_limiter = rate_limiter or RateLimiter()
+
+    @property
+    def rate_limiter(self) -> RateLimiter:
+        """Return the rate limiter for this command executor."""
+        return self._rate_limiter
 
     async def execute(self, data: Mapping[str, Any]) -> aiohttp.ClientResponse:
         """Run the command."""
@@ -87,7 +100,7 @@ class BaseTrait(DataClassDictMixin):
     )
 
     def handle_trait_update(
-        self, new_trait: Self, timestamp: datetime.datetime
+        self, new_trait: "BaseTrait", timestamp: datetime.datetime
     ) -> bool:
         """Update this trait from a newly parsed trait update."""
         if timestamp.tzinfo is None:
