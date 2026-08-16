@@ -150,7 +150,23 @@ class ThermostatModeTrait(CommandDataClass):
 
 @dataclass
 class ThermostatTemperatureSetpointTrait(CommandDataClass):
-    """This trait belongs to devices that support setting target temperature."""
+    """This trait belongs to devices that support setting target temperature.
+
+    Commands sent through `set_heat()`, `set_cool()`, and `set_range()` enforce
+    progressive rate limiting and command coalescing:
+    - **Rate Limiting**: Commands respect a graduated delay schedule via `RateLimiter`
+      to avoid hitting Nest SDM API rate limits.
+    - **Coalescing**: Concurrent or rapid calls occurring during a throttle delay window
+      merge into a single pending setpoint (e.g. rapid separate heat and cool changes
+      are combined into a single `SetRange` API command).
+    - **Blocking Await**: Callers await the actual rate-limited dispatch. When multiple
+      callers coalesce, they share the same in-flight dispatch; all callers resolve
+      with the `aiohttp.ClientResponse` on success or receive the raised exception on error.
+    - **Optimistic State**: Trait properties (`heat_celsius`, `cool_celsius`) immediately
+      reflect the requested target values while the command is in flight. If the command
+      fails, optimistic state is rolled back; otherwise, it is reconciled when the
+      authoritative Pub/Sub trait update arrives or after the 30-second expiry window.
+    """
 
     NAME: ClassVar[TraitType] = TraitType.THERMOSTAT_TEMPERATURE_SETPOINT
 
@@ -203,7 +219,14 @@ class ThermostatTemperatureSetpointTrait(CommandDataClass):
     async def _handle_setpoint_request(
         self, setpoint: PendingSetpoint
     ) -> aiohttp.ClientResponse:
-        """Handle incoming setpoint change with coalescing and blocking dispatch."""
+        """Handle incoming setpoint change with coalescing and blocking dispatch.
+
+        Applies optimistic state immediately and merges the requested setpoint into any
+        currently queued pending setpoint. If a dispatch is already waiting on the rate
+        limiter (leader), this caller joins as a follower and awaits the shared future.
+        The leader acquires the rate limiter, dispatches the combined command payload to the
+        SDM API, and resolves or propagates exceptions to all waiting callers.
+        """
         if self._lock is None:
             self._lock = asyncio.Lock()
 
