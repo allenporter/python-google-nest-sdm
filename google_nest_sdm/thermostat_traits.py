@@ -1,7 +1,6 @@
 """Traits for thermostats."""
 
 import asyncio
-import datetime
 import logging
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Final, Self
@@ -23,7 +22,6 @@ _LOGGER = logging.getLogger(__name__)
 STATUS: Final = "status"
 AVAILABLE_MODES: Final = "availableModes"
 MODE: Final = "mode"
-OPTIMISTIC_EXPIRY_SECONDS: Final = 30.0
 
 
 @dataclass(frozen=True)
@@ -32,15 +30,6 @@ class PendingSetpoint:
 
     heat_celsius: float | None = None
     cool_celsius: float | None = None
-    timestamp: datetime.datetime = field(
-        default_factory=lambda: datetime.datetime.now(datetime.UTC)
-    )
-
-    @property
-    def is_expired(self) -> bool:
-        """Return True if this setpoint has exceeded the optimistic expiry window."""
-        now = datetime.datetime.now(datetime.UTC)
-        return (now - self.timestamp).total_seconds() > OPTIMISTIC_EXPIRY_SECONDS
 
     def merge(self, other: Self) -> Self:
         """Merge a new setpoint request into this pending setpoint."""
@@ -55,7 +44,6 @@ class PendingSetpoint:
                 if other.cool_celsius is not None
                 else self.cool_celsius
             ),
-            timestamp=other.timestamp,
         )
 
     def as_command(self) -> dict[str, Any]:
@@ -162,76 +150,41 @@ class ThermostatTemperatureSetpointTrait(CommandDataClass):
     - **Blocking Await**: Callers await the actual rate-limited dispatch. When multiple
       callers coalesce, they share the same in-flight dispatch; all callers resolve
       with the `aiohttp.ClientResponse` on success or receive the raised exception on error.
-    - **Optimistic State**: Trait properties (`heat_celsius`, `cool_celsius`) immediately
-      reflect the requested target values while the command is in flight. If the command
-      fails, optimistic state is rolled back; otherwise, it is reconciled when the
-      authoritative Pub/Sub trait update arrives or after the 30-second expiry window.
     """
 
     NAME: ClassVar[TraitType] = TraitType.THERMOSTAT_TEMPERATURE_SETPOINT
 
-    _heat_celsius: float | None = field(
+    heat_celsius: float | None = field(
         metadata=field_options(alias="heatCelsius"), default=None
     )
     """Lowest temperature where thermostat begins heating."""
 
-    _cool_celsius: float | None = field(
+    cool_celsius: float | None = field(
         metadata=field_options(alias="coolCelsius"), default=None
     )
     """Highest cooling temperature where thermostat begins cooling."""
 
     def __post_init__(self) -> None:
         self._cmd = None
-        self._optimistic: PendingSetpoint | None = None
         self._pending_setpoint: PendingSetpoint | None = None
         self._pending_future: asyncio.Future[aiohttp.ClientResponse] | None = None
         self._lock: asyncio.Lock | None = None
-
-    @property
-    def heat_celsius(self) -> float | None:
-        """Lowest temperature where thermostat begins heating."""
-        if self._optimistic and not self._optimistic.is_expired:
-            return self._optimistic.heat_celsius
-        return self._heat_celsius
-
-    @property
-    def cool_celsius(self) -> float | None:
-        """Highest cooling temperature where thermostat begins cooling."""
-        if self._optimistic and not self._optimistic.is_expired:
-            return self._optimistic.cool_celsius
-        return self._cool_celsius
-
-    def handle_trait_update(
-        self, new_trait: BaseTrait, timestamp: datetime.datetime
-    ) -> bool:
-        """Update this trait from a newly parsed trait update."""
-        if not super().handle_trait_update(new_trait, timestamp):
-            return False
-        self._optimistic = None
-        return True
-
-    def _update_optimistic(self, setpoint: PendingSetpoint) -> None:
-        """Update optimistic values from pending setpoint."""
-        self._optimistic = (
-            self._optimistic.merge(setpoint) if self._optimistic else setpoint
-        )
 
     async def _handle_setpoint_request(
         self, setpoint: PendingSetpoint
     ) -> aiohttp.ClientResponse:
         """Handle incoming setpoint change with coalescing and blocking dispatch.
 
-        Applies optimistic state immediately and merges the requested setpoint into any
-        currently queued pending setpoint. If a dispatch is already waiting on the rate
-        limiter (leader), this caller joins as a follower and awaits the shared future.
-        The leader acquires the rate limiter, dispatches the combined command payload to the
-        SDM API, and resolves or propagates exceptions to all waiting callers.
+        Merges the requested setpoint into any currently queued pending setpoint.
+        If a dispatch is already waiting on the rate limiter (leader), this caller
+        joins as a follower and awaits the shared future. The leader acquires the rate
+        limiter, dispatches the combined command payload to the SDM API, and resolves
+        or propagates exceptions to all waiting callers.
         """
         if self._lock is None:
             self._lock = asyncio.Lock()
 
         async with self._lock:
-            self._update_optimistic(setpoint)
             self._pending_setpoint = (
                 self._pending_setpoint.merge(setpoint)
                 if self._pending_setpoint
@@ -262,7 +215,6 @@ class ThermostatTemperatureSetpointTrait(CommandDataClass):
             future.set_result(response)
             return response
         except BaseException as err:
-            self._optimistic = None
             if not future.done():
                 future.set_exception(err)
             # Consume the exception on the future so asyncio GC doesn't warn

@@ -1,13 +1,11 @@
 """Tests for thermostat traits."""
 
 import asyncio
-import datetime
 from collections.abc import Callable
 from typing import Any
 
 import aiohttp
 import pytest
-from freezegun import freeze_time
 
 from google_nest_sdm import google_nest_api
 from google_nest_sdm.device import Device
@@ -406,9 +404,6 @@ async def test_thermostat_temperature_range_merge(
     )
     assert len(results) == 2
 
-    assert trait.heat_celsius == 22.0
-    assert trait.cool_celsius == 25.0
-
     assert recorder.request == {
         "command": "sdm.devices.commands.ThermostatTemperatureSetpoint.SetRange",
         "params": {
@@ -416,36 +411,6 @@ async def test_thermostat_temperature_range_merge(
             "coolCelsius": 25.0,
         },
     }
-
-
-async def test_thermostat_temperature_optimistic_expiry(
-    app: aiohttp.web.Application,
-    recorder: Recorder,
-    device_handler: DeviceHandler,
-    api: google_nest_api.GoogleNestAPI,
-) -> None:
-    device_id = device_handler.add_device(
-        traits={
-            "sdm.devices.traits.ThermostatTemperatureSetpoint": {
-                "heatCelsius": 20.0,
-            },
-        }
-    )
-    device_handler.add_device_command(device_id, [{}])
-    devices = await api.async_get_devices()
-    device = devices[0]
-    trait = device.traits["sdm.devices.traits.ThermostatTemperatureSetpoint"]
-    assert trait.heat_celsius == 20.0
-
-    with freeze_time("2026-08-16 12:00:00") as frozen_time:
-        await trait.set_heat(25.0)
-
-        # Within 30s optimistic window
-        assert trait.heat_celsius == 25.0
-
-        # Expired (> 30s)
-        frozen_time.tick(delta=datetime.timedelta(seconds=31))
-        assert trait.heat_celsius == 20.0
 
 
 async def test_thermostat_temperature_pubsub_reconciliation(
@@ -467,9 +432,8 @@ async def test_thermostat_temperature_pubsub_reconciliation(
     device = devices[0]
     trait = device.traits["sdm.devices.traits.ThermostatTemperatureSetpoint"]
 
-    # User adjusts temperature -> optimistic state reflects target immediately
+    # User adjusts temperature -> command is dispatched
     await trait.set_heat(23.0)
-    assert trait.heat_celsius == 23.0
 
     # PubSub update arrives confirming new temperature
     event = fake_event_message(
@@ -492,7 +456,7 @@ async def test_thermostat_temperature_pubsub_reconciliation(
     assert trait.heat_celsius == 23.0
 
 
-async def test_thermostat_temperature_failed_precondition_clears_optimistic(
+async def test_thermostat_temperature_failed_precondition(
     app: aiohttp.web.Application,
     recorder: Recorder,
     device_handler: DeviceHandler,
@@ -529,13 +493,12 @@ async def test_thermostat_temperature_failed_precondition_clears_optimistic(
 
     # Immediate call succeeds
     await trait.set_heat(21.0)
-    assert trait.heat_celsius == 21.0
 
     # Second call is rate-limited and when dispatched raises FailedPreconditionException directly
     with pytest.raises(FailedPreconditionException, match="Thermostat is in ECO mode"):
         await trait.set_heat(25.0)
 
-    # Optimistic state is cleared and snaps back to actual trait value
+    # Trait value remains unchanged from initial/authoritative state
     assert trait.heat_celsius == 20.0
 
 
@@ -576,7 +539,10 @@ async def test_thermostat_temperature_coalesced_failure_propagates_to_all_caller
 
     # Immediate call succeeds
     await trait.set_heat(21.0)
-    assert trait.heat_celsius == 21.0
+    assert recorder.request == {
+        "command": "sdm.devices.commands.ThermostatTemperatureSetpoint.SetHeat",
+        "params": {"heatCelsius": 21.0},
+    }
 
     # Multiple concurrent callers coalesce into the second throttled command
     results = await asyncio.gather(
