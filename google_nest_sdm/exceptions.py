@@ -33,6 +33,10 @@ class ApiForbiddenException(ApiException):
     """Raised when the user is not authorized to perform a specific function."""
 
 
+class FailedPreconditionException(ApiException):
+    """Raised when the API returns a FAILED_PRECONDITION error (e.g. invalid mode)."""
+
+
 class ConfigurationException(GoogleNestException):
     """Raised due to misconfiguration problems."""
 

@@ -31,6 +31,7 @@ from .exceptions import (
     ApiForbiddenException,
     ApiTimeoutException,
     AuthException,
+    FailedPreconditionException,
     NotFoundException,
 )
 
@@ -208,6 +209,8 @@ class AbstractAuth(ABC):
             error_message = f"{err.message} response from API ({resp.status})"
             if error_detail:
                 error_message += f": {error_detail}"
+                if error_detail.status == "FAILED_PRECONDITION":
+                    raise FailedPreconditionException(error_message)
             if err.status == HTTPStatus.FORBIDDEN:
                 raise ApiForbiddenException(error_message)
             if err.status == HTTPStatus.UNAUTHORIZED:

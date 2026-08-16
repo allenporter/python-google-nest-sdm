@@ -8,7 +8,7 @@ from aiohttp.test_utils import TestClient, TestServer
 from yarl import URL
 
 from google_nest_sdm.auth import AbstractAuth
-from google_nest_sdm.exceptions import ApiException
+from google_nest_sdm.exceptions import ApiException, FailedPreconditionException
 
 
 async def test_request(
@@ -197,4 +197,26 @@ async def test_post_json_response_unexpected_text(
 
     auth = await auth_client("/path-prefix")
     with pytest.raises(ApiException):
+        await auth.post_json("some-path")
+
+
+async def test_failed_precondition_error(
+    app: aiohttp.web.Application, auth_client: Callable[[str], Awaitable[AbstractAuth]]
+) -> None:
+    async def handler(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        return aiohttp.web.json_response(
+            {
+                "error": {
+                    "code": 400,
+                    "message": "Thermostat is in ECO mode.",
+                    "status": "FAILED_PRECONDITION",
+                }
+            },
+            status=400,
+        )
+
+    app.router.add_post("/path-prefix/some-path", handler)
+
+    auth = await auth_client("/path-prefix")
+    with pytest.raises(FailedPreconditionException, match="Thermostat is in ECO mode"):
         await auth.post_json("some-path")
