@@ -21,5 +21,5 @@ protobuf==7.36.1
 pytest-aiohttp==1.1.1
 pytest-asyncio==1.4.0
 PyYAML==6.0.3
-urllib3==2.7.0
+urllib3==2.8.0
 mashumaro==3.22
