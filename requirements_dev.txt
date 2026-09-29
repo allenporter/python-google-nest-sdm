@@ -14,7 +14,7 @@ freezegun==1.5.5
 google-api-core==2.39.0
 google-auth==2.59.0
 google-cloud-pubsub==2.41.0
-googleapis-common-protos==1.75.4
+googleapis-common-protos==1.75.5
 grpcio==1.84.0
 grpcio-status==1.84.0
 protobuf==7.36.2
