@@ -9,7 +9,7 @@ pytest==8.4.2
 ruff==0.16.10
 
 
-aiohttp==3.14.3
+aiohttp==3.14.4
 freezegun==1.5.5
 google-api-core==2.40.0
 google-auth==2.59.1
