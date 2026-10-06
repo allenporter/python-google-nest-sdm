@@ -267,8 +267,15 @@ class CameraLiveStreamTrait(CommandDataClass):
         obj._cmd = self.cmd
         return obj
 
-    async def generate_web_rtc_stream(self, offer_sdp: str) -> WebRtcStream:
-        """Request a token to access a Web RTC live stream URL."""
+    async def generate_web_rtc_stream(
+        self, offer_sdp: str, *, force_fix_answer_sdp: bool = False
+    ) -> WebRtcStream:
+        """Request a token to access a Web RTC live stream URL.
+
+        force_fix_answer_sdp=True indicates that compatibility fixes should be
+        applied (by default, some are conditionally applied based on the
+        offer_sdp).
+        """
         if StreamingProtocol.WEB_RTC not in self.supported_protocols:
             raise ValueError("Device does not support WEB_RTC stream")
         data = {
@@ -280,7 +287,9 @@ class CameraLiveStreamTrait(CommandDataClass):
         obj = WebRtcStream.from_dict(results)
         obj._cmd = self.cmd
         _LOGGER.debug("Received answer_sdp: %s", obj.answer_sdp)
-        obj.answer_sdp = fix_sdp_answer(offer_sdp, obj.answer_sdp)
+        obj.answer_sdp = fix_sdp_answer(
+            offer_sdp, obj.answer_sdp, force=force_fix_answer_sdp
+        )
         _LOGGER.debug("Return answer_sdp: %s", obj.answer_sdp)
         return obj
 
