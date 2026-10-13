@@ -350,7 +350,7 @@ class Device(TraitTypes):
             **self._diagnostics.as_dict(),
         }
 
-    class Config(TraitTypes.Config):
+    class Config(TraitTypes.Config):  # ty: ignore[invalid-attribute-override]
         serialization_strategy = {
             list[ParentRelation]: ParentRelationsSerializationStrategy(),
         }
