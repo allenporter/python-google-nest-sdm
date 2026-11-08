@@ -52,4 +52,4 @@ jobs:
 
       - name: Static typing with ty
         run: |
-          ty check . --ignore unresolved-import
+          ty check . --ignore import-not-found
