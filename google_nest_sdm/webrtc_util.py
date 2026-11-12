@@ -79,13 +79,13 @@ def _add_foundation_to_candidates(sdp: str) -> str:
     return "\r\n".join(updated_sdp_lines)
 
 
-def fix_sdp_answer(offer_sdp: str, answer_sdp: str) -> str:
+def fix_sdp_answer(offer_sdp: str, answer_sdp: str, *, force: bool = False) -> str:
     """Fix the answer SDP which is rejected by the browser
 
-    For both firefox and chromium >= 143
+    For all offers
     1. If offer SDP is recvonly, the direction of answer SDP must not be sendrecv.
 
-    For firefox only
+    For firefox only, or when force=True
     1. If the ICE candidates in answer SDP must contain "foundation" field.
     """
 
@@ -109,6 +109,6 @@ def fix_sdp_answer(offer_sdp: str, answer_sdp: str) -> str:
             old_direction=SDPDirection.SENDRECV,
             new_direction=SDPDirection.SENDONLY,
         )
-    if "mozilla" in offer_sdp:
+    if force or "mozilla" in offer_sdp:
         return _add_foundation_to_candidates(answer_sdp)
     return answer_sdp
