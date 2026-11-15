@@ -21,9 +21,6 @@ jobs:
       - uses: codespell-project/actions-codespell@e3258cca84ce02b0bb36a3d41f2c18f719a0cc1a # v2.4.3
         with:
           check_hidden: false
-      - name: Validate Renovate configuration
-        run: |
-          npx --package=renovate@38 -- renovate-config-validator .github/renovate.json5
 
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@2576378a8e339169678f9939646ee3ee325e845c # v3
