@@ -85,7 +85,7 @@ def fix_sdp_answer(offer_sdp: str, answer_sdp: str) -> str:
     For both firefox and chromium >= 143
     1. If offer SDP is recvonly, the direction of answer SDP must not be sendrecv.
 
-    For firefox only
+    For firefox, aiortc, and other strict parsers:
     1. If the ICE candidates in answer SDP must contain "foundation" field.
     """
 
@@ -109,6 +109,5 @@ def fix_sdp_answer(offer_sdp: str, answer_sdp: str) -> str:
             old_direction=SDPDirection.SENDRECV,
             new_direction=SDPDirection.SENDONLY,
         )
-    if "mozilla" in offer_sdp:
-        return _add_foundation_to_candidates(answer_sdp)
+    answer_sdp = _add_foundation_to_candidates(answer_sdp)
     return answer_sdp
