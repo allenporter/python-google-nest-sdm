@@ -62,6 +62,17 @@ SUBSCRIPTION_ID="projects/some-id/subscriptions/enterprise-some-project-id-pytho
 google_nest --project_id="${PROJECT_ID}" subscribe ${SUBSCRIPTION_ID}
 ```
 
+# Known Issues
+
+* **Event image pre-fetching on WebRTC-only cameras**: Google's SDM API can
+  advertise the `sdm.devices.traits.CameraEventImage` trait on cameras that only
+  support `WEB_RTC` (and not `RTSP`), causing `CameraEventImage.GenerateImage`
+  to fail with a `400 INVALID_ARGUMENT` error. This is an upstream SDM API issue
+  ([#358755975](https://issuetracker.google.com/issues/358755975),
+  [#457610949](https://issuetracker.google.com/issues/457610949)). As a
+  workaround, `EventMediaManager` automatically disables further event image
+  pre-fetching for a device after receiving this error.
+
 # Development
 
 ```
