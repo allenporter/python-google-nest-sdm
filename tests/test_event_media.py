@@ -1756,3 +1756,188 @@ async def test_invalid_events_persisted(device: Device) -> None:
 
     with pytest.raises(ValueError, match="EventMediaModelItem has invalid value"):
         list(await event_media_manager.async_image_sessions())
+
+
+@pytest.mark.parametrize("device_traits", [IMAGE_MOTION_ONLY_CAMERA_TRAITS])
+async def test_event_image_unsupported_disables_prefetch(
+    device_handler: DeviceHandler,
+    device: Device,
+    event_message: Callable[[dict[str, Any]], Awaitable[EventMessage]],
+) -> None:
+    """Test that an unsupported GenerateImage error disables future image fetches."""
+    callback = EventCallback()
+    device.event_media_manager.set_update_callback(callback.async_handle_event)
+
+    # Register only a single error response; a second GenerateImage call would fail
+    # with an unexpected request error if pre-fetching were not disabled.
+    device_handler.add_device_command(
+        device.name,
+        [
+            {
+                "error": {
+                    "code": 400,
+                    "status": "INVALID_ARGUMENT",
+                    "message": (
+                        "Command sdm.devices.commands.CameraEventImage.GenerateImage "
+                        "is not supported due to camera not supporting RTSP protocol."
+                    ),
+                }
+            }
+        ],
+    )
+
+    ts1 = datetime.datetime.now(tz=datetime.UTC)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": ts1.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": device.name,
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "session-1",
+                            "eventId": "event-1",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    assert len(callback.messages) == 1
+
+    # Second event should not attempt GenerateImage again and should still notify.
+    ts2 = ts1 + datetime.timedelta(seconds=5)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "a94b2115-3b57-4eb4-8830-80519f188ec9",
+                "timestamp": ts2.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": device.name,
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "session-2",
+                            "eventId": "event-2",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    assert len(callback.messages) == 2
+
+    assert_diagnostics(
+        device.get_diagnostics().get("event_media", {}),
+        {
+            "event": 2,
+            "event.fetch": 1,
+            "event.new": 2,
+            "event.notify": 2,
+            "fetch_image": 1,
+            "fetch_image.unsupported": 1,
+            "sdm.devices.events.CameraMotion.Motion_count": 2,
+        },
+    )
+
+
+@pytest.mark.parametrize("device_traits", [IMAGE_MOTION_ONLY_CAMERA_TRAITS])
+@pytest.mark.parametrize(
+    "error_response",
+    [
+        {
+            "code": 400,
+            "status": "INVALID_ARGUMENT",
+            "message": "Invalid eventId.",
+        },
+        {
+            "code": 400,
+            "status": "INVALID_ARGUMENT",
+            "message": "Token type not supported.",
+        },
+        {
+            "code": 401,
+            "status": "UNAUTHENTICATED",
+            "message": "Request had invalid authentication credentials.",
+        },
+    ],
+)
+async def test_event_image_transient_error_keeps_prefetch(
+    device_handler: DeviceHandler,
+    media_router: MediaRouter,
+    device: Device,
+    event_message: Callable[[dict[str, Any]], Awaitable[EventMessage]],
+    error_response: dict[str, Any],
+) -> None:
+    """Test that other GenerateImage errors do not disable future image fetches."""
+    callback = EventCallback()
+    device.event_media_manager.set_update_callback(callback.async_handle_event)
+
+    device_handler.add_device_command(
+        device.name,
+        [{"error": error_response}],
+    )
+
+    ts1 = datetime.datetime.now(tz=datetime.UTC)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "0120ecc7-3b57-4eb4-9941-91609f189fb4",
+                "timestamp": ts1.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": device.name,
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "session-1",
+                            "eventId": "event-1",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    assert len(callback.messages) == 1
+
+    # Next event should still fetch media normally.
+    ts2 = ts1 + datetime.timedelta(seconds=5)
+    media_router.image(device.name)
+    await device.async_handle_event(
+        await event_message(
+            {
+                "eventId": "a94b2115-3b57-4eb4-8830-80519f188ec9",
+                "timestamp": ts2.isoformat(timespec="seconds"),
+                "resourceUpdate": {
+                    "name": device.name,
+                    "events": {
+                        "sdm.devices.events.CameraMotion.Motion": {
+                            "eventSessionId": "session-2",
+                            "eventId": "event-2",
+                        },
+                    },
+                },
+                "userId": "AVPHwEuBfnPOnTqzVFT4IONX2Qqhu9EJ4ubO-bNnQ-yi",
+            }
+        )
+    )
+    assert len(callback.messages) == 2
+
+    sessions = await device.event_media_manager.async_image_sessions()
+    assert len(sessions) == 1
+
+    assert_diagnostics(
+        device.get_diagnostics().get("event_media", {}),
+        {
+            "event": 2,
+            "event.fetch": 2,
+            "event.fetch_error": 1,
+            "event.new": 2,
+            "event.notify": 2,
+            "fetch_image": 2,
+            "fetch_image.save": 1,
+            "load_image_sessions": 1,
+            "sdm.devices.events.CameraMotion.Motion_count": 2,
+        },
+    )

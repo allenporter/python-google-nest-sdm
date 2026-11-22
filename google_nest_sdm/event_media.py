@@ -44,7 +44,7 @@ from .event import (
     ImageEventBase,
     session_event_image_type,
 )
-from .exceptions import GoogleNestException, TranscodeException
+from .exceptions import ApiException, GoogleNestException, TranscodeException
 from .transcoder import Transcoder
 
 __all__ = [
@@ -73,6 +73,10 @@ VISIBLE_EVENTS = [
 
 # Percentage of items to delete when bulk purging from the cache
 EXPIRE_CACHE_BATCH_SIZE = 0.05
+
+# Workaround for Nest SDM advertising CameraEventImage on cameras that do not
+# support RTSP (e.g. legacy cameras migrated to the Google Home app).
+_UNSUPPORTED_GENERATE_IMAGE_ERROR = "not supporting RTSP"
 
 
 @dataclass
@@ -345,12 +349,14 @@ class EventMediaManager:
         self._event_traits = event_traits
         self._cache_policy = CachePolicy()
         self._callback: Callable[[EventMessage], Awaitable[None]] | None = None
-        self._support_fetch = (
-            CameraClipPreviewTrait.NAME in traits
-            or CameraEventImageTrait.NAME in traits
-        )
+        self._support_event_image = CameraEventImageTrait.NAME in traits
         self._diagnostics = diagnostics
         self._lock: asyncio.Lock | None = None
+
+    @property
+    def _support_fetch(self) -> bool:
+        """Return True if the device supports pre-fetching event media."""
+        return CameraClipPreviewTrait.NAME in self._traits or self._support_event_image
 
     @property
     def cache_policy(self) -> CachePolicy:
@@ -467,7 +473,7 @@ class EventMediaManager:
                 await store.async_save_media(media_key, content)
                 return
 
-        if CameraEventImageTrait.NAME not in self._traits:
+        if not self._support_event_image:
             return
         self._diagnostics.increment("fetch_image")
 
@@ -478,7 +484,21 @@ class EventMediaManager:
             if event.event_id in item.event_media_keys or event.is_expired:
                 self._diagnostics.increment("fetch_image.skip")
                 continue
-            event_image = await event_image_trait.generate_image(event.event_id)
+            try:
+                event_image = await event_image_trait.generate_image(event.event_id)
+            except ApiException as err:
+                if "INVALID_ARGUMENT" in str(
+                    err
+                ) and _UNSUPPORTED_GENERATE_IMAGE_ERROR in str(err):
+                    _LOGGER.debug(
+                        "Disabling event image pre-fetching for device '%s': %s",
+                        self._device_id,
+                        str(err),
+                    )
+                    self._diagnostics.increment("fetch_image.unsupported")
+                    self._support_event_image = False
+                    return
+                raise
             content = await event_image.contents(width=SNAPSHOT_WIDTH_PX)
 
             # Caller will persist the media key assignment
